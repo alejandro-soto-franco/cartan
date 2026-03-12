@@ -13,8 +13,8 @@ members = [
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/sotofranco/cartan"
+license = "MIT"
+repository = "https://github.com/alejandro-soto-franco/cartan"
 keywords = ["riemannian", "manifold", "optimization", "geometry", "geodesic"]
 categories = ["mathematics", "science", "algorithms"]
 
