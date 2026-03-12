@@ -17,6 +17,7 @@
 //! find-and-replace refactor.
 
 pub mod error;
+pub mod manifold;
 
 /// The floating-point type used throughout cartan.
 ///
@@ -26,3 +27,4 @@ pub mod error;
 pub type Real = f64;
 
 pub use error::CartanError;
+pub use manifold::Manifold;
