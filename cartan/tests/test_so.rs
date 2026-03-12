@@ -111,9 +111,8 @@ fn so3_retraction() {
 /// This test is kept to track the bug (see: Milnor 1976, Lemma 1.5;
 /// do Carmo 1992, §3.2 Prop 3.5).
 ///
-/// When the bug is fixed, this test should pass with tol = 1e-8.
+/// Curvature identities: skew-symmetry R(U,V)W = -R(V,U)W and first Bianchi identity.
 #[test]
-#[should_panic(expected = "skew-symmetry")]
 fn so3_curvature() {
     let manifold = SpecialOrthogonal::<3>;
     common::matrix_harness::test_matrix_curvature::<3, _>(&manifold, 1e-8, 100);

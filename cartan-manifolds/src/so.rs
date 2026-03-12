@@ -881,15 +881,17 @@ impl<const N: usize> Curvature for SpecialOrthogonal<N> {
         let omega_v = &r_t * v; // Ω_V = R^T V ∈ so(N)
         let omega_w = &r_t * w; // Ω_W = R^T W ∈ so(N)
 
-        // Step 2: Inner Lie bracket [Ω_V, Ω_W] = Ω_V Ω_W - Ω_W Ω_V.
-        let bracket_vw = &omega_v * &omega_w - &omega_w * &omega_v;
+        // Step 2: Inner Lie bracket [Ω_U, Ω_V] = Ω_U Ω_V - Ω_V Ω_U.
+        let bracket_uv = &omega_u * &omega_v - &omega_v * &omega_u;
 
-        // Step 3: Outer Lie bracket [Ω_U, [Ω_V, Ω_W]] = Ω_U bracket_vw - bracket_vw Ω_U.
-        let bracket_u_vw = &omega_u * &bracket_vw - &bracket_vw * &omega_u;
+        // Step 3: Double Lie bracket [[Ω_U, Ω_V], Ω_W] = bracket_uv Ω_W - Ω_W bracket_uv.
+        // NOTE: The bracket order matters for skew-symmetry in (U,V). Only [[X,Y],Z] is
+        // skew-symmetric in (X,Y); [X,[Y,Z]] is NOT. Ref: Milnor 1976, Lemma 1.5.
+        let double_bracket = &bracket_uv * &omega_w - &omega_w * &bracket_uv;
 
         // Step 4: Apply curvature formula and left-translate back to T_R SO(N).
-        //   R(U,V)W = -(1/4) R [Ω_U, [Ω_V, Ω_W]]
-        p * bracket_u_vw * (-0.25)
+        //   R(U,V)W = -(1/4) R [[Ω_U, Ω_V], Ω_W]
+        p * double_bracket * (-0.25)
     }
 
     /// Sectional curvature of SO(N) with the bi-invariant metric.
