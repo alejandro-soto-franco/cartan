@@ -15,7 +15,7 @@
 //! one derives:
 //!
 //! - **Sectional curvature** K(sigma) for a 2-plane sigma = span{X, Y}:
-//!     K(sigma) = <R(X,Y)Y, X> / (<X,X><Y,Y> - <X,Y>^2)
+//!   K(sigma) = <R(X,Y)Y, X> / (<X,X><Y,Y> - <X,Y>^2).
 //!   Controls geodesic spreading: K > 0 makes geodesics converge (sphere),
 //!   K < 0 makes them diverge (hyperbolic space), K = 0 flat (Euclidean).
 //!
