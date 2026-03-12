@@ -21,9 +21,8 @@
 //! (all v0.1 manifolds are complete by Hopf-Rinow), the exponential map
 //! is defined on all of T_pM. The logarithmic map fails at the cut locus.
 //!
-//! **Default retract:** The base trait provides a default retract() that calls
-//! exp(). Manifolds with cheaper retractions override via the Retraction trait.
-//! This lets solvers always call retract() without branching.
+//! **Retraction:** Cheap retractions live on the `Retraction` trait, not the base
+//! `Manifold` trait. Callers that don't need cheap retraction use `exp()` directly.
 //!
 //! ## References
 //!
@@ -170,15 +169,6 @@ pub trait Manifold {
     /// Checks the tangent space constraint (e.g., p^T v = 0 for sphere)
     /// to within numerical tolerance. Assumes p is a valid manifold point.
     fn check_tangent(&self, p: &Self::Point, v: &Self::Tangent) -> Result<(), CartanError>;
-
-    /// Default retraction: calls exp.
-    ///
-    /// Manifolds with cheaper retractions override this via the Retraction
-    /// trait (e.g., QR retraction on Stiefel is O(nk^2) vs exp at O((n+k)^3)).
-    /// Solvers call retract() uniformly without branching on trait availability.
-    fn retract(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Point {
-        self.exp(p, v)
-    }
 
     /// Random point on the manifold.
     ///
