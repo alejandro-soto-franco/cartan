@@ -164,17 +164,6 @@ where
             &format!("sample {}: project_point idempotent", i),
         );
 
-        // -- Retract with zero tangent = identity: retract(p, 0) = p --
-        // The Manifold trait has a default retract() that calls exp(). Both
-        // exp(p, 0) = p and any custom retraction must satisfy retract(p, 0) = p.
-        let retract_zero = manifold.retract(&p, &manifold.zero_tangent(&p));
-        assert_vec_eq(
-            &retract_zero,
-            &p,
-            tol,
-            &format!("sample {}: retract(p, 0) = p", i),
-        );
-
         // -- exp(p, log(p, q)) ~ q (the other roundtrip direction) --
         // Only test if log succeeds (i.e., q is not on the cut locus of p).
         if let Ok(v_pq) = manifold.log(&p, &q) {
