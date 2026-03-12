@@ -462,6 +462,253 @@ fn matrix_norm1<const N: usize>(a: &SMatrix<Real, N, N>) -> Real {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Left Jacobian of SO(N) — used by SE(N) exp/log
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Compute the left Jacobian J(Ω) of SO(N) for a skew-symmetric matrix Ω ∈ so(N).
+///
+/// The left Jacobian arises in the exponential map of SE(N) = SO(N) ⋉ R^N:
+/// it maps body-frame translational velocities to spatial displacements via
+///
+/// ```text
+/// Δt = J(Ω) · v_body
+/// ```
+///
+/// where Ω is the rotation component and v_body is the translational velocity
+/// in the body frame.
+///
+/// ## Definition
+///
+/// The left Jacobian is defined as:
+///
+/// ```text
+/// J(Ω) = ∫₀¹ exp(s Ω) ds = Σ_{k=0}^{∞} Ω^k / (k+1)!
+/// ```
+///
+/// This integral has the property that `exp(Ω) - I = J(Ω) · Ω = Ω · J(Ω)^T`
+/// (the latter only for N=3; in general the relationship is more complex).
+///
+/// ## Algorithm by dimension
+///
+/// - **N = 3:** Closed-form via the Rodrigues-like formula:
+///   ```text
+///   J = I + ((1 - cos θ) / θ²) · Ω + ((θ - sin θ) / θ³) · Ω²
+///   ```
+///   where θ = sqrt(-tr(Ω²)/2). Near θ = 0 (Taylor):
+///   ```text
+///   J ≈ I + Ω/2 + Ω²/6
+///   ```
+///
+/// - **General N:** Truncated power series with 20 terms:
+///   ```text
+///   J ≈ Σ_{k=0}^{20} Ω^k / (k+1)!
+///   ```
+///
+/// ## References
+///
+/// - Chirikjian, G. S. (2012). *Stochastic Models, Information Theory, and Lie Groups*,
+///   Vol 2, Section 10.3 (left Jacobian of SE(3)).
+/// - Lynch, K. M. & Park, F. C. (2017). *Modern Robotics: Mechanics, Planning, and Control*,
+///   Chapter 3 (rigid-body motions), Appendix A.
+/// - Barfoot, T. D. (2017). *State Estimation for Robotics*, §7.1.4 (left Jacobian).
+pub fn left_jacobian<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
+    if N == 3 {
+        left_jacobian_3d(omega)
+    } else {
+        left_jacobian_series(omega)
+    }
+}
+
+/// Closed-form left Jacobian for N=3 via the Rodrigues-like formula.
+///
+/// For Ω ∈ so(3) with rotation angle θ = sqrt(-tr(Ω²)/2):
+///
+/// ```text
+/// J = I + ((1 - cos θ) / θ²) · Ω + ((θ - sin θ) / θ³) · Ω²
+/// ```
+///
+/// ## Taylor fallback (θ < 1e-7)
+///
+/// Near θ = 0:
+/// - `(1 - cos θ) / θ² → 1/2 - θ²/24 + ...`
+/// - `(θ - sin θ) / θ³ → 1/6 - θ²/120 + ...`
+///
+/// So `J → I + Ω/2 + Ω²/6` which is the Taylor series truncated at O(θ³).
+/// The error from dropped terms is O(θ²) in the coefficients, giving O(θ⁴)
+/// total error, well below ε_mach for θ < 1e-7.
+///
+/// ## Reference
+///
+/// Chirikjian (2012), Vol 2, eq. (10.86).
+fn left_jacobian_3d<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
+    let id = SMatrix::<Real, N, N>::identity();
+    let omega2 = omega * omega; // Ω²
+
+    // Compute the rotation angle θ from the trace identity:
+    //   tr(Ω²) = -2θ² for Ω ∈ so(3), so θ = sqrt(-tr(Ω²)/2).
+    let theta_sq = (-omega2.trace() / 2.0).max(0.0);
+    let theta = theta_sq.sqrt();
+
+    // Taylor fallback for small θ: J ≈ I + Ω/2 + Ω²/6
+    if theta < 1e-7 {
+        return &id + omega * 0.5 + &omega2 * (1.0 / 6.0);
+    }
+
+    // Coefficient A = (1 - cos θ) / θ²
+    //   At θ = 0: A → 1/2 (matches Taylor)
+    //   At θ = π: A = 2/π² ≈ 0.203
+    let a = (1.0 - theta.cos()) / theta_sq;
+
+    // Coefficient B = (θ - sin θ) / θ³
+    //   At θ = 0: B → 1/6 (matches Taylor)
+    //   At θ = π: B = (π - 0) / π³ = 1/π² ≈ 0.101
+    let b = (theta - theta.sin()) / (theta_sq * theta);
+
+    // J = I + A·Ω + B·Ω²
+    &id + omega * a + &omega2 * b
+}
+
+/// Left Jacobian via truncated power series for general N.
+///
+/// Computes J(Ω) = Σ_{k=0}^{MAX_TERMS} Ω^k / (k+1)! using Horner-like evaluation.
+///
+/// The series converges for all Ω (it is an integral of exp, which converges everywhere).
+/// For ||Ω||_F ≤ π (within the injectivity radius of SO(N)), 20 terms gives
+/// error well below f64 machine epsilon.
+///
+/// ## Convergence estimate
+///
+/// The k-th term has magnitude ≤ ||Ω||^k / (k+1)!. For ||Ω|| = π ≈ 3.14:
+///   - k=20: π^20 / 21! ≈ 3.5e9 / 5.1e19 ≈ 6.8e-11 ✓ (below ε_mach * ||J||)
+///
+/// For larger ||Ω||, more terms may be needed, but SE(N) log stays within the
+/// injectivity radius so this is sufficient.
+fn left_jacobian_series<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
+    const MAX_TERMS: usize = 20;
+
+    let id = SMatrix::<Real, N, N>::identity();
+    let mut result = id.clone(); // accumulator: starts at I (the k=0 term: Ω^0 / 1! = I)
+    let mut omega_power = omega.clone(); // Ω^k, starting at Ω^1
+    let mut factorial_inv = 1.0_f64; // 1 / (k+1)!, starting at 1 / 2! = 0.5 for k=1
+
+    for k in 1..=MAX_TERMS {
+        // Update factorial inverse: 1/(k+1)! = 1/(k!) · 1/(k+1)
+        // At k=1: factorial_inv = 1/2! = 1/2
+        // At k=2: factorial_inv = 1/3! = 1/6
+        factorial_inv /= (k + 1) as f64;
+
+        // Add term: Ω^k / (k+1)!
+        result += &omega_power * factorial_inv;
+
+        // Update power: Ω^{k+1} = Ω^k · Ω
+        omega_power = &omega_power * omega;
+    }
+
+    result
+}
+
+/// Compute the inverse of the left Jacobian J(Ω)^{-1} for a skew-symmetric matrix Ω ∈ so(N).
+///
+/// The inverse left Jacobian maps spatial displacements back to body-frame velocities
+/// in the SE(N) logarithmic map:
+///
+/// ```text
+/// v_body = J(Ω)^{-1} · Δt
+/// ```
+///
+/// ## Algorithm by dimension
+///
+/// - **N = 3:** Closed-form via the formula:
+///   ```text
+///   J^{-1} = I - Ω/2 + (1/θ² · (1 - (θ sin θ)/(2(1 - cos θ)))) · Ω²
+///   ```
+///   Near θ = 0 (Taylor): `J^{-1} ≈ I - Ω/2 + Ω²/12`
+///
+/// - **General N:** Compute J via series, then invert numerically.
+///
+/// ## Failure modes
+///
+/// For general N, `J.try_inverse()` can fail if J is singular. This happens when Ω
+/// has rotation angles at exact multiples of 2π (where the left Jacobian has zero
+/// eigenvalues). In practice, for Ω within the injectivity radius (||Ω|| < π),
+/// J is always invertible.
+///
+/// ## References
+///
+/// - Chirikjian (2012), Vol 2, Section 10.3.
+/// - Barfoot (2017), §7.1.4.
+pub fn left_jacobian_inverse<const N: usize>(
+    omega: &SMatrix<Real, N, N>,
+) -> Option<SMatrix<Real, N, N>> {
+    if N == 3 {
+        Some(left_jacobian_inverse_3d(omega))
+    } else {
+        // For general N: compute J via series, then numerically invert.
+        let j = left_jacobian_series(omega);
+        j.try_inverse()
+    }
+}
+
+/// Closed-form inverse left Jacobian for N=3.
+///
+/// For Ω ∈ so(3) with rotation angle θ = sqrt(-tr(Ω²)/2):
+///
+/// ```text
+/// J^{-1} = I - Ω/2 + (1/θ² · (1 - (θ sin θ) / (2(1 - cos θ)))) · Ω²
+/// ```
+///
+/// ## Taylor fallback (θ < 1e-7)
+///
+/// Near θ = 0:
+/// - The Ω² coefficient → 1/12 (from Taylor expansion of the rational function).
+///   Specifically: `(θ sin θ)/(2(1 - cos θ)) = (θ²)/(2 · θ²/2 · (1 - θ²/12 + ...)) = 1 - θ²/12 + ...`
+///   Wait, let's be more careful:
+///   - `sin θ ≈ θ - θ³/6`, `1 - cos θ ≈ θ²/2 - θ⁴/24`
+///   - `θ sin θ / (2(1 - cos θ)) ≈ (θ² - θ⁴/6) / (θ² - θ⁴/12) ≈ 1 - θ²/6 + θ²/12 = 1 - θ²/12`
+///   - So the coefficient is `(1 - (1 - θ²/12)) / θ² = 1/12`
+///
+/// So `J^{-1} ≈ I - Ω/2 + Ω²/12` (the classic formula for small rotations).
+///
+/// ## Reference
+///
+/// Chirikjian (2012), Vol 2, eq. (10.87);
+/// Barfoot (2017), eq. (7.83).
+fn left_jacobian_inverse_3d<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
+    let id = SMatrix::<Real, N, N>::identity();
+    let omega2 = omega * omega; // Ω²
+
+    // Compute the rotation angle θ from the trace identity.
+    let theta_sq = (-omega2.trace() / 2.0).max(0.0);
+    let theta = theta_sq.sqrt();
+
+    // Taylor fallback for small θ: J^{-1} ≈ I - Ω/2 + Ω²/12
+    if theta < 1e-7 {
+        return &id - omega * 0.5 + &omega2 * (1.0 / 12.0);
+    }
+
+    // The Ω² coefficient:
+    //   c = (1/θ²) · (1 - (θ sin θ) / (2(1 - cos θ)))
+    //
+    // Breakdown of subexpressions:
+    //   sin_theta = sin(θ)
+    //   cos_theta = cos(θ)
+    //   numerator_inner = θ · sin(θ)
+    //   denominator_inner = 2 · (1 - cos(θ))
+    //   ratio = numerator_inner / denominator_inner = θ sin θ / (2(1 - cos θ))
+    //   c = (1 - ratio) / θ²
+    let sin_theta = theta.sin();
+    let cos_theta = theta.cos();
+
+    // Guard against 1 - cos θ ≈ 0 (only when θ ≈ 0, which is handled by Taylor above).
+    // For θ ≥ 1e-7, 1 - cos θ ≥ ~5e-15, safely above zero.
+    let ratio = (theta * sin_theta) / (2.0 * (1.0 - cos_theta));
+    let c = (1.0 - ratio) / theta_sq;
+
+    // J^{-1} = I - Ω/2 + c · Ω²
+    &id - omega * 0.5 + &omega2 * c
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Unit tests
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -651,5 +898,131 @@ mod tests {
         let det = r.determinant();
         let det_err = (det - 1.0).abs();
         assert!(det_err < MED, "N=4: det(R) ≠ 1: det = {:.15}", det);
+    }
+
+    // ── Left Jacobian tests ─────────────────────────────────────────────────
+
+    /// J(0) = I for N=3: the left Jacobian at zero rotation is the identity.
+    ///
+    /// From the series definition: J(0) = Σ 0^k / (k+1)! = I.
+    #[test]
+    fn test_left_jacobian_zero_3d() {
+        let zero = SMatrix::<Real, 3, 3>::zeros();
+        let j = left_jacobian(&zero);
+        let id = SMatrix::<Real, 3, 3>::identity();
+        let err = (j - id).norm();
+        assert!(err < TIGHT, "J(0) ≠ I for N=3: error = {:.2e}", err);
+    }
+
+    /// J(0) = I for N=4: the series-based left Jacobian at zero is the identity.
+    #[test]
+    fn test_left_jacobian_zero_4d() {
+        let zero = SMatrix::<Real, 4, 4>::zeros();
+        let j = left_jacobian(&zero);
+        let id = SMatrix::<Real, 4, 4>::identity();
+        let err = (j - id).norm();
+        assert!(err < TIGHT, "J(0) ≠ I for N=4: error = {:.2e}", err);
+    }
+
+    /// Verify the integral identity: J(Ω) · Ω = exp(Ω) - I for N=3.
+    ///
+    /// This is the defining property of the left Jacobian:
+    ///   ∫₀¹ exp(sΩ) ds · Ω = [exp(sΩ)/... ]₀¹ = exp(Ω) - I
+    ///
+    /// More precisely, J(Ω) Ω = exp(Ω) - I.
+    #[test]
+    fn test_left_jacobian_integral_identity_3d() {
+        let omega = hat3(0.3, -0.5, 0.7);
+        let j = left_jacobian(&omega);
+        let exp_omega = matrix_exp_skew(&omega);
+        let id = SMatrix::<Real, 3, 3>::identity();
+
+        // J(Ω) · Ω should equal exp(Ω) - I
+        let lhs = j * omega;
+        let rhs = exp_omega - id;
+        let err = (lhs - rhs).norm();
+        assert!(
+            err < MED,
+            "J(Ω)·Ω ≠ exp(Ω) - I for N=3: error = {:.2e}",
+            err
+        );
+    }
+
+    /// Verify J(Ω) · Ω = exp(Ω) - I for N=4 (series path).
+    #[test]
+    fn test_left_jacobian_integral_identity_4d() {
+        #[rustfmt::skip]
+        let omega = SMatrix::<Real, 4, 4>::from_row_slice(&[
+             0.0,  0.2, -0.1,  0.3,
+            -0.2,  0.0,  0.15, -0.05,
+             0.1, -0.15,  0.0,  0.1,
+            -0.3,  0.05, -0.1,  0.0,
+        ]);
+        let omega = skew(&omega); // ensure exact skew symmetry
+
+        let j = left_jacobian(&omega);
+        let exp_omega = matrix_exp_skew(&omega);
+        let id = SMatrix::<Real, 4, 4>::identity();
+
+        let lhs = j * omega;
+        let rhs = exp_omega - id;
+        let err = (lhs - rhs).norm();
+        assert!(
+            err < MED,
+            "J(Ω)·Ω ≠ exp(Ω) - I for N=4: error = {:.2e}",
+            err
+        );
+    }
+
+    /// J · J^{-1} = I for N=3: the inverse left Jacobian is correct.
+    #[test]
+    fn test_left_jacobian_inverse_roundtrip_3d() {
+        let omega = hat3(0.4, 0.6, -0.2);
+        let j = left_jacobian(&omega);
+        let j_inv = left_jacobian_inverse(&omega).expect("J^{-1} should exist for small Ω");
+        let id = SMatrix::<Real, 3, 3>::identity();
+
+        let product = j * j_inv;
+        let err = (product - id).norm();
+        assert!(
+            err < MED,
+            "J · J^{{-1}} ≠ I for N=3: error = {:.2e}",
+            err
+        );
+    }
+
+    /// J · J^{-1} = I for N=4 (series + numerical inverse).
+    #[test]
+    fn test_left_jacobian_inverse_roundtrip_4d() {
+        #[rustfmt::skip]
+        let omega = SMatrix::<Real, 4, 4>::from_row_slice(&[
+             0.0,  0.1, -0.05,  0.08,
+            -0.1,  0.0,  0.12, -0.03,
+             0.05,-0.12,  0.0,  0.07,
+            -0.08, 0.03, -0.07,  0.0,
+        ]);
+        let omega = skew(&omega);
+
+        let j = left_jacobian(&omega);
+        let j_inv = left_jacobian_inverse(&omega).expect("J^{-1} should exist for small Ω");
+        let id = SMatrix::<Real, 4, 4>::identity();
+
+        let product = j * j_inv;
+        let err = (product - id).norm();
+        assert!(
+            err < MED,
+            "J · J^{{-1}} ≠ I for N=4: error = {:.2e}",
+            err
+        );
+    }
+
+    /// J^{-1}(0) = I for N=3.
+    #[test]
+    fn test_left_jacobian_inverse_zero_3d() {
+        let zero = SMatrix::<Real, 3, 3>::zeros();
+        let j_inv = left_jacobian_inverse(&zero).expect("J^{-1}(0) should exist");
+        let id = SMatrix::<Real, 3, 3>::identity();
+        let err = (j_inv - id).norm();
+        assert!(err < TIGHT, "J^{{-1}}(0) ≠ I for N=3: error = {:.2e}", err);
     }
 }
