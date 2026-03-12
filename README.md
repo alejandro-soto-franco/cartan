@@ -2,7 +2,11 @@
 
 Riemannian geometry, manifold optimization, and geodesic computation in Rust.
 
+[![crates.io](https://img.shields.io/crates/v/cartan.svg)](https://crates.io/crates/cartan)
+[![docs.rs](https://docs.rs/cartan/badge.svg)](https://docs.rs/cartan)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
+[![Tests](https://github.com/alejandro-soto-franco/cartan/actions/workflows/ci.yml/badge.svg)](https://github.com/alejandro-soto-franco/cartan/actions)
+[![MSRV](https://img.shields.io/badge/MSRV-1.85-blue.svg)](Cargo.toml)
 
 **cartan** is a general-purpose Rust library for Riemannian geometry. It provides a backend-agnostic trait system with const-generic manifolds, correct numerics, and clean composability. Think of it as "the nalgebra of Riemannian geometry."
 
