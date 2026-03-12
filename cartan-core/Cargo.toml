@@ -1,0 +1,11 @@
+[package]
+name = "cartan-core"
+description = "Core traits for Riemannian geometry: Manifold, Retraction, ParallelTransport, Curvature"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+rand = { workspace = true }
