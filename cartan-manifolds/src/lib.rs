@@ -1,11 +1,9 @@
-//! # cartan-manifolds
+// ~/cartan/cartan-manifolds/src/lib.rs
+
+//! Concrete Riemannian manifold implementations.
 //!
-//! Concrete Riemannian manifold implementations for the cartan library.
-//!
-//! This crate provides ready-to-use manifolds that implement the `Manifold`
-//! trait from `cartan-core`. Each manifold includes geodesically-exact
-//! exp/log maps, Riemannian inner products, tangent space projections,
-//! and validated implementations of all trait methods.
+//! Each manifold implements the traits from cartan-core using
+//! nalgebra types from cartan-nalgebra.
 //!
 //! ## Available manifolds (v0.1 roadmap)
 //!
@@ -14,3 +12,7 @@
 //! - `SpecialOrthogonal<N>` -- SO(N) with bi-invariant metric
 //! - `SymmetricPositiveDefinite<N>` -- SPD(N) with affine-invariant metric
 //! - `Grassmann<N, K>` -- Gr(N, K) with canonical metric
+
+pub mod euclidean;
+
+pub use euclidean::Euclidean;
