@@ -5,7 +5,7 @@
 mod common;
 
 use cartan_manifolds::Sphere;
-use cartan_core::{CartanError, Manifold, Curvature, ParallelTransport, Real};
+use cartan_core::{CartanError, Curvature, Manifold, ParallelTransport, Real};
 use nalgebra::SVector;
 use rand::rngs::StdRng;
 use rand::SeedableRng;
@@ -34,6 +34,24 @@ fn sphere_s2_transport() {
 fn sphere_s2_geodesic() {
     let manifold = Sphere::<3>;
     common::manifold_harness::test_geodesic::<3, _>(&manifold, 1e-10, 200);
+}
+
+#[test]
+fn sphere_s2_parallel_transport() {
+    let manifold = Sphere::<3>;
+    common::manifold_harness::test_parallel_transport::<3, _>(&manifold, 1e-10, 200);
+}
+
+#[test]
+fn sphere_s2_retraction() {
+    let manifold = Sphere::<3>;
+    common::manifold_harness::test_retraction::<3, _>(&manifold, 1e-10, 200);
+}
+
+#[test]
+fn sphere_s2_curvature() {
+    let manifold = Sphere::<3>;
+    common::manifold_harness::test_curvature::<3, _>(&manifold, 1e-10, 200);
 }
 
 // -- Sphere-specific tests --

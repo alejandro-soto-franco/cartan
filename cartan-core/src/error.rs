@@ -8,6 +8,8 @@
 
 use std::fmt;
 
+use crate::Real;
+
 /// The unified error type for all cartan operations.
 ///
 /// Each variant captures a specific class of failure with enough context
@@ -42,7 +44,7 @@ pub enum CartanError {
     /// for the sphere), and `violation` gives the magnitude of the deviation.
     NotOnManifold {
         constraint: String,
-        violation: f64,
+        violation: Real,
     },
 
     /// Tangent vector is not in the tangent space at the given point.
@@ -51,7 +53,7 @@ pub enum CartanError {
     /// (e.g., "p^T v = 0" for the sphere).
     NotInTangentSpace {
         constraint: String,
-        violation: f64,
+        violation: Real,
     },
 
     /// Line search failed to find a step size satisfying the Armijo condition.
@@ -62,7 +64,7 @@ pub enum CartanError {
     /// Optimizer did not converge within the maximum number of iterations.
     ConvergenceFailure {
         iterations: usize,
-        gradient_norm: f64,
+        gradient_norm: Real,
     },
 }
 
