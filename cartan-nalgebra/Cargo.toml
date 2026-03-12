@@ -1,0 +1,13 @@
+[package]
+name = "cartan-nalgebra"
+description = "nalgebra backend for the cartan Riemannian geometry library"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+cartan-core = { path = "../cartan-core" }
+nalgebra = { workspace = true }
+rand = { workspace = true }
