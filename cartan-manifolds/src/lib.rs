@@ -15,6 +15,7 @@
 
 pub mod euclidean;
 pub mod sphere;
+pub mod util;
 
 pub use euclidean::Euclidean;
 pub use sphere::Sphere;
