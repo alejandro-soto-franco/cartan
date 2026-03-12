@@ -1,0 +1,20 @@
+[package]
+name = "cartan"
+description = "Riemannian geometry, manifold optimization, and geodesic computation in Rust"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+cartan-core = { path = "../cartan-core" }
+cartan-nalgebra = { path = "../cartan-nalgebra" }
+cartan-manifolds = { path = "../cartan-manifolds" }
+cartan-optim = { path = "../cartan-optim" }
+cartan-geo = { path = "../cartan-geo" }
+
+[dev-dependencies]
+rand = { workspace = true }
+rand_distr = { workspace = true }
+nalgebra = { workspace = true }

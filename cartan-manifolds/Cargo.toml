@@ -1,0 +1,15 @@
+[package]
+name = "cartan-manifolds"
+description = "Concrete Riemannian manifold implementations for cartan: Sphere, SO(n), SPD(n), Grassmann, Euclidean"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+cartan-core = { path = "../cartan-core" }
+cartan-nalgebra = { path = "../cartan-nalgebra" }
+nalgebra = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
