@@ -106,6 +106,15 @@ pub trait Curvature: Connection {
         let uv = self.inner(p, u, v);
         let denominator = uu * vv - uv * uv;
 
+        // Guard against degenerate planes: if u and v are (nearly) parallel,
+        // the 2-plane is degenerate and sectional curvature is undefined.
+        // Return 0.0 instead of NaN/Inf to avoid poisoning downstream computations.
+        // Callers who need to distinguish this case should check the denominator
+        // (area of the parallelogram) before calling sectional_curvature.
+        if denominator.abs() < 1e-20 {
+            return 0.0;
+        }
+
         numerator / denominator
     }
 
