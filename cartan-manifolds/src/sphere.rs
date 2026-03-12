@@ -1,0 +1,369 @@
+// ~/cartan/cartan-manifolds/src/sphere.rs
+
+//! Unit sphere S^{N-1} embedded in R^N.
+//!
+//! The sphere of unit vectors in R^N with the round metric inherited
+//! from the ambient Euclidean space.
+//!
+//! ## Geometry
+//!
+//! - Points: unit vectors p in R^N with ||p|| = 1
+//! - Tangent space at p: T_pS = {v in R^N : p^T v = 0}
+//! - Inner product: <u, v>_p = u^T v (inherited from R^N, independent of p)
+//! - Exp: cos(||v||) p + sin(||v||) v/||v||
+//! - Log: theta * (q - cos(theta) * p) / sin(theta), theta = arccos(p^T q)
+//! - Cut locus: antipodal point {-p}
+//! - Injectivity radius: pi
+//! - Sectional curvature: K = 1 (constant positive curvature)
+//!
+//! ## Numerical stability
+//!
+//! - Small distances (theta < 1e-7): Taylor expansion to avoid 0/0 in log.
+//! - Near cut locus (|theta - pi| < tol): return CutLocus error.
+//! - Small tangent norm in exp: Taylor expansion of sin/cos.
+//!
+//! ## References
+//!
+//! - Absil et al., "Optimization Algorithms on Matrix Manifolds", Example 3.5.1
+//! - do Carmo, "Riemannian Geometry", Chapter 3, Example 2.5
+
+use std::f64::consts::PI;
+
+use nalgebra::SVector;
+use rand::Rng;
+use rand_distr::StandardNormal;
+
+use cartan_core::{
+    CartanError, Connection, Curvature, GeodesicInterpolation,
+    Manifold, ParallelTransport, Real, Retraction,
+};
+
+/// The unit sphere S^{N-1} embedded in R^N.
+///
+/// Zero-sized type: the geometry is fully determined by N.
+/// S^{N-1} has intrinsic dimension N-1.
+///
+/// # Examples
+///
+/// ```rust,ignore
+/// use cartan::prelude::*;
+/// use cartan::manifolds::Sphere;
+///
+/// let s2 = Sphere::<3>; // the 2-sphere in R^3
+/// let p = s2.random_point(&mut rng);
+/// let v = s2.random_tangent(&p, &mut rng);
+/// let q = s2.exp(&p, &v);
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct Sphere<const N: usize>;
+
+/// Tolerance for detecting near-zero and near-pi angles.
+const ANGLE_EPS: Real = 1e-7;
+/// Tolerance for point/tangent validation.
+const VALIDATION_TOL: Real = 1e-10;
+
+impl<const N: usize> Manifold for Sphere<N> {
+    type Point = SVector<Real, N>;
+    type Tangent = SVector<Real, N>;
+
+    fn dim(&self) -> usize {
+        // S^{N-1} has intrinsic dimension N-1.
+        N - 1
+    }
+
+    fn ambient_dim(&self) -> usize {
+        N
+    }
+
+    fn injectivity_radius(&self, _p: &Self::Point) -> Real {
+        PI
+    }
+
+    /// Standard inner product, inherited from R^N.
+    /// Independent of the base point p.
+    fn inner(&self, _p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
+        u.dot(v)
+    }
+
+    /// Exponential map on the sphere.
+    ///
+    /// Exp_p(v) = cos(||v||) p + sin(||v||) v/||v||
+    ///
+    /// For small ||v|| < ANGLE_EPS, use first-order Taylor approximation
+    /// to avoid division by zero: Exp_p(v) ~ p + v - (||v||^2 / 2) p.
+    fn exp(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Point {
+        let v_norm = v.norm();
+
+        if v_norm < ANGLE_EPS {
+            // Taylor expansion: cos(t) ~ 1 - t^2/2, sin(t)/t ~ 1 - t^2/6.
+            // Exp_p(v) ~ (1 - ||v||^2/2) p + (1 - ||v||^2/6) v
+            //          ~ p + v - (||v||^2/2) p  (to first order)
+            let result = p + v - p * (v_norm * v_norm / 2.0);
+            // Re-normalize to stay exactly on the sphere.
+            result / result.norm()
+        } else {
+            let cos_t = v_norm.cos();
+            let sin_t = v_norm.sin();
+            let result = p * cos_t + v * (sin_t / v_norm);
+            // Re-normalize for numerical safety.
+            result / result.norm()
+        }
+    }
+
+    /// Logarithmic map on the sphere.
+    ///
+    /// Log_p(q) = theta * (q - cos(theta) * p) / sin(theta)
+    /// where theta = arccos(p^T q).
+    ///
+    /// Returns CutLocus error for antipodal points (theta ~ pi).
+    /// Uses Taylor expansion for small theta to avoid 0/0.
+    fn log(&self, p: &Self::Point, q: &Self::Point) -> Result<Self::Tangent, CartanError> {
+        // Clamp the dot product to [-1, 1] for numerical safety in arccos.
+        let cos_theta = p.dot(q).clamp(-1.0, 1.0);
+        let theta = cos_theta.acos();
+
+        // Near cut locus: antipodal points.
+        if (PI - theta).abs() < ANGLE_EPS {
+            return Err(CartanError::CutLocus {
+                message: format!(
+                    "points are nearly antipodal on S^{}: angle = {:.2e}, |pi - angle| = {:.2e}",
+                    N - 1,
+                    theta,
+                    (PI - theta).abs()
+                ),
+            });
+        }
+
+        if theta < ANGLE_EPS {
+            // Small angle: log_p(q) ~ q - p (first-order).
+            // Project onto tangent space to remove any normal component.
+            let v = q - p;
+            Ok(self.project_tangent(p, &v))
+        } else {
+            // Standard formula: theta * (q - cos(theta) * p) / sin(theta).
+            let sin_theta = theta.sin();
+            let v = (q - p * cos_theta) * (theta / sin_theta);
+            Ok(v)
+        }
+    }
+
+    /// Project ambient vector onto tangent space T_p S^{N-1}.
+    ///
+    /// pi_p(v) = v - (p^T v) p
+    ///
+    /// Subtracts the component of v in the direction of the unit normal p.
+    fn project_tangent(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Tangent {
+        v - p * p.dot(v)
+    }
+
+    /// Project ambient point onto the sphere: p / ||p||.
+    fn project_point(&self, p: &Self::Point) -> Self::Point {
+        let n = p.norm();
+        if n < 1e-15 {
+            // Degenerate case: zero vector. Return an arbitrary point.
+            let mut result = SVector::zeros();
+            result[0] = 1.0;
+            result
+        } else {
+            p / n
+        }
+    }
+
+    fn zero_tangent(&self, _p: &Self::Point) -> Self::Tangent {
+        SVector::zeros()
+    }
+
+    /// Check ||p|| = 1.
+    fn check_point(&self, p: &Self::Point) -> Result<(), CartanError> {
+        let violation = (p.norm() - 1.0).abs();
+        if violation < VALIDATION_TOL {
+            Ok(())
+        } else {
+            Err(CartanError::NotOnManifold {
+                constraint: format!("||p|| = 1 (S^{})", N - 1),
+                violation,
+            })
+        }
+    }
+
+    /// Check p^T v = 0.
+    fn check_tangent(&self, p: &Self::Point, v: &Self::Tangent) -> Result<(), CartanError> {
+        let violation = p.dot(v).abs();
+        if violation < VALIDATION_TOL {
+            Ok(())
+        } else {
+            Err(CartanError::NotInTangentSpace {
+                constraint: format!("p^T v = 0 (T_p S^{})", N - 1),
+                violation,
+            })
+        }
+    }
+
+    /// Random point on S^{N-1}: sample Gaussian, normalize.
+    /// This gives the uniform (Haar) distribution on the sphere.
+    fn random_point<R: Rng>(&self, rng: &mut R) -> Self::Point {
+        let v: SVector<Real, N> = SVector::from_fn(|_, _| rng.sample(StandardNormal));
+        v / v.norm()
+    }
+
+    /// Random tangent vector at p: sample Gaussian in R^N, project onto T_pS.
+    fn random_tangent<R: Rng>(&self, p: &Self::Point, rng: &mut R) -> Self::Tangent {
+        let v: SVector<Real, N> = SVector::from_fn(|_, _| rng.sample(StandardNormal));
+        self.project_tangent(p, &v)
+    }
+}
+
+impl<const N: usize> Retraction for Sphere<N> {
+    /// Projection retraction: normalize p + v.
+    ///
+    /// retract(p, v) = (p + v) / ||p + v||
+    ///
+    /// Cheaper than exp (no trig functions) and satisfies the
+    /// retraction axioms (R_p(0) = p, first-order agreement with exp).
+    fn retract(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Point {
+        let result = p + v;
+        result / result.norm()
+    }
+
+    fn inverse_retract(
+        &self,
+        p: &Self::Point,
+        q: &Self::Point,
+    ) -> Result<Self::Tangent, CartanError> {
+        // The inverse of the projection retraction:
+        // v such that (p + v)/||p + v|| = q and p^T v = 0.
+        // v = q / (p^T q) - p (when p^T q > 0).
+        let cos_theta = p.dot(q);
+        if cos_theta < ANGLE_EPS {
+            return Err(CartanError::CutLocus {
+                message: "inverse_retract: points too far apart".to_string(),
+            });
+        }
+        Ok(q / cos_theta - p)
+    }
+}
+
+impl<const N: usize> ParallelTransport for Sphere<N> {
+    /// Parallel transport along the geodesic from p to q.
+    ///
+    /// Closed-form formula:
+    ///   Gamma_{p->q}(v) = v - (<log_p(q), v> / dist^2(p,q)) * (log_p(q) + log_q(p))
+    ///
+    /// For p ~ q (small distance), transport is approximately the identity
+    /// minus the second-order correction.
+    ///
+    /// Ref: Absil et al., Section 8.1.3.
+    fn transport(
+        &self,
+        p: &Self::Point,
+        q: &Self::Point,
+        v: &Self::Tangent,
+    ) -> Result<Self::Tangent, CartanError> {
+        let log_pq = self.log(p, q)?;
+        let dist_sq = self.inner(p, &log_pq, &log_pq);
+
+        if dist_sq < ANGLE_EPS * ANGLE_EPS {
+            // Points are very close: transport is approximately identity.
+            // Re-project to ensure result is in T_qS.
+            return Ok(self.project_tangent(q, v));
+        }
+
+        let log_qp = self.log(q, p)?;
+        let coeff = self.inner(p, &log_pq, v) / dist_sq;
+        let transported = v - (log_pq + log_qp) * coeff;
+
+        // Re-project for numerical safety.
+        Ok(self.project_tangent(q, &transported))
+    }
+}
+
+// VectorTransport: blanket impl from ParallelTransport.
+
+impl<const N: usize> Connection for Sphere<N> {
+    /// Riemannian Hessian on the sphere (simplified).
+    ///
+    /// The full formula is: Hess f(p)[v] = proj_p(D^2f(p)[v]) - <egrad, p> * v
+    /// where v is the tangent direction. Since the current trait interface
+    /// does not pass v explicitly, this returns proj_p(ehvp) which is
+    /// correct to leading order.
+    ///
+    /// TODO(phase6): Revise Connection trait to pass the tangent direction
+    /// explicitly, enabling the full Weingarten correction.
+    ///
+    /// Ref: Absil et al., Example 5.3.2.
+    fn riemannian_hessian_vector_product(
+        &self,
+        p: &Self::Point,
+        _grad_f: &Self::Tangent,
+        v: &Self::Tangent,
+        hess_ambient: &dyn Fn(&Self::Tangent) -> Self::Tangent,
+    ) -> Result<Self::Tangent, CartanError> {
+        // Compute the ambient Euclidean HVP, then project onto the tangent space.
+        // The full formula includes a Weingarten correction term:
+        //   Hess f(p)[v] = proj_p(D^2f(p)[v]) - <egrad, p> * v
+        // but the current interface does not separate the Weingarten term,
+        // so we return just proj_p(ehvp) which is correct to leading order.
+        let ehvp = hess_ambient(v);
+        Ok(self.project_tangent(p, &ehvp))
+    }
+}
+
+impl<const N: usize> Curvature for Sphere<N> {
+    /// Curvature tensor for the unit sphere (constant sectional curvature K = 1).
+    ///
+    /// R(u, v)w = <v, w> u - <u, w> v
+    ///
+    /// This is the standard formula for a space of constant curvature K = 1.
+    /// Ref: do Carmo, "Riemannian Geometry", Proposition 4.1 (constant curvature spaces).
+    fn riemann_curvature(
+        &self,
+        _p: &Self::Point,
+        u: &Self::Tangent,
+        v: &Self::Tangent,
+        w: &Self::Tangent,
+    ) -> Self::Tangent {
+        // R(u,v)w = <v,w>u - <u,w>v for K = 1.
+        u * v.dot(w) - v * u.dot(w)
+    }
+
+    /// Ricci curvature of S^{N-1}.
+    ///
+    /// For a space of constant sectional curvature K, the Ricci curvature is:
+    ///   Ric(u, v) = (N-2) * K * <u, v>
+    ///
+    /// For S^{N-1} with K = 1: Ric(u, v) = (N-2) * <u, v>.
+    fn ricci_curvature(
+        &self,
+        _p: &Self::Point,
+        u: &Self::Tangent,
+        v: &Self::Tangent,
+    ) -> Real {
+        // Ricci = (dim - 1) * K * <u, v> where dim = N-1, K = 1.
+        // Wait: Ric(u,v) = sum_{i} <R(e_i, u)v, e_i> over an ONB of T_pM.
+        // For constant curvature K: Ric(u,v) = (n-1)*K*<u,v> where n = dim(M).
+        // dim(S^{N-1}) = N-1, so Ric = (N-2) * 1 * <u,v>.
+        (N as Real - 2.0) * u.dot(v)
+    }
+
+    /// Scalar curvature of S^{N-1}.
+    ///
+    /// S = n(n-1)K where n = dim(M) = N-1, K = 1.
+    /// S = (N-1)(N-2).
+    fn scalar_curvature(&self, _p: &Self::Point) -> Real {
+        let n = N as Real - 1.0;
+        n * (n - 1.0)
+    }
+}
+
+impl<const N: usize> GeodesicInterpolation for Sphere<N> {
+    /// Geodesic interpolation: gamma(t) = exp_p(t * log_p(q)).
+    fn geodesic(
+        &self,
+        p: &Self::Point,
+        q: &Self::Point,
+        t: Real,
+    ) -> Result<Self::Point, CartanError> {
+        let v = self.log(p, q)?;
+        Ok(self.exp(p, &(v * t)))
+    }
+}

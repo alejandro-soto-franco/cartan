@@ -14,5 +14,7 @@
 //! - `Grassmann<N, K>` -- Gr(N, K) with canonical metric
 
 pub mod euclidean;
+pub mod sphere;
 
 pub use euclidean::Euclidean;
+pub use sphere::Sphere;
