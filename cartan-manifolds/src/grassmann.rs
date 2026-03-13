@@ -170,8 +170,7 @@ fn gr_log_dyn(
         (0..k).map(|i| (1.0 - d_vals[i].powi(2)).max(0.0).sqrt()).collect();
 
     let mut q_z = z.clone();
-    for i in 0..k {
-        let s = sin_vals[i];
+    for (i, &s) in sin_vals.iter().enumerate() {
         if s > GR_ANGLE_EPS {
             let col = q_z.column(i).into_owned() / s;
             q_z.set_column(i, &col);
