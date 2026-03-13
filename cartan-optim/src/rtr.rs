@@ -7,7 +7,7 @@
 //! At iterate x_k with gradient g_k = grad f(x_k) and trust radius Δ_k:
 //!
 //!   1. **Subproblem**: solve (approximately) for η_k ∈ T_{x_k}M:
-//!      min m_k(η) = f(x_k) + <g_k, η> + ½ <Hess f(x_k)[η], η>
+//!      min m_k(η) = f(x_k) + <g_k, η> + ½ <Hess f(x_k)\[η\], η>
 //!      subject to ||η||_{x_k} ≤ Δ_k
 //!      via Steihaug-Toint truncated CG.
 //!

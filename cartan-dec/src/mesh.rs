@@ -216,7 +216,7 @@ impl Mesh {
         Ok(())
     }
 
-    /// Build a simple uniform triangulated grid on [0,1]² with `n` divisions per side.
+    /// Build a simple uniform triangulated grid on \[0,1\]² with `n` divisions per side.
     ///
     /// Produces 2*n² right triangles. Well-centered for all n.
     /// Useful for tests and prototyping.

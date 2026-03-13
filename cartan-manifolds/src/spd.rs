@@ -82,7 +82,7 @@
 //! Hess f(P)[V] = P hess_E[V] P + 1/2 (V P^{-1} G + G P^{-1} V)
 //! ```
 //!
-//! where G = grad_R f(P) is the Riemannian gradient and hess_E[V] is the
+//! where G = grad_R f(P) is the Riemannian gradient and hess_E\[V\] is the
 //! Euclidean Hessian-vector product.
 //!
 //! ## References
@@ -370,7 +370,7 @@ impl<const N: usize> Connection for Spd<N> {
     /// Hess f(P)[V] = P hess_E[V] P + 1/2 (V P^{-1} G + G P^{-1} V)
     /// ```
     ///
-    /// where G = grad_f is the Riemannian gradient and hess_E[V] = hess_ambient(V).
+    /// where G = grad_f is the Riemannian gradient and hess_E\[V\] = hess_ambient(V).
     ///
     /// Ref: Absil-Mahony-Sepulchre Chapter 5; connection formula for SPD.
     fn riemannian_hessian_vector_product(

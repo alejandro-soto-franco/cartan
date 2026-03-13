@@ -101,7 +101,7 @@ const PROJ_TOL: Real = 1e-12;
 ///
 /// # Type parameter
 ///
-/// `N` is the matrix size. Corr<2> is the set {[[1,r],[r,1]] : |r| < 1},
+/// `N` is the matrix size. `Corr<2>` is the set {\[\[1,r\],\[r,1\]\] : |r| < 1},
 /// a 1-dimensional flat manifold isometric to the open interval (-1, 1).
 ///
 /// # Examples
@@ -389,7 +389,7 @@ impl<const N: usize> Connection for Corr<N> {
     /// and the Riemannian Hessian is the projection of the Euclidean Hessian
     /// onto the tangent space:
     ///
-    ///   Hess f(C)[V] = proj_T(D^2 f(C)[V])
+    ///   Hess f(C)\[V\] = proj_T(D^2 f(C)\[V\])
     ///
     /// where proj_T symmetrizes and zeros the diagonal.
     ///

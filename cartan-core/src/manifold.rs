@@ -49,7 +49,7 @@ use crate::{CartanError, Real};
 /// The associated types `Point` and `Tangent` use extrinsic (ambient)
 /// coordinates. For example, on S^2 in R^3, both are `SVector<Real, 3>`.
 ///
-/// `Tangent` requires arithmetic operations (Add, Mul<Real>, Neg) because
+/// `Tangent` requires arithmetic operations (Add, `Mul<Real>`, Neg) because
 /// generic algorithms like Frechet mean and conjugate gradient need to
 /// add and scale tangent vectors.
 pub trait Manifold {
@@ -63,7 +63,7 @@ pub trait Manifold {
     /// vector can be stored as a Tangent and then projected.
     ///
     /// The Neg bound is an addition beyond the original spec (which had only
-    /// Add + Mul<Real>). It is needed for conjugate gradient (d = -grad) and
+    /// Add + `Mul<Real>`). It is needed for conjugate gradient (d = -grad) and
     /// other algorithms that negate tangent vectors. Without it, callers would
     /// need `v * (-1.0)` which is less ergonomic.
     type Tangent: Clone

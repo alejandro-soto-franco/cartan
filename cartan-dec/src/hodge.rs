@@ -11,17 +11,17 @@
 //!
 //! For a well-centered Delaunay mesh with circumcentric dual:
 //!
-//! - **⋆₀[v]** = (dual cell area at v) / 1
+//! - **⋆₀\[v\]** = (dual cell area at v) / 1
 //!   The dual cell of a vertex v is the union of circumcenter-midpoint triangles
 //!   surrounding v. Its area = (1/3) * Σ_{t ∋ v} area(t) (barycentric dual).
 //!   For circumcentric dual: area = Σ contributions from adjacent triangles.
 //!
-//! - **⋆₁[e]** = (dual edge length) / (primal edge length)
+//! - **⋆₁\[e\]** = (dual edge length) / (primal edge length)
 //!   The dual edge of primal edge e is the segment connecting the circumcenters
 //!   of the two triangles sharing e (or the circumcenter to the boundary midpoint
 //!   for boundary edges).
 //!
-//! - **⋆₂[t]** = 1 / area(t)
+//! - **⋆₂\[t\]** = 1 / area(t)
 //!   The dual of a 2-simplex is a 0-simplex (point, the circumcenter), so
 //!   the ratio is 1/area(t).
 //!
@@ -63,7 +63,7 @@ impl HodgeStar {
     /// Compute the Hodge star diagonals from a 2D flat mesh.
     ///
     /// Uses barycentric dual for ⋆₀ and circumcentric dual for ⋆₁.
-    /// ⋆₂[t] = 1 / area(t).
+    /// ⋆₂\[t\] = 1 / area(t).
     ///
     /// All entries are guaranteed positive for non-degenerate meshes
     /// (no zero-area triangles and no zero-length edges).
@@ -134,17 +134,17 @@ impl HodgeStar {
         }
     }
 
-    /// Inverse Hodge star ⋆₀⁻¹ (entries are 1/star0[v]).
+    /// Inverse Hodge star ⋆₀⁻¹ (entries are 1/star0\[v\]).
     pub fn star0_inv(&self) -> DVector<f64> {
         self.star0.map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
     }
 
-    /// Inverse Hodge star ⋆₁⁻¹ (entries are 1/star1[e]).
+    /// Inverse Hodge star ⋆₁⁻¹ (entries are 1/star1\[e\]).
     pub fn star1_inv(&self) -> DVector<f64> {
         self.star1.map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
     }
 
-    /// Inverse Hodge star ⋆₂⁻¹ (entries are 1/star2[t] = area(t)).
+    /// Inverse Hodge star ⋆₂⁻¹ (entries are 1/star2\[t\] = area(t)).
     pub fn star2_inv(&self) -> DVector<f64> {
         self.star2.map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
     }

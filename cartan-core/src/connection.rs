@@ -12,12 +12,12 @@
 //!
 //! Given a smooth cost function f: M -> R, the Riemannian Hessian at p
 //! is a symmetric bilinear form on T_pM. For trust region methods, we need
-//! H[v] = Hess f(p)[v], the action of the Hessian on a tangent vector v.
+//! H\[v\] = Hess f(p)\[v\], the action of the Hessian on a tangent vector v.
 //!
 //! For a Riemannian manifold embedded in Euclidean space, the Riemannian HVP
 //! can be computed from the Euclidean Hessian as:
 //!
-//!   Hess f(p)[v] = proj_T( D^2 f(p)[v] - II(grad f, v) )
+//!   Hess f(p)\[v\] = proj_T( D^2 f(p)\[v\] - II(grad f, v) )
 //!
 //! where II is the second fundamental form (shape operator), and proj_T is
 //! the projection onto the tangent space.
@@ -47,16 +47,16 @@ use crate::{CartanError, Manifold};
 /// the connection. The Levi-Civita connection depends on the metric, so
 /// this dependency is semantically required, not just a convenience.
 pub trait Connection: Manifold {
-    /// Riemannian Hessian-vector product: Hess f(p)[v].
+    /// Riemannian Hessian-vector product: Hess f(p)\[v\].
     ///
     /// Given:
     /// - p: a point on the manifold
-    /// - grad_f: the Riemannian gradient of f at p (a tangent vector in T_pM)
-    /// - v: a tangent vector in T_pM (the direction for the HVP)
+    /// - grad_f: the Riemannian gradient of f at p (a tangent vector in T\_pM)
+    /// - v: a tangent vector in T\_pM (the direction for the HVP)
     /// - hess_ambient: a callback that computes the Euclidean Hessian-vector
-    ///   product H_eucl[v] = D^2 f(p)[v] in ambient coordinates
+    ///   product H\_eucl\[v\] = D^2 f(p)\[v\] in ambient coordinates
     ///
-    /// Returns Hess f(p)[v] in T_pM.
+    /// Returns Hess f(p)\[v\] in T\_pM.
     ///
     /// The `hess_ambient` callback takes a tangent vector in ambient coordinates
     /// and returns the ambient Euclidean HVP. This avoids the need to explicitly

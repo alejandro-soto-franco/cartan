@@ -2,28 +2,28 @@
 
 //! Utilities for symmetric positive definite matrices.
 //!
-//! These are internal helpers used by [`Corr<N>`] and future SPD-family manifolds.
+//! These are internal helpers used by `Corr<N>` and future SPD-family manifolds.
 //!
 //! ## Contents
 //!
-//! - [`sym_min_eigenvalue`]: minimum eigenvalue of a symmetric matrix.
+//! - `sym_min_eigenvalue`: minimum eigenvalue of a symmetric matrix.
 //!
-//! - [`nearest_corr_matrix`]: nearest correlation matrix to an arbitrary symmetric
+//! - `nearest_corr_matrix`: nearest correlation matrix to an arbitrary symmetric
 //!   matrix in the Frobenius norm. Uses Higham's (2002) alternating projections
 //!   algorithm: alternately project onto the PD cone and the unit-diagonal affine
 //!   subspace until convergence.
 //!
-//! - [`sym_symmetrize`]: (A + A^T) / 2. Enforces exact symmetry after drift.
+//! - `sym_symmetrize`: (A + A^T) / 2. Enforces exact symmetry after drift.
 //!
-//! - [`sym_sqrt`]: symmetric matrix square root P^{1/2} via eigendecomposition.
+//! - `sym_sqrt`: symmetric matrix square root P^{1/2} via eigendecomposition.
 //!
-//! - [`sym_sqrt_inv`]: symmetric matrix inverse square root P^{-1/2}.
+//! - `sym_sqrt_inv`: symmetric matrix inverse square root P^{-1/2}.
 //!
-//! - [`sym_inv`]: symmetric matrix inverse P^{-1} via eigendecomposition.
+//! - `sym_inv`: symmetric matrix inverse P^{-1} via eigendecomposition.
 //!
-//! - [`sym_log`]: matrix logarithm of a symmetric PD matrix. Input must be PD.
+//! - `sym_log`: matrix logarithm of a symmetric PD matrix. Input must be PD.
 //!
-//! - [`sym_exp`]: matrix exponential of a symmetric matrix. Always valid.
+//! - `sym_exp`: matrix exponential of a symmetric matrix. Always valid.
 //!
 //! ## Note on eigendecomposition
 //!
