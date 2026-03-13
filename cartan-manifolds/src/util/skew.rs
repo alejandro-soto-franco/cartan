@@ -85,7 +85,7 @@ pub fn skew<const N: usize>(a: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
 ///
 /// * `a`   — the matrix to test.
 /// * `tol` — tolerance threshold; typical values are `1e-10` (strict) or
-///           `1e-6` (loose / after numerical operations).
+///   `1e-6` (loose / after numerical operations).
 ///
 /// # Returns
 ///

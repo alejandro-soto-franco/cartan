@@ -174,7 +174,7 @@ fn rodrigues<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N>
         //   exp(Ω) = I + Ω + Ω²/2 + Ω³/6 + ...
         // For N=3 and small θ, keeping just I + Ω + Ω²/2 gives O(θ³) error.
         // Since θ < 1e-7, the cubic term is < (1e-7)³ = 1e-21, far below ε_mach.
-        return &id + omega + &omega2 * 0.5;
+        return id + omega + omega2 * 0.5;
     }
 
     // --- Case 2: General θ > 0 — use the full Rodrigues formula ---
@@ -192,7 +192,7 @@ fn rodrigues<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N>
     let b = (1.0 - theta.cos()) / theta_sq; // B = (1 - cos θ)/θ²  (coefficient of Ω² term)
 
     // Rodrigues formula: R = I + A·Ω + B·Ω²
-    &id + omega * a + &omega2 * b
+    id + omega * a + omega2 * b
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -290,7 +290,7 @@ fn matrix_exp_general<const N: usize>(a: &SMatrix<Real, N, N>) -> SMatrix<Real, 
     // After s squarings: result_b^{2^s} = exp(B)^{2^s} = exp(B · 2^s) = exp(A).
     let mut result = result_b;
     for _ in 0..s {
-        result = &result * &result; // square in-place (creates new matrix each time)
+        result = result * result; // square in-place (creates new matrix each time)
     }
 
     result
@@ -333,10 +333,10 @@ fn pade6_exp<const N: usize>(a: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
     //   a6 = a4·a2       (1 multiply) — A^6 = A^4 · A^2
     // Total: 5 matrix multiplications for powers.
     let a2 = a * a;
-    let a3 = &a2 * a;
-    let a4 = &a2 * &a2;
-    let a5 = &a4 * a;
-    let a6 = &a4 * &a2;
+    let a3 = a2 * a;
+    let a4 = a2 * a2;
+    let a5 = a4 * a;
+    let a6 = a4 * a2;
 
     // Padé [6/6] coefficients b_k from Higham (2005), Table 10.2 / eq. 10.33.
     // These are the diagonal Padé coefficients for the [6/6] approximant:
@@ -407,21 +407,21 @@ fn pade6_exp<const N: usize>(a: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
     //
     // We build p and q by adding scaled powers. The even terms (k=0,2,4,6) have
     // the same sign in p and q; odd terms (k=1,3,5) are negated in q.
-    let p = &id * b0
+    let p = id * b0
         + a * b1
-        + &a2 * b2
-        + &a3 * b3
-        + &a4 * b4
-        + &a5 * b5
-        + &a6 * b6;
+        + a2 * b2
+        + a3 * b3
+        + a4 * b4
+        + a5 * b5
+        + a6 * b6;
 
-    let q = &id * b0
+    let q = id * b0
         - a * b1          // sign flipped for odd powers
-        + &a2 * b2
-        - &a3 * b3        // sign flipped for odd powers
-        + &a4 * b4
-        - &a5 * b5        // sign flipped for odd powers
-        + &a6 * b6;
+        + a2 * b2
+        - a3 * b3         // sign flipped for odd powers
+        + a4 * b4
+        - a5 * b5         // sign flipped for odd powers
+        + a6 * b6;
 
     // Solve q · X = p for X = q^{-1} p ≈ exp(A).
     // We use nalgebra's `try_inverse()` rather than `lu().solve()` to get a clear
@@ -551,7 +551,7 @@ fn left_jacobian_3d<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<Real
 
     // Taylor fallback for small θ: J ≈ I + Ω/2 + Ω²/6
     if theta < 1e-7 {
-        return &id + omega * 0.5 + &omega2 * (1.0 / 6.0);
+        return id + omega * 0.5 + omega2 * (1.0 / 6.0);
     }
 
     // Coefficient A = (1 - cos θ) / θ²
@@ -565,7 +565,7 @@ fn left_jacobian_3d<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<Real
     let b = (theta - theta.sin()) / (theta_sq * theta);
 
     // J = I + A·Ω + B·Ω²
-    &id + omega * a + &omega2 * b
+    id + omega * a + omega2 * b
 }
 
 /// Left Jacobian via truncated power series for general N.
@@ -587,8 +587,8 @@ fn left_jacobian_series<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<
     const MAX_TERMS: usize = 20;
 
     let id = SMatrix::<Real, N, N>::identity();
-    let mut result = id.clone(); // accumulator: starts at I (the k=0 term: Ω^0 / 1! = I)
-    let mut omega_power = omega.clone(); // Ω^k, starting at Ω^1
+    let mut result = id; // accumulator: starts at I (the k=0 term: Ω^0 / 1! = I)
+    let mut omega_power = *omega; // Ω^k, starting at Ω^1
     let mut factorial_inv = 1.0_f64; // 1 / (k+1)!, starting at 1 / 2! = 0.5 for k=1
 
     for k in 1..=MAX_TERMS {
@@ -598,10 +598,10 @@ fn left_jacobian_series<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<
         factorial_inv /= (k + 1) as f64;
 
         // Add term: Ω^k / (k+1)!
-        result += &omega_power * factorial_inv;
+        result += omega_power * factorial_inv;
 
         // Update power: Ω^{k+1} = Ω^k · Ω
-        omega_power = &omega_power * omega;
+        omega_power *= omega;
     }
 
     result
@@ -683,7 +683,7 @@ fn left_jacobian_inverse_3d<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMat
 
     // Taylor fallback for small θ: J^{-1} ≈ I - Ω/2 + Ω²/12
     if theta < 1e-7 {
-        return &id - omega * 0.5 + &omega2 * (1.0 / 12.0);
+        return id - omega * 0.5 + omega2 * (1.0 / 12.0);
     }
 
     // The Ω² coefficient:
@@ -705,7 +705,7 @@ fn left_jacobian_inverse_3d<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMat
     let c = (1.0 - ratio) / theta_sq;
 
     // J^{-1} = I - Ω/2 + c · Ω²
-    &id - omega * 0.5 + &omega2 * c
+    id - omega * 0.5 + omega2 * c
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
