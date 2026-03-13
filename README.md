@@ -8,17 +8,19 @@ Riemannian geometry, manifold optimization, and geodesic computation in Rust.
 [![Tests](https://github.com/alejandro-soto-franco/cartan/actions/workflows/ci.yml/badge.svg)](https://github.com/alejandro-soto-franco/cartan/actions)
 [![MSRV](https://img.shields.io/badge/MSRV-1.85-blue.svg)](Cargo.toml)
 
-**cartan** is a general-purpose Rust library for Riemannian geometry. It provides a backend-agnostic trait system with const-generic manifolds, correct numerics, and clean composability. It is also the substrate for covariant PDE solvers via `cartan-dec`, its discrete exterior calculus layer.
+**cartan** is a general-purpose Rust library for Riemannian geometry. It provides a backend-agnostic trait system with const-generic manifolds, correct numerics, and clean composability — from basic exp/log maps through second-order optimization to discrete exterior calculus for covariant PDE solvers.
 
 Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev)
 
 ## Features
 
 - **Generic trait hierarchy**: `Manifold`, `Retraction`, `ParallelTransport`, `VectorTransport`, `Connection`, `Curvature`, `GeodesicInterpolation`
-- **Const-generic manifolds**: `Sphere<3>`, `Euclidean<10>`, dimensions checked at compile time
+- **Const-generic manifolds**: `Sphere<3>`, `Grassmann<5,2>`, dimensions checked at compile time
 - **Correct numerics**: Taylor expansions near singularities, cut locus detection, structured error handling
-- **Zero-cost abstractions**: manifold types are zero-sized, all geometry lives in the trait impls
-- **DEC layer**: `cartan-dec` discretizes covariant differential operators on any manifold for use in PDE solvers
+- **Zero-cost abstractions**: manifold types are zero-sized; all geometry lives in the trait impls
+- **Optimization**: `cartan-optim` provides RGD, RCG, RTR, and Fréchet mean on any `Manifold`
+- **Geodesic tools**: `cartan-geo` provides parameterized geodesics, curvature queries, and Jacobi field integration
+- **DEC layer**: `cartan-dec` discretizes covariant differential operators on simplicial meshes for PDE solvers
 
 ## Quick Start
 
@@ -49,41 +51,94 @@ let u_at_q = s2.transport(&p, &q, &u).unwrap();
 let k = s2.sectional_curvature(&p, &u, &v);
 ```
 
-## Manifolds (v0.1)
+## Manifolds
 
-| Manifold | Type | Status |
-|----------|------|--------|
-| Euclidean R^N | `Euclidean<N>` | done |
-| Sphere S^(N-1) | `Sphere<N>` | done |
-| Special orthogonal SO(N) | `SpecialOrthogonal<N>` | done |
-| Special Euclidean SE(N) | `SpecialEuclidean<N>` | done |
-| Symmetric positive definite SPD(N) | `SymmetricPositiveDefinite<N>` | planned |
-| Grassmann Gr(N, K) | `Grassmann<N, K>` | planned |
-| Stiefel St(N, K) | `Stiefel<N, K>` | planned |
-| Hyperbolic H^N | `Hyperbolic<N>` | planned |
-| Simplex | `Simplex<N>` | planned |
-| Correlation Corr(N) | `Corr<N>` | planned |
-| Product manifolds | `Product<M1, M2>` | planned |
+Every manifold implements all seven traits in the hierarchy. Intrinsic dimensions are checked at compile time via const generics.
+
+| Manifold | Type | Dim | Geometry |
+|----------|------|-----|----------|
+| Euclidean R^N | `Euclidean<N>` | N | flat, K = 0 |
+| Sphere S^(N-1) | `Sphere<N>` | N−1 | K = 1 |
+| Special orthogonal SO(N) | `SpecialOrthogonal<N>` | N(N−1)/2 | K ≥ 0 (bi-invariant) |
+| Special Euclidean SE(N) | `SpecialEuclidean<N>` | N(N+1)/2 | flat × sphere |
+| Symmetric positive definite SPD(N) | `Spd<N>` | N(N+1)/2 | K ≤ 0 (Cartan-Hadamard) |
+| Grassmann Gr(N, K) | `Grassmann<N, K>` | K(N−K) | 0 ≤ K ≤ 2 |
+| Correlation Corr(N) | `Corr<N>` | N(N−1)/2 | flat, K = 0 |
 
 ## Crate Structure
 
 ```
-cartan              facade crate (use this)
-cartan-core         trait definitions, error types, Real alias
-cartan-manifolds    concrete manifold implementations
+cartan              facade crate (re-exports everything)
+cartan-core         trait definitions, CartanError, Real alias
 cartan-nalgebra     nalgebra backend (SVector, SMatrix storage)
+cartan-manifolds    concrete manifold implementations (7 manifolds)
+cartan-optim        Riemannian optimization: RGD, RCG, RTR, Fréchet mean
+cartan-geo          geodesic curves, curvature queries, Jacobi fields
 cartan-dec          discrete exterior calculus for PDE solvers
-cartan-optim        Riemannian optimization algorithms (planned)
-cartan-geo          geodesic curves and curvature tools (planned)
+```
+
+## cartan-optim
+
+Four algorithms on any `Manifold`:
+
+| Algorithm | Function | Traits required |
+|-----------|----------|-----------------|
+| Riemannian gradient descent | `minimize_rgd` | `Manifold + Retraction` |
+| Riemannian conjugate gradient (FR / PR+) | `minimize_rcg` | `+ ParallelTransport` |
+| Riemannian trust region (Steihaug-Toint) | `minimize_rtr` | `+ Connection` |
+| Fréchet mean (Karcher flow) | `frechet_mean` | `Manifold` |
+
+```rust
+use cartan_optim::{minimize_rgd, RGDConfig};
+use cartan_manifolds::Sphere;
+
+let s2 = Sphere::<3>;
+let result = minimize_rgd(
+    &s2,
+    |p| -p[0],                                           // cost
+    |p| s2.project_tangent(p, &SVector::from([1.,0.,0.])), // riemannian gradient
+    p0,
+    &RGDConfig::default(),
+);
+```
+
+## cartan-geo
+
+```rust
+use cartan_geo::{Geodesic, integrate_jacobi};
+use cartan_manifolds::Sphere;
+
+let s2 = Sphere::<3>;
+
+// Parameterized geodesic from p to q
+let geo = Geodesic::from_two_points(&s2, p, &q).unwrap();
+let points = geo.sample(20);           // 20 evenly-spaced points on [0,1]
+println!("arc length = {:.4}", geo.length());
+
+// Jacobi field: D²J/dt² + R(J, γ')γ' = 0
+let result = integrate_jacobi(&geo, j0, j0_dot, 200);
 ```
 
 ## cartan-dec
 
-`cartan-dec` is the bridge between cartan's continuous geometry and discrete PDE solvers. It builds a simplicial complex over any domain, precomputes Hodge operators and covariant derivatives, and exposes them for use in time-stepping loops.
+`cartan-dec` is the bridge between cartan's continuous geometry and discrete PDE solvers. It builds a 2D simplicial complex, precomputes Hodge operators and covariant derivatives, and exposes them for time-stepping loops.
 
-The key design property is that on a well-centered Delaunay mesh, the Hodge star is diagonal. This means the full Laplace-Beltrami operator factors into two sparse {0, +1, -1} matrix-vector products interleaved with diagonal scalings, which is both cache-friendly and SIMD-vectorizable. Simplices are reordered by Hilbert space-filling curve for spatial locality. Fields use structure-of-arrays layout.
+On a well-centered Delaunay mesh the Hodge star is diagonal, so the full Laplace-Beltrami operator factors into sparse {0, +1, -1} incidence matrix-vector products interleaved with diagonal scalings — cache-friendly and SIMD-vectorizable. Fields use structure-of-arrays layout.
 
-Operators provided: `ExteriorDerivative`, `HodgeStar`, `LaplaceBeltrami`, `BochnerLaplacian`, `LichnerowiczLaplacian`, `CovariantAdvection`, `CovariantDivergence`.
+```rust
+use cartan_dec::{Mesh, Operators};
+
+let mesh = Mesh::unit_square_grid(32);    // 32×32 uniform grid on [0,1]²
+let ops = Operators::from_mesh(&mesh);
+
+// Scalar Laplacian, Bochner Laplacian (vector fields),
+// Lichnerowicz Laplacian (symmetric 2-tensors / Q-tensor equation)
+let lf = ops.apply_laplace_beltrami(&f);
+let lu = ops.apply_bochner_laplacian(&u, ricci_correction);
+let lq = ops.apply_lichnerowicz_laplacian(&q, curvature_correction);
+```
+
+Also provided: `ExteriorDerivative` (d₀, d₁), `HodgeStar` (⋆₀, ⋆₁, ⋆₂), upwind `apply_scalar_advection` / `apply_vector_advection`, and `apply_divergence` / `apply_tensor_divergence`.
 
 ## License
 
