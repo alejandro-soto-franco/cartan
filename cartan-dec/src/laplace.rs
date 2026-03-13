@@ -15,7 +15,7 @@
 //!   L[i, i] = Σ_j w_ij       (sum of cotangent weights, positive)
 //!   L[i, j] = -w_ij           (negative weight, off-diagonal)
 //!
-//! where w_ij = ⋆₁[e_ij] / primal_len^... — actually the full formula comes
+//! where w_ij = ⋆₁\[e_ij\] / primal_len^... — actually the full formula comes
 //! from the matrix product above.
 //!
 //! ## Bochner Laplacian (connection Laplacian on vector fields)
@@ -101,7 +101,7 @@ impl Operators {
     /// Apply the scalar Laplace-Beltrami operator to a 0-form (vertex field).
     ///
     /// Returns Δf at each vertex. For an interior vertex, this is:
-    ///   (Δf)[v] = (1/A_v) Σ_{e ∋ v} w_e (f[w] - f[v])
+    ///   (Δf)\[v\] = (1/A_v) Σ_{e ∋ v} w_e (f\[w\] - f\[v\])
     /// where A_v is the dual cell area and w_e is the Hodge weight of edge e.
     pub fn apply_laplace_beltrami(&self, f: &DVector<f64>) -> DVector<f64> {
         &self.laplace_beltrami * f

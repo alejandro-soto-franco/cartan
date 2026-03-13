@@ -181,9 +181,9 @@ impl<const N: usize> Connection for Euclidean<N> {
     /// On R^N all Christoffel symbols vanish, so the Riemannian Hessian equals
     /// the Euclidean Hessian (the shape operator correction is zero).
     /// Since every ambient vector is tangent, the projection is also the identity,
-    /// giving: Hess f(p)[v] = D^2 f(p)[v].
+    /// giving: Hess f(p)\[v\] = D^2 f(p)\[v\].
     ///
-    /// The `hess_ambient` callback computes the Euclidean HVP D^2 f(p)[v],
+    /// The `hess_ambient` callback computes the Euclidean HVP D^2 f(p)\[v\],
     /// which we return directly (no correction needed for flat space).
     fn riemannian_hessian_vector_product(
         &self,
