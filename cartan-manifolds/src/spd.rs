@@ -308,14 +308,13 @@ impl<const N: usize> Manifold for Spd<N> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl<const N: usize> Retraction for Spd<N> {
-    /// Retraction: project_point(P + V).
+    /// Retraction: Exp_P(V) — the affine-invariant geodesic exponential.
     ///
-    /// Adds V to P and clamps any negative eigenvalues back into SPD(N).
-    /// Satisfies the retraction axioms (R_P(0) = P, first-order agreement
-    /// with Exp). Cheaper than Exp for large steps where Exp would be used
-    /// only to immediately project back anyway.
+    /// Using exp as the retraction makes `retract`/`inverse_retract` a
+    /// consistent inverse pair (retract = exp, inverse_retract = log),
+    /// which is required for harness tests of the roundtrip identity.
     fn retract(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Point {
-        self.project_point(&(p + v))
+        self.exp(p, v)
     }
 
     /// Inverse retraction: Log_P(Q).

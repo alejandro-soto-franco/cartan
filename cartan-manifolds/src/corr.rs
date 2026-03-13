@@ -314,7 +314,16 @@ impl<const N: usize> Manifold for Corr<N> {
     /// standard Gaussian off-diagonal entries.
     fn random_tangent<R: Rng>(&self, p: &Self::Point, rng: &mut R) -> Self::Tangent {
         let g: SMatrix<Real, N, N> = SMatrix::from_fn(|_, _| rng.sample::<Real, _>(StandardNormal));
-        self.project_tangent(p, &g)
+        let v = self.project_tangent(p, &g);
+        // Scale to stay within a safe fraction of the injectivity radius λ_min(C),
+        // so that exp(C, v) = C + v remains inside the PD cone.
+        let inj = self.injectivity_radius(p);
+        let v_norm = v.norm();
+        if v_norm > 1e-15 {
+            v * ((inj * 0.3) / v_norm).min(1.0)
+        } else {
+            v
+        }
     }
 }
 
