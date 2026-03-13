@@ -3,7 +3,6 @@ resolver = "2"
 members = [
     "cartan",
     "cartan-core",
-    "cartan-nalgebra",
     "cartan-manifolds",
     "cartan-optim",
     "cartan-geo",
