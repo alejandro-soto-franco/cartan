@@ -8,8 +8,8 @@ members = [
     "cartan-optim",
     "cartan-geo",
     "cartan-dec",
-    "experiments",
 ]
+exclude = ["experiments"]
 
 [workspace.package]
 version = "0.1.0"
