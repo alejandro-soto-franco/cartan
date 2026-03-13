@@ -8,7 +8,7 @@ Riemannian geometry, manifold optimization, and geodesic computation in Rust.
 [![Tests](https://github.com/alejandro-soto-franco/cartan/actions/workflows/ci.yml/badge.svg)](https://github.com/alejandro-soto-franco/cartan/actions)
 [![MSRV](https://img.shields.io/badge/MSRV-1.85-blue.svg)](Cargo.toml)
 
-**cartan** is a general-purpose Rust library for Riemannian geometry. It provides a backend-agnostic trait system with const-generic manifolds, correct numerics, and clean composability — from basic exp/log maps through second-order optimization to discrete exterior calculus for covariant PDE solvers.
+**cartan** is a general-purpose Rust library for Riemannian geometry. It provides a backend-agnostic trait system with const-generic manifolds, correct numerics, and clean composability: from basic exp/log maps through second-order optimization to discrete exterior calculus for covariant PDE solvers.
 
 Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev)
 
@@ -123,7 +123,7 @@ let result = integrate_jacobi(&geo, j0, j0_dot, 200);
 
 `cartan-dec` is the bridge between cartan's continuous geometry and discrete PDE solvers. It builds a 2D simplicial complex, precomputes Hodge operators and covariant derivatives, and exposes them for time-stepping loops.
 
-On a well-centered Delaunay mesh the Hodge star is diagonal, so the full Laplace-Beltrami operator factors into sparse {0, +1, -1} incidence matrix-vector products interleaved with diagonal scalings — cache-friendly and SIMD-vectorizable. Fields use structure-of-arrays layout.
+On a well-centered Delaunay mesh the Hodge star is diagonal, so the full Laplace-Beltrami operator factors into sparse {0, +1, -1} incidence matrix-vector products interleaved with diagonal scalings (cache-friendly and SIMD-vectorizable). Fields use structure-of-arrays layout.
 
 ```rust
 use cartan_dec::{Mesh, Operators};
