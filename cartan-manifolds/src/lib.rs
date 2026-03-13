@@ -19,6 +19,7 @@ pub mod corr;
 pub mod euclidean;
 pub mod se;
 pub mod so;
+pub mod spd;
 pub mod sphere;
 pub mod util;
 
@@ -26,4 +27,5 @@ pub use corr::Corr;
 pub use euclidean::Euclidean;
 pub use se::{SEPoint, SETangent, SpecialEuclidean};
 pub use so::SpecialOrthogonal;
+pub use spd::Spd;
 pub use sphere::Sphere;

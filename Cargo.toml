@@ -8,6 +8,7 @@ members = [
     "cartan-optim",
     "cartan-geo",
     "cartan-dec",
+    "experiments",
 ]
 
 [workspace.package]
