@@ -1,97 +1,57 @@
+// ~/cartan/cartan-dec/src/lib.rs
+
 //! # cartan-dec
 //!
 //! Discrete exterior calculus (DEC) on Riemannian manifolds.
 //!
-//! This crate bridges the continuous geometry of `cartan-core` to the discrete
-//! operators required by PDE solvers. Given a manifold implementing
-//! [`cartan_core::Manifold`], it builds a simplicial complex over a domain,
-//! precomputes all static operators, and exposes them for use in time-stepping loops.
+//! Bridges continuous geometry (`cartan-core`) to discrete operators for PDE
+//! solvers on simplicial meshes. All metric information flows through the
+//! Hodge star; topology is encoded in the metric-free exterior derivative.
 //!
-//! ## Mathematical structure
+//! ## Modules
 //!
-//! DEC represents smooth differential operators through their discrete analogues
-//! on a simplicial complex. The central factorization is:
+//! | Module | Contents |
+//! |--------|----------|
+//! | [`mesh`] | `Mesh` — 2D simplicial complex with vertices, edges, triangles |
+//! | [`exterior`] | `ExteriorDerivative` — d₀ (V→E) and d₁ (E→T) incidence matrices |
+//! | [`hodge`] | `HodgeStar` — diagonal ⋆₀, ⋆₁, ⋆₂ from primal/dual volumes |
+//! | [`laplace`] | `Operators` — Laplace-Beltrami, Bochner, and Lichnerowicz Laplacians |
+//! | [`advection`] | Upwind covariant advection for scalar and vector fields |
+//! | [`divergence`] | Discrete covariant divergence of vector and tensor fields |
+//! | [`error`] | `DecError` — error type for DEC operations |
 //!
-//! ```text
-//! Laplace-Beltrami = d * star * d * star
-//! ```
-//!
-//! where `d_k` is the exterior derivative (a sparse {0, +1, -1} incidence matrix,
-//! metric-free and fixed for a given mesh topology) and `star_k` is the Hodge star
-//! (a diagonal matrix for well-centered meshes, encoding the metric geometry).
-//!
-//! This factorization isolates all metric dependence in diagonal `star` operators,
-//! making the Laplacian a sequence of sparse matrix-vector products and diagonal
-//! scalings rather than a dense or irregularly sparse stiffness matrix.
-//!
-//! ## Mesh requirements
-//!
-//! All operators in this crate assume a **well-centered mesh**: every simplex's
-//! circumcenter lies strictly inside that simplex. This property guarantees that
-//! all Hodge weights are positive, keeping the Laplacian positive semi-definite
-//! and the discrete Hodge star diagonal. Mesh generation utilities enforce this
-//! via constrained Delaunay triangulation with circumcentric duals.
-//!
-//! ## Cache layout
-//!
-//! Simplices are reordered by Hilbert space-filling curve index so that spatially
-//! local simplices are adjacent in memory. Field arrays use structure-of-arrays
-//! (SoA) layout: each independent tensor component occupies a contiguous
-//! `Vec<f64>`, enabling SIMD vectorization and minimizing cache pressure during
-//! stencil evaluation. Graph coloring of the dual mesh enables race-free parallel
-//! updates via `rayon`.
-//!
-//! ## Operators
-//!
-//! ### Combinatorial (metric-free, precomputed once)
-//!
-//! - [`ExteriorDerivative`] -- sparse {0, +1, -1} incidence matrix `d_k` for each
-//!   form degree k. Encodes the boundary operator on the simplicial complex.
-//!
-//! ### Metric (diagonal, depends on manifold geometry)
-//!
-//! - [`HodgeStar`] -- diagonal weight matrix `star_k` for each degree k. Weights
-//!   are ratios of primal and dual simplex volumes, computed from the manifold
-//!   metric via `cartan_core::Manifold`.
-//!
-//! ### Composed
-//!
-//! - [`LaplaceBeltrami`] -- scalar Laplacian `d star d star`, assembled from the
-//!   above. Acts on 0-forms (vertex-valued scalar fields).
-//!
-//! - [`BochnerLaplacian`] -- connection Laplacian on tensor-valued fields.
-//!   Generalizes `LaplaceBeltrami` to sections of tensor bundles using the
-//!   Levi-Civita connection from `cartan_core::Connection`.
-//!
-//! - [`LichnerowiczLaplacian`] -- Bochner Laplacian plus a pointwise curvature
-//!   correction from `cartan_core::Curvature`. Acts on symmetric 2-tensor fields
-//!   and is the correct operator for the Q-tensor equation in nematohydrodynamics.
-//!
-//! - [`CovariantAdvection`] -- upwind covariant advection operator for
-//!   tensor-valued fields transported by a vector field.
-//!
-//! - [`CovariantDivergence`] -- covariant divergence of a tensor field, used for
-//!   body-force and stress divergence computations.
-//!
-//! ## Usage
+//! ## Quick start
 //!
 //! ```rust,ignore
-//! use cartan_dec::Mesh;
-//! use cartan_manifolds::Euclidean;
+//! use cartan_dec::{Mesh, Operators};
+//! use nalgebra::DVector;
 //!
-//! // Build a well-centered Delaunay mesh over a 2D domain.
-//! // let mesh = Mesh::delaunay_2d(&domain_points);
+//! // Build a 4×4 uniform grid on [0,1]².
+//! let mesh = Mesh::unit_square_grid(4);
+//! let ops = Operators::from_mesh(&mesh);
 //!
-//! // Precompute all static operators.
-//! // let ops = mesh.operators::<Euclidean<2>>();
-//!
-//! // Apply the Laplace-Beltrami operator to a scalar field.
-//! // let lf = ops.laplace_beltrami.apply(&f);
+//! // Apply the scalar Laplacian to a vertex field.
+//! let f = DVector::from_element(mesh.n_vertices(), 1.0);
+//! let lf = ops.apply_laplace_beltrami(&f);
 //! ```
 //!
-//! ## Relation to other cartan crates
+//! ## References
 //!
-//! `cartan-dec` depends on `cartan-core` for manifold traits and `cartan-manifolds`
-//! for concrete manifold types. It is a pure computation layer with no I/O and no
-//! application-domain knowledge. PDE solvers built on `cartan-dec` bring their own
-//! field semantics and equations of motion.
+//! - Desbrun et al. "Discrete Exterior Calculus." arXiv:math/0508341, 2005.
+//! - Hirani. "Discrete Exterior Calculus." Caltech PhD thesis, 2003.
+
+pub mod advection;
+pub mod divergence;
+pub mod error;
+pub mod exterior;
+pub mod hodge;
+pub mod laplace;
+pub mod mesh;
+
+pub use advection::{apply_scalar_advection, apply_vector_advection};
+pub use divergence::{apply_divergence, apply_tensor_divergence};
+pub use error::DecError;
+pub use exterior::ExteriorDerivative;
+pub use hodge::HodgeStar;
+pub use laplace::Operators;
+pub use mesh::Mesh;
