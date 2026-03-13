@@ -1,0 +1,18 @@
+[package]
+name = "cartan-dec"
+description = "Discrete exterior calculus on Riemannian manifolds: simplicial complexes, Hodge operators, and covariant differential operators built on cartan-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["riemannian", "manifold", "dec", "discrete-exterior-calculus", "pde"]
+categories = ["mathematics", "science", "algorithms"]
+
+[dependencies]
+cartan-core      = { path = "../cartan-core" }
+cartan-manifolds = { path = "../cartan-manifolds" }
+nalgebra         = { workspace = true }
+rayon            = { workspace = true }
+thiserror        = { workspace = true }
+serde            = { workspace = true }
