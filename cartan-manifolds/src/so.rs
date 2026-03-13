@@ -354,7 +354,7 @@ impl<const N: usize> Manifold for SpecialOrthogonal<N> {
         // The iteration is equivalent to the singular-value "centering" map:
         //   if A = U Σ V^T, then Q_∞ = U V^T (regardless of Σ).
         const MAX_ITERS: usize = 20;
-        let mut q = p.clone(); // iterand; converges to polar_factor(A)
+        let mut q = *p; // iterand; converges to polar_factor(A)
 
         for _ in 0..MAX_ITERS {
             // Compute Q^{-1} (needed for Q^{-T} = (Q^{-1})^T).
@@ -365,10 +365,10 @@ impl<const N: usize> Manifold for SpecialOrthogonal<N> {
             };
 
             // Update: Q ← (Q + Q^{-T}) / 2
-            let q_new = (&q + q_inv.transpose()) * 0.5;
+            let q_new = (q + q_inv.transpose()) * 0.5;
 
             // Convergence check: if ||Q_{k+1} - Q_k||_F / ||Q_{k+1}||_F < 1e-14, done.
-            let change = (&q_new - &q).norm();
+            let change = (q_new - q).norm();
             let scale = q_new.norm().max(1e-15);
             q = q_new;
 
@@ -466,7 +466,7 @@ impl<const N: usize> Manifold for SpecialOrthogonal<N> {
         // Check skew-symmetry: ||Ω + Ω^T||_F < TANGENT_TOL
         if !is_skew(&omega_approx, TANGENT_TOL) {
             // Measure the actual violation for the error message.
-            let violation = (&omega_approx + omega_approx.transpose()).norm();
+            let violation = (omega_approx + omega_approx.transpose()).norm();
             return Err(CartanError::NotInTangentSpace {
                 constraint: format!("R^T V is skew-symmetric (T_R SO({}))", N),
                 violation,
@@ -658,8 +658,8 @@ impl<const N: usize> Retraction for SpecialOrthogonal<N> {
         let half_omega = &omega * 0.5; // Ω/2
 
         // Step 2: Compute (I - Ω/2) and (I + Ω/2).
-        let lhs = &id - &half_omega; // (I - Ω/2)
-        let rhs = &id + &half_omega; // (I + Ω/2)
+        let lhs = id - half_omega; // (I - Ω/2)
+        let rhs = id + half_omega; // (I + Ω/2)
 
         // Step 3: Compute X = (I - Ω/2)^{-1} (I + Ω/2).
         // For skew-symmetric Ω, (I - Ω/2) is guaranteed non-singular (its eigenvalues
@@ -708,8 +708,8 @@ impl<const N: usize> Retraction for SpecialOrthogonal<N> {
         let id = SMatrix::<Real, N, N>::identity();
 
         // Step 2: Compute (M + I) and (M - I).
-        let m_plus_i = &m + &id; // (M + I)
-        let m_minus_i = &m - &id; // (M - I)
+        let m_plus_i = m + id; // (M + I)
+        let m_minus_i = m - id; // (M - I)
 
         // Step 3: Compute Ω/2 = (M + I)^{-1} (M - I), giving Ω = 2 (M+I)^{-1} (M-I).
         // (M + I) is singular iff M has eigenvalue -1, i.e., Q is the "antipode" of R.
@@ -877,17 +877,17 @@ impl<const N: usize> Curvature for SpecialOrthogonal<N> {
     ) -> Self::Tangent {
         // Step 1: Pull back to Lie algebra body-frame at identity.
         let r_t = p.transpose(); // R^T (shared for all three)
-        let omega_u = &r_t * u; // Ω_U = R^T U ∈ so(N)
-        let omega_v = &r_t * v; // Ω_V = R^T V ∈ so(N)
-        let omega_w = &r_t * w; // Ω_W = R^T W ∈ so(N)
+        let omega_u = r_t * u; // Ω_U = R^T U ∈ so(N)
+        let omega_v = r_t * v; // Ω_V = R^T V ∈ so(N)
+        let omega_w = r_t * w; // Ω_W = R^T W ∈ so(N)
 
         // Step 2: Inner Lie bracket [Ω_U, Ω_V] = Ω_U Ω_V - Ω_V Ω_U.
-        let bracket_uv = &omega_u * &omega_v - &omega_v * &omega_u;
+        let bracket_uv = omega_u * omega_v - omega_v * omega_u;
 
         // Step 3: Double Lie bracket [[Ω_U, Ω_V], Ω_W] = bracket_uv Ω_W - Ω_W bracket_uv.
         // NOTE: The bracket order matters for skew-symmetry in (U,V). Only [[X,Y],Z] is
         // skew-symmetric in (X,Y); [X,[Y,Z]] is NOT. Ref: Milnor 1976, Lemma 1.5.
-        let double_bracket = &bracket_uv * &omega_w - &omega_w * &bracket_uv;
+        let double_bracket = bracket_uv * omega_w - omega_w * bracket_uv;
 
         // Step 4: Apply curvature formula and left-translate back to T_R SO(N).
         //   R(U,V)W = -(1/4) R [[Ω_U, Ω_V], Ω_W]
@@ -931,11 +931,11 @@ impl<const N: usize> Curvature for SpecialOrthogonal<N> {
     ) -> Real {
         // Pull back to Lie algebra.
         let r_t = p.transpose();
-        let omega_u = &r_t * u; // Ω_U
-        let omega_v = &r_t * v; // Ω_V
+        let omega_u = r_t * u; // Ω_U
+        let omega_v = r_t * v; // Ω_V
 
         // Compute the commutator [Ω_U, Ω_V] = Ω_U Ω_V - Ω_V Ω_U.
-        let bracket = &omega_u * &omega_v - &omega_v * &omega_u;
+        let bracket = omega_u * omega_v - omega_v * omega_u;
 
         // Numerator: (1/4) ||[Ω_U, Ω_V]||² under the metric (1/2) tr(·^T ·).
         // ||A||² = (1/2) tr(A^T A) = (1/2) tr(A^T A).
@@ -991,7 +991,7 @@ impl<const N: usize> Curvature for SpecialOrthogonal<N> {
 
         // Numerator: (1/4) * (1/2) * tr(bracket^T * bracket) = (1/8) * ||bracket||_F²
         // (where ||A||_F² = tr(A^T A))
-        let bracket_norm_sq = (bracket.transpose() * &bracket).trace(); // tr(bracket^T bracket)
+        let bracket_norm_sq = (bracket.transpose() * bracket).trace(); // tr(bracket^T bracket)
         let numerator = 0.25 * 0.5 * bracket_norm_sq; // (1/4) * <[ΩU,ΩV], [ΩU,ΩV]>_I
 
         // Denominator: ||U||²_R ||V||²_R - <U,V>²_R
@@ -1137,6 +1137,7 @@ impl<const N: usize> GeodesicInterpolation for SpecialOrthogonal<N> {
 /// only indexing and scalar arithmetic, working for any N.
 ///
 /// Ref: Golub & Van Loan (2013), Algorithm 3.4.1 (Gaussian elimination with partial pivoting).
+#[allow(clippy::needless_range_loop)]
 fn gauss_det_sign<const N: usize>(a: &SMatrix<Real, N, N>) -> Real {
     // Work with a mutable copy of A (we modify it in-place during elimination).
     // We store A as a flat Vec for convenient row operations.
@@ -1225,6 +1226,7 @@ fn gauss_det_sign<const N: usize>(a: &SMatrix<Real, N, N>) -> Real {
 ///
 /// Ref: Golub & Van Loan (2013), §5.2.1 (Householder QR decomposition);
 ///      Mezzadri (2006), §2 (sign correction for Haar measure).
+#[allow(clippy::needless_range_loop)]
 fn householder_qr<const N: usize>(
     g: &SMatrix<Real, N, N>,
 ) -> (SMatrix<Real, N, N>, [Real; N]) {
@@ -1282,9 +1284,7 @@ fn householder_qr<const N: usize>(
 
         // Compute the Householder vector v = x + sigma * e_k.
         let mut v = [0.0f64; N];
-        for i in k..N {
-            v[i] = x[i];
-        }
+        v[k..N].copy_from_slice(&x[k..N]); // copy subcolumn entries k..N into v
         v[k] += sigma;
 
         // Normalize v so that H = I - 2 v v^T.
