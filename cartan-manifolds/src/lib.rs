@@ -20,6 +20,6 @@ pub mod sphere;
 pub mod util;
 
 pub use euclidean::Euclidean;
-pub use se::SpecialEuclidean;
+pub use se::{SEPoint, SETangent, SpecialEuclidean};
 pub use so::SpecialOrthogonal;
 pub use sphere::Sphere;

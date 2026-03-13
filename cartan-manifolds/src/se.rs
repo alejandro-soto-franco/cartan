@@ -329,7 +329,7 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         // Rotation inner product: (1/2) tr(U_rot^T V_rot) = (1/2) tr(Ω_u^T Ω_v)
         // Since U_rot = R Ω_u, we have U_rot^T V_rot = Ω_u^T R^T R Ω_v = Ω_u^T Ω_v
         // (R^T R = I for R ∈ SO(N)). So tr(U_rot^T V_rot) = tr(Ω_u^T Ω_v).
-        let rotation_inner = (u.rotation.transpose() * &v.rotation).trace() * 0.5;
+        let rotation_inner = (u.rotation.transpose() * v.rotation).trace() * 0.5;
 
         // Translation inner product: weight · v_body_u^T v_body_v
         // v_body_u = R^T u_trans, v_body_v = R^T v_trans
@@ -373,8 +373,8 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         // Step 1: Right-trivialize (pull back to Lie algebra).
         //   Ω = R^T V_rot ∈ so(N)
         //   v_body = R^T v_trans ∈ R^N
-        let omega = p.rotation.transpose() * &v.rotation;
-        let v_body = p.rotation.transpose() * &v.translation;
+        let omega = p.rotation.transpose() * v.rotation;
+        let v_body = p.rotation.transpose() * v.translation;
 
         // Step 2: SO(N) exponential for the rotation component.
         //   exp(Ω) ∈ SO(N), uses Rodrigues (N=3) or Padé (N≥4).
@@ -388,8 +388,8 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         //   R_new = R · exp(Ω)
         //   t_new = t + R · J(Ω) · v_body
         SEPoint {
-            rotation: &p.rotation * exp_omega,
-            translation: &p.translation + &p.rotation * (j_omega * v_body),
+            rotation: p.rotation * exp_omega,
+            translation: p.translation + p.rotation * (j_omega * v_body),
         }
     }
 
@@ -418,7 +418,7 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
     /// - Chirikjian (2012), Vol 2, eq. (10.94).
     fn log(&self, p: &Self::Point, q: &Self::Point) -> Result<Self::Tangent, CartanError> {
         // Step 1: Relative rotation M = R₁^T R₂ ∈ SO(N).
-        let m = p.rotation.transpose() * &q.rotation;
+        let m = p.rotation.transpose() * q.rotation;
 
         // Step 2: Matrix logarithm of M → Ω ∈ so(N).
         //   Fails at the cut locus (rotation angle near π).
@@ -426,7 +426,7 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
 
         // Step 3: Relative translation in body frame.
         //   Δt = R₁^T (t₂ - t₁)
-        let delta_t = p.rotation.transpose() * (&q.translation - &p.translation);
+        let delta_t = p.rotation.transpose() * (q.translation - p.translation);
 
         // Step 4: Invert the left Jacobian coupling.
         //   v_body = J(Ω)^{-1} · Δt
@@ -442,8 +442,8 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         //   V_rot = R₁ · Ω
         //   v_trans = R₁ · v_body
         Ok(SETangent {
-            rotation: &p.rotation * omega,
-            translation: &p.rotation * v_body,
+            rotation: p.rotation * omega,
+            translation: p.rotation * v_body,
         })
     }
 
@@ -463,12 +463,12 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
     /// The translation component is unconstrained, so it passes through unchanged.
     fn project_tangent(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Tangent {
         // Project the rotation component onto T_R SO(N).
-        let a = p.rotation.transpose() * &v.rotation;
+        let a = p.rotation.transpose() * v.rotation;
         let omega = skew(&a);
         SETangent {
-            rotation: &p.rotation * omega,
+            rotation: p.rotation * omega,
             // Translation is unconstrained — no projection needed.
-            translation: v.translation.clone(),
+            translation: v.translation,
         }
     }
 
@@ -493,7 +493,7 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         SEPoint {
             rotation: q,
             // Translation is unconstrained — no projection needed.
-            translation: p.translation.clone(),
+            translation: p.translation,
         }
     }
 
@@ -515,7 +515,7 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
     fn check_point(&self, p: &Self::Point) -> Result<(), CartanError> {
         // Check orthogonality: ||R^T R - I||_F
         let id = SMatrix::<Real, N, N>::identity();
-        let rtr = p.rotation.transpose() * &p.rotation;
+        let rtr = p.rotation.transpose() * p.rotation;
         let ortho_violation = (rtr - id).norm();
 
         if ortho_violation >= VALIDATION_TOL {
@@ -547,10 +547,10 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
     /// The translation component v_trans is unconstrained.
     fn check_tangent(&self, p: &Self::Point, v: &Self::Tangent) -> Result<(), CartanError> {
         // Check that R^T V_rot is skew-symmetric.
-        let omega_approx = p.rotation.transpose() * &v.rotation;
+        let omega_approx = p.rotation.transpose() * v.rotation;
 
         if !is_skew(&omega_approx, TANGENT_TOL) {
-            let violation = (&omega_approx + omega_approx.transpose()).norm();
+            let violation = (omega_approx + omega_approx.transpose()).norm();
             return Err(CartanError::NotInTangentSpace {
                 constraint: format!("R^T V_rot is skew-symmetric (T_{{(R,t)}} SE({}))", N),
                 violation,
@@ -590,7 +590,7 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         // Random rotation tangent: R · skew(Gaussian) ∈ T_R SO(N)
         let g: SMatrix<Real, N, N> = SMatrix::from_fn(|_, _| rng.sample(StandardNormal));
         let omega = skew(&g);
-        let v_rot = &p.rotation * omega;
+        let v_rot = p.rotation * omega;
 
         // Random translation tangent: standard Gaussian in R^N
         let v_trans = SVector::from_fn(|_, _| rng.sample(StandardNormal));
@@ -635,11 +635,11 @@ impl<const N: usize> Retraction for SpecialEuclidean<N> {
         // Rotation: Cayley retraction on SO(N).
         //   Ω = R^T V_rot ∈ so(N)
         //   R_new = R · (I - Ω/2)^{-1} (I + Ω/2)
-        let omega = p.rotation.transpose() * &v.rotation;
+        let omega = p.rotation.transpose() * v.rotation;
         let id = SMatrix::<Real, N, N>::identity();
         let half_omega = &omega * 0.5;
-        let lhs = &id - &half_omega;
-        let rhs = &id + &half_omega;
+        let lhs = id - half_omega;
+        let rhs = id + half_omega;
 
         // (I - Ω/2) is always invertible for skew Ω (eigenvalues have positive real part).
         let lhs_inv = lhs.try_inverse().expect(
@@ -648,9 +648,9 @@ impl<const N: usize> Retraction for SpecialEuclidean<N> {
         let cayley = lhs_inv * rhs;
 
         SEPoint {
-            rotation: &p.rotation * cayley,
+            rotation: p.rotation * cayley,
             // Translation: simple Euclidean retraction (addition).
-            translation: &p.translation + &v.translation,
+            translation: p.translation + v.translation,
         }
     }
 
@@ -672,10 +672,10 @@ impl<const N: usize> Retraction for SpecialEuclidean<N> {
         q: &Self::Point,
     ) -> Result<Self::Tangent, CartanError> {
         // Rotation: inverse Cayley on SO(N).
-        let m = p.rotation.transpose() * &q.rotation;
+        let m = p.rotation.transpose() * q.rotation;
         let id = SMatrix::<Real, N, N>::identity();
-        let m_plus_i = &m + &id;
-        let m_minus_i = &m - &id;
+        let m_plus_i = m + id;
+        let m_minus_i = m - id;
 
         let m_plus_i_inv =
             m_plus_i
@@ -690,9 +690,9 @@ impl<const N: usize> Retraction for SpecialEuclidean<N> {
         let omega = half_omega * 2.0;
 
         Ok(SETangent {
-            rotation: &p.rotation * omega,
+            rotation: p.rotation * omega,
             // Translation: simple subtraction.
-            translation: &q.translation - &p.translation,
+            translation: q.translation - p.translation,
         })
     }
 }
@@ -730,12 +730,12 @@ impl<const N: usize> ParallelTransport for SpecialEuclidean<N> {
         u: &Self::Tangent,
     ) -> Result<Self::Tangent, CartanError> {
         // Rotation transport: Q R^T u_rot (left-translation, exact for SO(N) bi-invariant metric).
-        let transported_rot = &q.rotation * (p.rotation.transpose() * &u.rotation);
+        let transported_rot = q.rotation * (p.rotation.transpose() * u.rotation);
 
         // Translation transport: identity (R^N is flat — parallel transport is trivial).
         Ok(SETangent {
             rotation: transported_rot,
-            translation: u.translation.clone(),
+            translation: u.translation,
         })
     }
 }
@@ -816,15 +816,15 @@ fn project_to_so_n<const N: usize>(p: &SMatrix<Real, N, N>) -> SMatrix<Real, N, 
 
     // Newton polar iteration.
     const MAX_ITERS: usize = 20;
-    let mut q = p.clone();
+    let mut q = *p;
 
     for _ in 0..MAX_ITERS {
         let q_inv = match q.try_inverse() {
             Some(inv) => inv,
             None => break,
         };
-        let q_new = (&q + q_inv.transpose()) * 0.5;
-        let change = (&q_new - &q).norm();
+        let q_new = (q + q_inv.transpose()) * 0.5;
+        let change = (q_new - q).norm();
         let scale = q_new.norm().max(1e-15);
         q = q_new;
         if change / scale < 1e-14 {
@@ -847,6 +847,7 @@ fn project_to_so_n<const N: usize>(p: &SMatrix<Real, N, N>) -> SMatrix<Real, N, 
 ///
 /// Returns +1.0 if det > 0, -1.0 if det < 0, 0.0 if singular.
 /// See `so.rs::gauss_det_sign` for detailed documentation.
+#[allow(clippy::needless_range_loop)]
 fn gauss_det_sign<const N: usize>(a: &SMatrix<Real, N, N>) -> Real {
     let mut mat = [[0.0f64; N]; N];
     for i in 0..N {
@@ -951,6 +952,7 @@ fn random_so_n<const N: usize, R: Rng>(rng: &mut R) -> SMatrix<Real, N, N> {
 /// for self-containment. See `so.rs::householder_qr` for detailed documentation.
 ///
 /// Ref: Golub & Van Loan (2013), §5.2.1.
+#[allow(clippy::needless_range_loop)]
 fn householder_qr<const N: usize>(
     g: &SMatrix<Real, N, N>,
 ) -> (SMatrix<Real, N, N>, [Real; N]) {

@@ -282,14 +282,14 @@ fn log_general<const N: usize>(
     // We start with Y = R and compute Y ← Y^{1/2} repeatedly until
     // ||Y - I||_1 < 0.5 (within the Mercator convergence radius).
     // We track the number of square roots taken as `s`.
-    let mut y = r.clone(); // Y will converge to R^{1/2^s}
+    let mut y = *r; // Y will converge to R^{1/2^s}
     let mut s = 0usize;    // number of square roots taken so far
 
     for _sqrts in 0..MAX_SQRTS {
         // Check if Y is already close enough to I for Mercator to converge well.
         // Threshold 0.5: Mercator converges for ||X|| < 1, but we want ||X|| ≤ 0.5
         // for reasonable accuracy with 16 terms.
-        let y_minus_id_norm = matrix_norm1(&(&y - &id));
+        let y_minus_id_norm = matrix_norm1(&(y - id));
         if y_minus_id_norm < 0.5 {
             break; // Y is close enough to I; stop taking square roots.
         }
@@ -310,7 +310,7 @@ fn log_general<const N: usize>(
     }
 
     // Final check: did we actually converge?
-    let y_minus_id_norm = matrix_norm1(&(&y - &id));
+    let y_minus_id_norm = matrix_norm1(&(y - id));
     if y_minus_id_norm >= 0.5 {
         return Err(CartanError::CutLocus {
             message: format!(
@@ -331,23 +331,23 @@ fn log_general<const N: usize>(
     //   ||X||^{MERCATOR_TERMS+1} / (MERCATOR_TERMS+1) < 0.5^17 / 17 ≈ 4.5e-7.
     // If we want higher accuracy, either use more terms or ensure smaller ||X||
     // by taking more square roots (smaller threshold for break condition above).
-    let x = &y - &id; // X = Y - I (the "deviation" from identity)
+    let x = y - id; // X = Y - I (the "deviation" from identity)
 
     // Compute the Mercator series using Horner-like accumulation:
     //   Σ = X - X²/2 + X³/3 - ... = X · (I - X/2 · (I - X/3 · (I - ...)))
     // We use the straightforward summation (not Horner) for clarity:
     //   log_y = sum_{k=1}^{MERCATOR_TERMS} (-1)^{k+1} X^k / k
     let mut log_y = SMatrix::<Real, N, N>::zeros(); // accumulator for the series
-    let mut x_power = x.clone(); // X^k, starts at X^1
+    let mut x_power = x; // X^k, starts at X^1
     let mut sign = 1.0_f64; // alternating sign: +1 for k odd, -1 for k even
 
     for k in 1..=MERCATOR_TERMS {
         // Add the term sign * X^k / k to the series sum.
         // sign = (-1)^{k+1} = +1 for k=1, -1 for k=2, +1 for k=3, ...
-        log_y += &x_power * (sign / k as Real);
+        log_y += x_power * (sign / k as Real);
 
         // Prepare for next iteration: X^{k+1} = X^k · X, flip sign.
-        x_power = &x_power * &x; // X^{k+1} = X^k · X
+        x_power *= x; // X^{k+1} = X^k · X
         sign = -sign; // flip for the next term
     }
 
@@ -368,7 +368,7 @@ fn log_general<const N: usize>(
     //
     // This projection is exact for a perfect logarithm: if Ω ∈ so(N) then
     // (Ω - Ω^T)/2 = (Ω - (-Ω))/2 = Ω. So we only lose the error, not signal.
-    let log_r = (&log_r_raw - log_r_raw.transpose()) * 0.5;
+    let log_r = (log_r_raw - log_r_raw.transpose()) * 0.5;
 
     Ok(log_r)
 }
@@ -410,8 +410,8 @@ fn denman_beavers_sqrt<const N: usize>(
     let id = SMatrix::<Real, N, N>::identity();
     let half = 0.5_f64;
 
-    let mut y = y_init.clone(); // Y_k (iterand; converges to Y^{1/2})
-    let mut z = id.clone(); // Z_k (converges to Y^{-1/2})
+    let mut y = *y_init; // Y_k (iterand; converges to Y^{1/2})
+    let mut z = id; // Z_k (converges to Y^{-1/2})
 
     for _ in 0..max_iters {
         // Compute inverses: Z_k^{-1} and Y_k^{-1}.
@@ -420,18 +420,18 @@ fn denman_beavers_sqrt<const N: usize>(
         let y_inv = y.try_inverse()?; // Y_k^{-1}; returns None on singular
 
         // Save Y_k before updating to check convergence.
-        let y_old = y.clone();
+        let y_old = y;
 
         // DB update:
         //   Y_{k+1} = (Y_k + Z_k^{-1}) / 2
         //   Z_{k+1} = (Z_k + Y_k^{-1}) / 2
-        y = (&y_old + &z_inv) * half;
-        z = (&z + &y_inv) * half;
+        y = (y_old + z_inv) * half;
+        z = (z + y_inv) * half;
 
         // Convergence check: relative change in Y.
         // We use ||Y_{k+1} - Y_k||_F / ||Y_{k+1}||_F < tol.
         // Frobenius norm is used here (cheap, sufficient for convergence detection).
-        let dy = (&y - &y_old).norm(); // ||Y_{k+1} - Y_k||_F
+        let dy = (y - y_old).norm(); // ||Y_{k+1} - Y_k||_F
         let y_norm = y.norm(); // ||Y_{k+1}||_F
 
         // Avoid dividing by zero if Y → 0 (shouldn't happen for orthogonal inputs).
