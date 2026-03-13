@@ -408,7 +408,7 @@ impl<const N: usize, const K: usize> Connection for Grassmann<N, K> {
     /// Riemannian Hessian-vector product on Grassmann.
     ///
     /// For a function f on Gr(N,K), the Riemannian HVP is:
-    ///   Hess f(Q)[V] = proj_Q(D²f(Q)[V])
+    ///   Hess f(Q)\[V\] = proj_Q(D²f(Q)\[V\])
     ///
     /// where proj_Q is the horizontal projection (I − QQ^T).
     /// This is the standard formula for Grassmann manifolds embedded in R^{N×K}
@@ -440,8 +440,8 @@ impl<const N: usize, const K: usize> Curvature for Grassmann<N, K> {
     ///
     /// Derivation: Gr(N,K) = O(N)/(O(K)×O(N−K)) is a symmetric space.
     /// The curvature tensor for a symmetric space G/K with Cartan decomposition
-    /// g = k ⊕ m is R(X,Y)Z = −[[X,Y]_k, Z]. For horizontal X,Y (viewed as
-    /// elements of m ≅ skew([0, A; −A^T, 0])), the bracket [X,Y]_k gives the
+    /// g = k ⊕ m is R(X,Y)Z = −\[\[X,Y\]_k, Z\]. For horizontal X,Y (viewed as
+    /// elements of m ≅ skew(\[0, A; −A^T, 0\])), the bracket \[X,Y\]_k gives the
     /// (1/4) coefficient.
     ///
     /// Ref: Edelman, Arias, Smith (1998), Eq. (2.61).

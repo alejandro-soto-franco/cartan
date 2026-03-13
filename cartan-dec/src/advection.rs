@@ -9,7 +9,7 @@
 //! Discretized via upwind finite differences on the primal mesh:
 //! for each vertex v, the advective flux from neighbor w is:
 //!
-//!   flux(v, w) = max(u_{vw}, 0) * f[w] - max(-u_{vw}, 0) * f[v]
+//!   flux(v, w) = max(u_{vw}, 0) * f\[w\] - max(-u_{vw}, 0) * f\[v\]
 //!
 //! where u_{vw} = u · (w - v) / |w - v| is the velocity projected onto
 //! edge (v, w). The upwind scheme is first-order but unconditionally stable.

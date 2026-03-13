@@ -62,9 +62,9 @@ use nalgebra::SMatrix;
 /// # Algorithm
 ///
 /// - **N = 2:** Direct formula via `atan2(R[1,0], R[0,0])`.
-/// - **N = 3:** Inverse Rodrigues' formula (see [`log_rodrigues`]).
+/// - **N = 3:** Inverse Rodrigues' formula (see `log_rodrigues`).
 /// - **N ≥ 4:** Inverse scaling-and-squaring via Denman–Beavers square roots
-///   followed by Mercator series (see [`log_general`]).
+///   followed by Mercator series (see `log_general`).
 ///
 /// # References
 ///

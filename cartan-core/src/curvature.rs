@@ -28,7 +28,7 @@
 //!
 //! - Sphere S^{N-1}: K = 1 (constant sectional curvature)
 //! - Hyperbolic H^N: K = -1 (constant sectional curvature)
-//! - SO(N) (bi-invariant): K(X,Y) = (1/4)||[X,Y]||^2 / (||X||^2 ||Y||^2 - <X,Y>^2)
+//! - SO(N) (bi-invariant): K(X,Y) = (1/4)||\[X,Y\]||^2 / (||X||^2 ||Y||^2 - <X,Y>^2)
 //! - SPD(N) (affine-invariant): K <= 0 (non-positive, Cartan-Hadamard manifold)
 //! - Grassmann Gr(n,k): 0 <= K <= 2 (between 0 and 2)
 //! - Euclidean R^N: K = 0 everywhere
@@ -54,14 +54,14 @@ use crate::Real;
 ///
 /// Curvature requires Self: Connection because the curvature tensor is defined
 /// via the Levi-Civita connection: R(X,Y)Z = nabla_X nabla_Y Z - nabla_Y nabla_X Z
-/// - nabla_{[X,Y]} Z. Without the connection, curvature cannot be defined.
+/// - nabla_{\[X,Y\]} Z. Without the connection, curvature cannot be defined.
 pub trait Curvature: Connection {
     /// The Riemann curvature tensor: R(u, v)w.
     ///
     /// Takes three tangent vectors u, v, w at p and returns a tangent vector
     /// at p. Defined via the Levi-Civita connection as:
     ///
-    ///   R(u,v)w = nabla_u nabla_v w - nabla_v nabla_u w - nabla_{[u,v]} w
+    ///   R(u,v)w = nabla_u nabla_v w - nabla_v nabla_u w - nabla_{\[u,v\]} w
     ///
     /// Properties:
     /// - Anti-symmetry: R(u,v)w = -R(v,u)w

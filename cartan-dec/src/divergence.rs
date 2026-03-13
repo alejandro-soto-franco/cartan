@@ -14,9 +14,9 @@
 //! Given a vertex-based vector field u, we build the 1-form û by
 //! integrating u along each edge:
 //!
-//!   û[e] = (u[i] + u[j]) / 2 · (v_j - v_i)
+//!   û\[e\] = (u\[i\] + u\[j\]) / 2 · (v_j - v_i)
 //!
-//! (trapezoidal approximation of the line integral of u · dl along edge e = [i,j]).
+//! (trapezoidal approximation of the line integral of u · dl along edge e = \[i,j\]).
 //!
 //! ## Codifferential
 //!

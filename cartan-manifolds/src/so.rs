@@ -483,7 +483,7 @@ impl<const N: usize> Manifold for SpecialOrthogonal<N> {
     ///
     /// 1. Sample G ~ N(0,1)^{N×N} — each entry i.i.d. standard Gaussian.
     /// 2. Compute the QR decomposition: G = Q R_upper (Q orthogonal, R_upper upper triangular).
-    /// 3. Fix the sign: multiply each column j of Q by sign(R_upper[j,j]).
+    /// 3. Fix the sign: multiply each column j of Q by sign(R_upper\[j,j\]).
     ///    This makes the QR decomposition unique (R_upper with positive diagonal)
     ///    and Q uniformly distributed (Haar measure) on O(N).
     /// 4. If det(Q) = -1, flip the sign of the first column of Q to land in SO(N).
@@ -783,7 +783,7 @@ impl<const N: usize> ParallelTransport for SpecialOrthogonal<N> {
 impl<const N: usize> Connection for SpecialOrthogonal<N> {
     /// Riemannian Hessian-vector product on SO(N).
     ///
-    /// Given an ambient (Euclidean) Hessian-vector product ehvp = D²f(R)[V],
+    /// Given an ambient (Euclidean) Hessian-vector product ehvp = D²f(R)\[V\],
     /// the Riemannian Hessian-vector product is:
     ///
     /// ```text
@@ -842,7 +842,7 @@ impl<const N: usize> Curvature for SpecialOrthogonal<N> {
     /// R(X, Y)Z = -(1/4) [X, [Y, Z]]    (in terms of Lie algebra elements)
     /// ```
     ///
-    /// where [A, B] = AB - BA is the matrix commutator (Lie bracket on gl(N) ⊃ so(N)).
+    /// where \[A, B\] = AB - BA is the matrix commutator (Lie bracket on gl(N) ⊃ so(N)).
     ///
     /// For tangent vectors U = R Ω_U, V = R Ω_V, W = R Ω_W at R, the formula becomes:
     ///
@@ -853,19 +853,19 @@ impl<const N: usize> Curvature for SpecialOrthogonal<N> {
     ///
     /// We compute this by:
     /// 1. Pull back to so(N): Ω_U = R^T U, Ω_V = R^T V, Ω_W = R^T W.
-    /// 2. Compute the nested Lie bracket: [Ω_V, Ω_W] = Ω_V Ω_W - Ω_W Ω_V.
-    /// 3. Compute [Ω_U, [Ω_V, Ω_W]] = Ω_U [Ω_V, Ω_W] - [Ω_V, Ω_W] Ω_U.
-    /// 4. Left-translate back: result = -(1/4) R [Ω_U, [Ω_V, Ω_W]].
+    /// 2. Compute the nested Lie bracket: \[Ω_V, Ω_W\] = Ω_V Ω_W - Ω_W Ω_V.
+    /// 3. Compute \[Ω_U, \[Ω_V, Ω_W\]\] = Ω_U \[Ω_V, Ω_W\] - \[Ω_V, Ω_W\] Ω_U.
+    /// 4. Left-translate back: result = -(1/4) R \[Ω_U, \[Ω_V, Ω_W\]\].
     ///
     /// **Formula derivation:** For a bi-invariant metric on a Lie group G,
-    /// the Levi-Civita connection is: nabla_X Y = [X, Y]/2 (for left-invariant fields).
-    /// Then R(X,Y)Z = nabla_X nabla_Y Z - nabla_Y nabla_X Z - nabla_{[X,Y]} Z
-    ///               = nabla_X([Y,Z]/2) - nabla_Y([X,Z]/2) - [[X,Y],Z]/2
-    ///               = [X,[Y,Z]]/4 - [Y,[X,Z]]/4 - [[X,Y],Z]/2.
-    /// Using the Jacobi identity [X,[Y,Z]] + [Y,[Z,X]] + [Z,[X,Y]] = 0:
-    /// This simplifies to R(X,Y)Z = -(1/4)[[X,Y],Z].
-    /// By anti-symmetry of [ , ]: -[[X,Y],Z] = [X,[Y,Z]] - ... = -[X,[Y,Z]] - [Y,[Z,X]].
-    /// Using Jacobi: the most compact form is R(X,Y)Z = -(1/4) [X, [Y,Z]].
+    /// the Levi-Civita connection is: nabla_X Y = \[X, Y\]/2 (for left-invariant fields).
+    /// Then R(X,Y)Z = nabla_X nabla_Y Z - nabla_Y nabla_X Z - nabla_{\[X,Y\]} Z
+    ///               = nabla_X(\[Y,Z\]/2) - nabla_Y(\[X,Z\]/2) - \[\[X,Y\],Z\]/2
+    ///               = \[X,\[Y,Z\]\]/4 - \[Y,\[X,Z\]\]/4 - \[\[X,Y\],Z\]/2.
+    /// Using the Jacobi identity \[X,\[Y,Z\]\] + \[Y,\[Z,X\]\] + \[Z,\[X,Y\]\] = 0:
+    /// This simplifies to R(X,Y)Z = -(1/4)\[\[X,Y\],Z\].
+    /// By anti-symmetry of \[ , \]: -\[\[X,Y\],Z\] = \[X,\[Y,Z\]\] - ... = -\[X,\[Y,Z\]\] - \[Y,\[Z,X\]\].
+    /// Using Jacobi: the most compact form is R(X,Y)Z = -(1/4) \[X, \[Y,Z\]\].
     ///
     /// Ref: Milnor (1976), Lemma 1.5; do Carmo (1992), §3.2, Proposition 2.18.
     fn riemann_curvature(
@@ -1022,7 +1022,7 @@ impl<const N: usize> Curvature for SpecialOrthogonal<N> {
     /// Ric(U, V) = sum_{i=1}^{n} <R(e_i, U)V, e_i>
     /// ```
     /// where {e_i} is an orthonormal basis for T_R SO(N). Using the curvature formula
-    /// R(X,Y)Z = -(1/4)[X,[Y,Z]] and the structure constants of so(N), one can compute
+    /// R(X,Y)Z = -(1/4)\[X,\[Y,Z\]\] and the structure constants of so(N), one can compute
     /// the trace to get (N-2)/4. See Milnor (1976), Corollary 1.11 for the explicit
     /// calculation.
     ///

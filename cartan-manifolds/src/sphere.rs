@@ -282,7 +282,7 @@ impl<const N: usize> ParallelTransport for Sphere<N> {
 impl<const N: usize> Connection for Sphere<N> {
     /// Riemannian Hessian on the sphere (simplified).
     ///
-    /// The full formula is: Hess f(p)[v] = proj_p(D^2f(p)[v]) - <egrad, p> * v
+    /// The full formula is: Hess f(p)\[v\] = proj_p(D^2f(p)\[v\]) - <egrad, p> * v
     /// where v is the tangent direction. Since the current trait interface
     /// does not pass v explicitly, this returns proj_p(ehvp) which is
     /// correct to leading order.

@@ -45,9 +45,9 @@ use nalgebra::SMatrix;
 ///
 /// # Algorithm
 ///
-/// - **N = 2:** Direct 2D rotation formula using θ = Ω[1,0].
-/// - **N = 3:** Rodrigues' formula (see [`rodrigues`] doc).
-/// - **N ≥ 4:** Padé [6/6] scaling-and-squaring (see [`matrix_exp_general`]).
+/// - **N = 2:** Direct 2D rotation formula using θ = Ω\[1,0\].
+/// - **N = 3:** Rodrigues' formula (see `rodrigues` doc).
+/// - **N ≥ 4:** Padé \[6/6\] scaling-and-squaring (see `matrix_exp_general`).
 ///
 /// # Accuracy
 ///

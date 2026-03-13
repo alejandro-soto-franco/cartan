@@ -57,7 +57,7 @@ pub trait GeodesicInterpolation: Manifold {
     /// For t = 0: returns p.
     /// For t = 1: returns q.
     /// For t = 0.5: returns the geodesic midpoint.
-    /// For t outside [0,1]: extrapolates along the geodesic (valid if
+    /// For t outside \[0,1\]: extrapolates along the geodesic (valid if
     ///   t * dist(p, q) < injectivity_radius(p)).
     ///
     /// Fails if Log_p(q) fails (p and q are at or beyond the cut locus).

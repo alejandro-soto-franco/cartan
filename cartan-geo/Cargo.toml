@@ -6,6 +6,10 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+keywords = ["geodesic", "riemannian", "geometry", "curvature", "jacobi"]
+categories = ["mathematics", "science", "algorithms"]
+documentation = "https://docs.rs/cartan-geo"
+homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
 cartan-core = { path = "../cartan-core" }
