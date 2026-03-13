@@ -10,9 +10,11 @@
 //!
 //! - `cartan-core` -- abstract trait system (Manifold, Retraction, etc.)
 //! - `cartan-nalgebra` -- nalgebra backend (SVector, SMatrix storage types)
-//! - `cartan-manifolds` -- concrete manifolds (Sphere, SO(n), SPD(n), ...)
+//! - `cartan-manifolds` -- concrete manifolds (Sphere, SO(N), SE(N), ...)
 //! - `cartan-optim` -- optimization algorithms (RGD, RCG, trust region)
 //! - `cartan-geo` -- geodesic and curvature tools
+//! - `cartan-dec` -- discrete exterior calculus: simplicial complexes, Hodge
+//!   operators, and covariant differential operators for PDE solvers
 //!
 //! ## Prelude
 //!
@@ -26,6 +28,7 @@
 // Aliasing as `core` would shadow `std::core` and break macro hygiene
 // in downstream crates that use standard library macros.
 pub use cartan_core as traits;
+pub use cartan_dec as dec;
 pub use cartan_geo as geo;
 pub use cartan_manifolds as manifolds;
 pub use cartan_nalgebra as nalgebra_backend;

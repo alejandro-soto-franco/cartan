@@ -13,6 +13,7 @@ cartan-nalgebra = { path = "../cartan-nalgebra" }
 cartan-manifolds = { path = "../cartan-manifolds" }
 cartan-optim = { path = "../cartan-optim" }
 cartan-geo = { path = "../cartan-geo" }
+cartan-dec = { path = "../cartan-dec" }
 
 [dev-dependencies]
 rand = { workspace = true }
