@@ -31,7 +31,7 @@
 //! - do Carmo. "Riemannian Geometry." Birkhauser, 1992. Chapter 3 (exp/log maps).
 
 use std::fmt::Debug;
-use std::ops::{Add, Mul, Neg};
+use std::ops::{Add, Mul, Neg, Sub};
 
 use rand::Rng;
 
@@ -66,7 +66,12 @@ pub trait Manifold {
     /// Add + Mul<Real>). It is needed for conjugate gradient (d = -grad) and
     /// other algorithms that negate tangent vectors. Without it, callers would
     /// need `v * (-1.0)` which is less ergonomic.
-    type Tangent: Clone + Debug + Add<Output = Self::Tangent> + Mul<Real, Output = Self::Tangent> + Neg<Output = Self::Tangent>;
+    type Tangent: Clone
+        + Debug
+        + Add<Output = Self::Tangent>
+        + Sub<Output = Self::Tangent>
+        + Mul<Real, Output = Self::Tangent>
+        + Neg<Output = Self::Tangent>;
 
     /// Intrinsic dimension of the manifold.
     ///
