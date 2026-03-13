@@ -37,3 +37,4 @@
 pub mod matrix_exp;
 pub mod matrix_log;
 pub mod skew;
+pub mod sym;

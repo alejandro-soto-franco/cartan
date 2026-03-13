@@ -1,4 +1,5 @@
 // ~/cartan/cartan/tests/common/matrix_harness.rs
+#![allow(dead_code)]
 
 //! Generic test harnesses for matrix manifold identity verification.
 //!

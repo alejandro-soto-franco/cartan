@@ -1,4 +1,5 @@
 // ~/cartan/cartan/tests/common/manifold_harness.rs
+#![allow(dead_code)]
 
 //! Generic test harnesses for manifold identity verification.
 //!

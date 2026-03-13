@@ -1,4 +1,5 @@
 // ~/cartan/cartan/tests/common/approx.rs
+#![allow(dead_code)]
 
 //! Approximate equality helpers for manifold testing.
 //!
