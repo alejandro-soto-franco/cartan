@@ -13,3 +13,6 @@ cartan-nalgebra = { path = "../cartan-nalgebra" }
 nalgebra = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }

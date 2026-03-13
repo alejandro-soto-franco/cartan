@@ -10,15 +10,19 @@
 //! - `Euclidean<N>` -- R^N with the flat metric (trivial baseline)
 //! - `Sphere<N>` -- S^{N-1} in R^N with round metric
 //! - `SpecialOrthogonal<N>` -- SO(N) with bi-invariant metric
-//! - `SymmetricPositiveDefinite<N>` -- SPD(N) with affine-invariant metric
-//! - `Grassmann<N, K>` -- Gr(N, K) with canonical metric
+//! - `SpecialEuclidean<N>` -- SE(N) with product metric
+//! - `Corr<N>` -- Corr(N) correlation matrices with Frobenius metric (flat)
+//! - `SymmetricPositiveDefinite<N>` -- SPD(N) with affine-invariant metric (planned)
+//! - `Grassmann<N, K>` -- Gr(N, K) with canonical metric (planned)
 
+pub mod corr;
 pub mod euclidean;
 pub mod se;
 pub mod so;
 pub mod sphere;
 pub mod util;
 
+pub use corr::Corr;
 pub use euclidean::Euclidean;
 pub use se::{SEPoint, SETangent, SpecialEuclidean};
 pub use so::SpecialOrthogonal;
