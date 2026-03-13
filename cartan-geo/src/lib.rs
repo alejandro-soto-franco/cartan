@@ -1,20 +1,31 @@
+// ~/cartan/cartan-geo/src/lib.rs
+
 //! # cartan-geo
 //!
 //! Geodesic computation and geometric tools for the cartan library.
 //!
 //! This crate provides higher-level geometric utilities built on top of
-//! the `Manifold` trait from `cartan-core` and the concrete manifolds
-//! from `cartan-manifolds`. It focuses on global geometry: geodesic curves,
-//! curvature queries, Jacobi field integration, and Voronoi cells.
+//! the `Manifold` trait from `cartan-core` and the concrete manifolds from
+//! `cartan-manifolds`. It focuses on *global* geometry: geodesic curves,
+//! curvature queries, and Jacobi field integration.
 //!
-//! ## Planned functionality (v0.1 roadmap)
+//! ## Modules
 //!
-//! - `Geodesic` -- parameterized geodesic curve gamma: [0,1] -> M
-//! - `GeodesicGrid` -- uniform sampling along geodesics
-//! - `CurvatureQuery` -- sectional and Ricci curvature at a point
-//! - `JacobiField` -- ODE integration for geodesic deviation
+//! | Module | Contents |
+//! |--------|----------|
+//! | [`geodesic`] | `Geodesic<M>` — parameterized geodesic, sampling, two-point construction |
+//! | [`curvature`] | `CurvatureQuery<M>` — sectional, Ricci, scalar curvature at a point |
+//! | [`jacobi`] | `integrate_jacobi` — RK4 Jacobi field ODE integration |
 //!
 //! ## References
 //!
-//! - do Carmo. "Riemannian Geometry." Birkhauser, 1992. Chapter 5 (Jacobi fields).
-//! - Petersen. "Riemannian Geometry." Springer, 2016. Chapter 11 (curvature).
+//! - do Carmo. "Riemannian Geometry." Birkhäuser, 1992. Chapters 3–5.
+//! - Petersen. "Riemannian Geometry." Springer, 2016. Chapter 11.
+
+pub mod curvature;
+pub mod geodesic;
+pub mod jacobi;
+
+pub use curvature::{scalar_at, sectional_at, CurvatureQuery};
+pub use geodesic::Geodesic;
+pub use jacobi::{integrate_jacobi, JacobiResult};
