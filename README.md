@@ -8,16 +8,17 @@ Riemannian geometry, manifold optimization, and geodesic computation in Rust.
 [![Tests](https://github.com/alejandro-soto-franco/cartan/actions/workflows/ci.yml/badge.svg)](https://github.com/alejandro-soto-franco/cartan/actions)
 [![MSRV](https://img.shields.io/badge/MSRV-1.85-blue.svg)](Cargo.toml)
 
-**cartan** is a general-purpose Rust library for Riemannian geometry. It provides a backend-agnostic trait system with const-generic manifolds, correct numerics, and clean composability. Think of it as "the nalgebra of Riemannian geometry."
+**cartan** is a general-purpose Rust library for Riemannian geometry. It provides a backend-agnostic trait system with const-generic manifolds, correct numerics, and clean composability. It is also the substrate for covariant PDE solvers via `cartan-dec`, its discrete exterior calculus layer.
 
 Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev)
 
 ## Features
 
 - **Generic trait hierarchy**: `Manifold`, `Retraction`, `ParallelTransport`, `VectorTransport`, `Connection`, `Curvature`, `GeodesicInterpolation`
-- **Const-generic manifolds**: `Sphere<3>`, `Euclidean<10>` -- dimension checked at compile time
+- **Const-generic manifolds**: `Sphere<3>`, `Euclidean<10>`, dimensions checked at compile time
 - **Correct numerics**: Taylor expansions near singularities, cut locus detection, structured error handling
-- **Zero-cost abstractions**: manifold types are zero-sized, all geometry is in the trait impls
+- **Zero-cost abstractions**: manifold types are zero-sized, all geometry lives in the trait impls
+- **DEC layer**: `cartan-dec` discretizes covariant differential operators on any manifold for use in PDE solvers
 
 ## Quick Start
 
@@ -50,24 +51,40 @@ let k = s2.sectional_curvature(&p, &u, &v);
 
 ## Manifolds (v0.1)
 
-| Manifold | Type | Traits |
+| Manifold | Type | Status |
 |----------|------|--------|
-| Euclidean R^N | `Euclidean<N>` | All (trivial: flat geometry) |
-| Sphere S^{N-1} | `Sphere<N>` | All (constant curvature K=1) |
-
-Planned: SO(N), SE(N), SPD(N), Grassmann, Stiefel, Hyperbolic, Simplex, Corr(N), Product manifolds.
+| Euclidean R^N | `Euclidean<N>` | done |
+| Sphere S^(N-1) | `Sphere<N>` | done |
+| Special orthogonal SO(N) | `SpecialOrthogonal<N>` | done |
+| Special Euclidean SE(N) | `SpecialEuclidean<N>` | done |
+| Symmetric positive definite SPD(N) | `SymmetricPositiveDefinite<N>` | planned |
+| Grassmann Gr(N, K) | `Grassmann<N, K>` | planned |
+| Stiefel St(N, K) | `Stiefel<N, K>` | planned |
+| Hyperbolic H^N | `Hyperbolic<N>` | planned |
+| Simplex | `Simplex<N>` | planned |
+| Correlation Corr(N) | `Corr<N>` | planned |
+| Product manifolds | `Product<M1, M2>` | planned |
 
 ## Crate Structure
 
 ```
-cartan/              # Facade crate (use this)
-cartan-core/         # Trait definitions, error types, Real alias
-cartan-manifolds/    # Manifold implementations
-cartan-nalgebra/     # nalgebra backend (default)
-cartan-optim/        # Riemannian optimizers (planned)
-cartan-geo/          # Geodesic tools (planned)
+cartan              facade crate (use this)
+cartan-core         trait definitions, error types, Real alias
+cartan-manifolds    concrete manifold implementations
+cartan-nalgebra     nalgebra backend (SVector, SMatrix storage)
+cartan-dec          discrete exterior calculus for PDE solvers
+cartan-optim        Riemannian optimization algorithms (planned)
+cartan-geo          geodesic curves and curvature tools (planned)
 ```
+
+## cartan-dec
+
+`cartan-dec` is the bridge between cartan's continuous geometry and discrete PDE solvers. It builds a simplicial complex over any domain, precomputes Hodge operators and covariant derivatives, and exposes them for use in time-stepping loops.
+
+The key design property is that on a well-centered Delaunay mesh, the Hodge star is diagonal. This means the full Laplace-Beltrami operator factors into two sparse {0, +1, -1} matrix-vector products interleaved with diagonal scalings, which is both cache-friendly and SIMD-vectorizable. Simplices are reordered by Hilbert space-filling curve for spatial locality. Fields use structure-of-arrays layout.
+
+Operators provided: `ExteriorDerivative`, `HodgeStar`, `LaplaceBeltrami`, `BochnerLaplacian`, `LichnerowiczLaplacian`, `CovariantAdvection`, `CovariantDivergence`.
 
 ## License
 
-[MIT License](LICENSE-MIT)
+[MIT](LICENSE-MIT)
