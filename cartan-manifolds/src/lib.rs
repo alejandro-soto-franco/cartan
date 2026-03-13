@@ -17,6 +17,7 @@
 
 pub mod corr;
 pub mod euclidean;
+pub mod grassmann;
 pub mod se;
 pub mod so;
 pub mod spd;
@@ -25,6 +26,7 @@ pub mod util;
 
 pub use corr::Corr;
 pub use euclidean::Euclidean;
+pub use grassmann::Grassmann;
 pub use se::{SEPoint, SETangent, SpecialEuclidean};
 pub use so::SpecialOrthogonal;
 pub use spd::Spd;
