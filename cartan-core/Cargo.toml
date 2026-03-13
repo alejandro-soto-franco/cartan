@@ -13,3 +13,6 @@ homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
 rand = { workspace = true }
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
