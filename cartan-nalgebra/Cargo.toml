@@ -12,6 +12,6 @@ documentation = "https://docs.rs/cartan-nalgebra"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core = { path = "../cartan-core" }
+cartan-core = { path = "../cartan-core", version = "0.1" }
 nalgebra = { workspace = true }
 rand = { workspace = true }
