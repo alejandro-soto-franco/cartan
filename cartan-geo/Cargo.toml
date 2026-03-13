@@ -19,3 +19,6 @@ cartan-manifolds = { path = "../cartan-manifolds", version = "0.1" }
 nalgebra = { workspace = true }
 rand = { workspace = true }
 approx = { workspace = true }
+
+[package.metadata.docs.rs]
+rustdoc-args = ["--cfg", "docsrs"]
