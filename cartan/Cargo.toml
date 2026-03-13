@@ -12,12 +12,12 @@ documentation = "https://docs.rs/cartan"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core = { path = "../cartan-core" }
-cartan-nalgebra = { path = "../cartan-nalgebra" }
-cartan-manifolds = { path = "../cartan-manifolds" }
-cartan-optim = { path = "../cartan-optim" }
-cartan-geo = { path = "../cartan-geo" }
-cartan-dec = { path = "../cartan-dec" }
+cartan-core = { path = "../cartan-core", version = "0.1" }
+cartan-nalgebra = { path = "../cartan-nalgebra", version = "0.1" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.1" }
+cartan-optim = { path = "../cartan-optim", version = "0.1" }
+cartan-geo = { path = "../cartan-geo", version = "0.1" }
+cartan-dec = { path = "../cartan-dec", version = "0.1" }
 
 [dev-dependencies]
 rand = { workspace = true }
