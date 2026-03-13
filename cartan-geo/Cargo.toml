@@ -10,3 +10,8 @@ repository.workspace = true
 [dependencies]
 cartan-core = { path = "../cartan-core" }
 cartan-manifolds = { path = "../cartan-manifolds" }
+
+[dev-dependencies]
+nalgebra = { workspace = true }
+rand = { workspace = true }
+approx = { workspace = true }
