@@ -70,12 +70,13 @@ Every manifold implements all seven traits in the hierarchy. Intrinsic dimension
 ```
 cartan              facade crate (re-exports everything)
 cartan-core         trait definitions, CartanError, Real alias
-cartan-nalgebra     nalgebra backend (SVector, SMatrix storage)
 cartan-manifolds    concrete manifold implementations (7 manifolds)
 cartan-optim        Riemannian optimization: RGD, RCG, RTR, Fréchet mean
 cartan-geo          geodesic curves, curvature queries, Jacobi fields
 cartan-dec          discrete exterior calculus for PDE solvers
 ```
+
+All manifolds use `nalgebra` `SVector`/`SMatrix` types directly; no intermediate backend crate is needed.
 
 ## cartan-optim
 

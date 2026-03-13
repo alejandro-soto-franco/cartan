@@ -9,7 +9,6 @@
 //! ## Crate structure
 //!
 //! - `cartan-core` -- abstract trait system (Manifold, Retraction, etc.)
-//! - `cartan-nalgebra` -- nalgebra backend (SVector, SMatrix storage types)
 //! - `cartan-manifolds` -- concrete manifolds (Sphere, SO(N), SE(N), ...)
 //! - `cartan-optim` -- optimization algorithms (RGD, RCG, trust region)
 //! - `cartan-geo` -- geodesic and curvature tools
@@ -31,7 +30,6 @@ pub use cartan_core as traits;
 pub use cartan_dec as dec;
 pub use cartan_geo as geo;
 pub use cartan_manifolds as manifolds;
-pub use cartan_nalgebra as nalgebra_backend;
 pub use cartan_optim as optim;
 
 /// Prelude module: import with `use cartan::prelude::*` to bring all traits into scope.
