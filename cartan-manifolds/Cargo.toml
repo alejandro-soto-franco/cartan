@@ -12,8 +12,8 @@ documentation = "https://docs.rs/cartan-manifolds"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core = { path = "../cartan-core" }
-cartan-nalgebra = { path = "../cartan-nalgebra" }
+cartan-core = { path = "../cartan-core", version = "0.1" }
+cartan-nalgebra = { path = "../cartan-nalgebra", version = "0.1" }
 nalgebra = { workspace = true }
 rand = { workspace = true }
 rand_distr = { workspace = true }
