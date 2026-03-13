@@ -13,7 +13,6 @@ homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
 cartan-core = { path = "../cartan-core", version = "0.1" }
-cartan-nalgebra = { path = "../cartan-nalgebra", version = "0.1" }
 cartan-manifolds = { path = "../cartan-manifolds", version = "0.1" }
 cartan-optim = { path = "../cartan-optim", version = "0.1" }
 cartan-geo = { path = "../cartan-geo", version = "0.1" }
