@@ -77,7 +77,7 @@
 //!   arXiv:1812.01537. (Concise reference for SE(3) operations.)
 
 use std::f64::consts::PI;
-use std::ops::{Add, Mul, Neg};
+use std::ops::{Add, Mul, Neg, Sub};
 
 use nalgebra::{SMatrix, SVector};
 use rand::Rng;
@@ -196,6 +196,18 @@ impl<const N: usize> Mul<Real> for SETangent<N> {
         SETangent {
             rotation: self.rotation * scalar,
             translation: self.translation * scalar,
+        }
+    }
+}
+
+/// Componentwise subtraction of two SE(N) tangent vectors.
+impl<const N: usize> Sub for SETangent<N> {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self {
+        SETangent {
+            rotation: self.rotation - rhs.rotation,
+            translation: self.translation - rhs.translation,
         }
     }
 }
