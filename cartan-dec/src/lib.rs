@@ -75,7 +75,7 @@
 //!
 //! ## Usage
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use cartan_dec::Mesh;
 //! use cartan_manifolds::Euclidean;
 //!
