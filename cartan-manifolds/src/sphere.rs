@@ -48,14 +48,30 @@ use cartan_core::{
 ///
 /// # Examples
 ///
-/// ```rust,ignore
-/// use cartan::prelude::*;
-/// use cartan::manifolds::Sphere;
+/// ```rust
+/// use cartan_manifolds::Sphere;
+/// use cartan_core::Manifold;
+/// use nalgebra::SVector;
 ///
-/// let s2 = Sphere::<3>; // the 2-sphere in R^3
+/// let s2 = Sphere::<3>;
+/// let p: SVector<f64, 3> = SVector::from([1.0, 0.0, 0.0]);
+/// let v: SVector<f64, 3> = SVector::from([0.0, 1.0, 0.0]);
+/// let q = s2.exp(&p, &v);
+/// assert!((q.norm() - 1.0).abs() < 1e-10);
+/// let v_rec = s2.log(&p, &q).unwrap();
+/// assert!((v_rec - v).norm() < 1e-10);
+/// ```
+///
+/// ```rust,no_run
+/// use cartan_manifolds::Sphere;
+/// use cartan_core::Manifold;
+/// use rand::SeedableRng;
+///
+/// let s2 = Sphere::<3>;
+/// let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
 /// let p = s2.random_point(&mut rng);
 /// let v = s2.random_tangent(&p, &mut rng);
-/// let q = s2.exp(&p, &v);
+/// let _q = s2.exp(&p, &v);
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Sphere<const N: usize>;

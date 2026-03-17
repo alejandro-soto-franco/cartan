@@ -136,11 +136,28 @@ const MIN_EIG: Real = 1e-8;
 ///
 /// # Examples
 ///
-/// ```rust,ignore
-/// use cartan::manifolds::Spd;
+/// ```rust
+/// use cartan_manifolds::Spd;
 /// use cartan_core::Manifold;
+/// use nalgebra::SMatrix;
+///
+/// let m = Spd::<2>;
+/// // Identity is SPD
+/// let p = SMatrix::<f64, 2, 2>::identity();
+/// assert!(m.check_point(&p).is_ok());
+/// // Symmetric tangent at I
+/// let v = SMatrix::<f64, 2, 2>::from_row_slice(&[1.0, 0.5, 0.5, 1.0]);
+/// let q = m.exp(&p, &v);
+/// assert!(m.check_point(&q).is_ok());
+/// ```
+///
+/// ```rust,no_run
+/// use cartan_manifolds::Spd;
+/// use cartan_core::Manifold;
+/// use rand::SeedableRng;
 ///
 /// let m = Spd::<3>;
+/// let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
 /// let p = m.random_point(&mut rng);
 /// let v = m.random_tangent(&p, &mut rng);
 /// let q = m.exp(&p, &v);
