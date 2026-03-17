@@ -60,9 +60,7 @@ pub(crate) fn sym_min_eigenvalue<const N: usize>(m: &SMatrix<Real, N, N>) -> Rea
 }
 
 /// (A + A^T) / 2: enforce exact symmetry after floating-point drift.
-pub(crate) fn sym_symmetrize<const N: usize>(
-    a: &SMatrix<Real, N, N>,
-) -> SMatrix<Real, N, N> {
+pub(crate) fn sym_symmetrize<const N: usize>(a: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
     (a + a.transpose()) * 0.5
 }
 
@@ -102,8 +100,9 @@ pub(crate) fn nearest_corr_matrix<const N: usize>(
         let y = x + delta_s;
         let ydm = DMatrix::from_column_slice(N, N, y.as_slice());
         let eigen = ydm.symmetric_eigen();
-        let clamped: DVector<Real> =
-            eigen.eigenvalues.map(|v| if v < MIN_EIG { MIN_EIG } else { v });
+        let clamped: DVector<Real> = eigen
+            .eigenvalues
+            .map(|v| if v < MIN_EIG { MIN_EIG } else { v });
         let x_pd_dm =
             &eigen.eigenvectors * DMatrix::from_diagonal(&clamped) * eigen.eigenvectors.transpose();
         let x_pd = SMatrix::from_column_slice(x_pd_dm.as_slice());
@@ -129,9 +128,7 @@ pub(crate) fn nearest_corr_matrix<const N: usize>(
 /// Internal helper shared by all sym_* functions. Avoids repeating the
 /// DMatrix conversion and eigen call at every call site.
 #[inline]
-fn sym_eigen<const N: usize>(
-    m: &SMatrix<Real, N, N>,
-) -> (DMatrix<Real>, DVector<Real>) {
+fn sym_eigen<const N: usize>(m: &SMatrix<Real, N, N>) -> (DMatrix<Real>, DVector<Real>) {
     let dm = DMatrix::from_column_slice(N, N, m.as_slice());
     let eigen = dm.symmetric_eigen();
     (eigen.eigenvectors, eigen.eigenvalues)
@@ -168,7 +165,13 @@ pub(crate) fn sym_sqrt<const N: usize>(m: &SMatrix<Real, N, N>) -> SMatrix<Real,
 /// smaller than 1e-14 are treated as 1e-14 (numerical floor) to avoid
 /// division by zero in near-singular inputs.
 pub(crate) fn sym_sqrt_inv<const N: usize>(m: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
-    sym_apply(m, |v| if v > 1e-14 { 1.0 / v.sqrt() } else { 1.0 / 1e-7 })
+    sym_apply(m, |v| {
+        if v > 1e-14 {
+            1.0 / v.sqrt()
+        } else {
+            1.0 / 1e-7
+        }
+    })
 }
 
 /// Symmetric matrix inverse: P^{-1}.
@@ -227,9 +230,7 @@ mod tests {
 
     #[test]
     fn test_sym_min_eigenvalue_known() {
-        let m = SMatrix::<Real, 3, 3>::from_diagonal(
-            &nalgebra::SVector::from([1.0_f64, 2.0, 3.0]),
-        );
+        let m = SMatrix::<Real, 3, 3>::from_diagonal(&nalgebra::SVector::from([1.0_f64, 2.0, 3.0]));
         assert_relative_eq!(sym_min_eigenvalue(&m), 1.0, epsilon = 1e-10);
     }
 
@@ -258,12 +259,15 @@ mod tests {
 
     #[test]
     fn test_nearest_corr_pd() {
-        let m = SMatrix::<Real, 3, 3>::from_row_slice(&[
-            1.0, 0.9, 0.9, 0.9, 1.0, 0.9, 0.9, 0.9, 1.0,
-        ]);
+        let m =
+            SMatrix::<Real, 3, 3>::from_row_slice(&[1.0, 0.9, 0.9, 0.9, 1.0, 0.9, 0.9, 0.9, 1.0]);
         let c = nearest_corr_matrix(&m, 200, 1e-10);
         let min_ev = sym_min_eigenvalue(&c);
-        assert!(min_ev > 0.0, "result must be PD, min_eigenvalue = {}", min_ev);
+        assert!(
+            min_ev > 0.0,
+            "result must be PD, min_eigenvalue = {}",
+            min_ev
+        );
     }
 
     #[test]
@@ -276,22 +280,19 @@ mod tests {
 
     #[test]
     fn test_sym_sqrt_roundtrip() {
-        let m = SMatrix::<Real, 3, 3>::from_diagonal(
-            &nalgebra::SVector::from([4.0_f64, 9.0, 16.0]),
-        );
+        let m =
+            SMatrix::<Real, 3, 3>::from_diagonal(&nalgebra::SVector::from([4.0_f64, 9.0, 16.0]));
         let s = sym_sqrt(&m);
-        let expected = SMatrix::<Real, 3, 3>::from_diagonal(
-            &nalgebra::SVector::from([2.0_f64, 3.0, 4.0]),
-        );
+        let expected =
+            SMatrix::<Real, 3, 3>::from_diagonal(&nalgebra::SVector::from([2.0_f64, 3.0, 4.0]));
         let diff = (s - expected).norm();
         assert!(diff < 1e-12, "sym_sqrt diagonal case failed: {:.2e}", diff);
     }
 
     #[test]
     fn test_sym_sqrt_sq_is_original() {
-        let m = SMatrix::<Real, 3, 3>::from_row_slice(&[
-            4.0, 2.0, 0.0, 2.0, 3.0, 1.0, 0.0, 1.0, 2.0,
-        ]);
+        let m =
+            SMatrix::<Real, 3, 3>::from_row_slice(&[4.0, 2.0, 0.0, 2.0, 3.0, 1.0, 0.0, 1.0, 2.0]);
         let s = sym_sqrt(&m);
         let m2 = s * s;
         let diff = (m2 - m).norm();
@@ -300,9 +301,8 @@ mod tests {
 
     #[test]
     fn test_sym_sqrt_inv_roundtrip() {
-        let m = SMatrix::<Real, 3, 3>::from_row_slice(&[
-            4.0, 2.0, 0.0, 2.0, 3.0, 1.0, 0.0, 1.0, 2.0,
-        ]);
+        let m =
+            SMatrix::<Real, 3, 3>::from_row_slice(&[4.0, 2.0, 0.0, 2.0, 3.0, 1.0, 0.0, 1.0, 2.0]);
         let s = sym_sqrt(&m);
         let s_inv = sym_sqrt_inv(&m);
         let prod = s * s_inv;
@@ -312,9 +312,8 @@ mod tests {
 
     #[test]
     fn test_sym_exp_log_roundtrip() {
-        let m = SMatrix::<Real, 3, 3>::from_row_slice(&[
-            2.0, 0.5, 0.0, 0.5, 1.5, 0.3, 0.0, 0.3, 1.0,
-        ]);
+        let m =
+            SMatrix::<Real, 3, 3>::from_row_slice(&[2.0, 0.5, 0.0, 0.5, 1.5, 0.3, 0.0, 0.3, 1.0]);
         let log_m = sym_log(&m);
         let m2 = sym_exp(&log_m);
         let diff = (m2 - m).norm();
@@ -331,9 +330,8 @@ mod tests {
 
     #[test]
     fn test_sym_inv_product_is_identity() {
-        let m = SMatrix::<Real, 3, 3>::from_row_slice(&[
-            4.0, 2.0, 0.0, 2.0, 3.0, 1.0, 0.0, 1.0, 2.0,
-        ]);
+        let m =
+            SMatrix::<Real, 3, 3>::from_row_slice(&[4.0, 2.0, 0.0, 2.0, 3.0, 1.0, 0.0, 1.0, 2.0]);
         let inv = sym_inv(&m);
         let prod = m * inv;
         let diff = (prod - SMatrix::<Real, 3, 3>::identity()).norm();

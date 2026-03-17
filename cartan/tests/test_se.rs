@@ -37,11 +37,14 @@
 
 mod common;
 
-use cartan_manifolds::{SpecialEuclidean, se::{SEPoint, SETangent}};
 use cartan_core::{GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction};
+use cartan_manifolds::{
+    SpecialEuclidean,
+    se::{SEPoint, SETangent},
+};
 use nalgebra::{SMatrix, SVector};
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper utilities for comparing SEPoint and SETangent
@@ -135,7 +138,11 @@ fn se3_exp_log_roundtrip_forward() {
         // Compute the Riemannian norm of v to determine the scaling factor.
         // We want ||v_scaled||_p = target_norm, so scale = target_norm / ||v||_p.
         let v_norm = se3.norm(&p, &v);
-        let scale = if v_norm > 1e-10 { target_norm / v_norm } else { 1.0 };
+        let scale = if v_norm > 1e-10 {
+            target_norm / v_norm
+        } else {
+            1.0
+        };
         let v_small = scale_tangent(&v, scale);
 
         // Compute exp(p, v_small) and then log(p, result).
@@ -149,7 +156,9 @@ fn se3_exp_log_roundtrip_forward() {
         assert!(
             diff < tol,
             "sample {}: log(p, exp(p, v)) ≠ v: tangent diff = {:.2e} > tol = {:.2e}",
-            i, diff, tol
+            i,
+            diff,
+            tol
         );
     }
 }
@@ -199,7 +208,9 @@ fn se3_exp_log_roundtrip_reverse() {
         assert!(
             diff < tol,
             "sample {}: exp(p, log(p, q)) ≠ q: point diff = {:.2e} > tol = {:.2e}",
-            i, diff, tol
+            i,
+            diff,
+            tol
         );
     }
 }
@@ -220,9 +231,8 @@ fn se3_check_point_on_random_points() {
 
     for i in 0..10 {
         let p = se3.random_point(&mut rng);
-        se3.check_point(&p).unwrap_or_else(|e| {
-            panic!("sample {}: random_point failed check_point: {}", i, e)
-        });
+        se3.check_point(&p)
+            .unwrap_or_else(|e| panic!("sample {}: random_point failed check_point: {}", i, e));
     }
 }
 
@@ -241,9 +251,8 @@ fn se3_check_tangent_on_random_tangents() {
     for i in 0..10 {
         let p = se3.random_point(&mut rng);
         let v = se3.random_tangent(&p, &mut rng);
-        se3.check_tangent(&p, &v).unwrap_or_else(|e| {
-            panic!("sample {}: random_tangent failed check_tangent: {}", i, e)
-        });
+        se3.check_tangent(&p, &v)
+            .unwrap_or_else(|e| panic!("sample {}: random_tangent failed check_tangent: {}", i, e));
     }
 }
 
@@ -281,7 +290,9 @@ fn se3_inner_product_symmetry() {
         assert!(
             diff < tol,
             "sample {}: |<u,v> - <v,u>| = {:.2e} > tol = {:.2e}",
-            i, diff, tol
+            i,
+            diff,
+            tol
         );
     }
 }
@@ -328,7 +339,9 @@ fn se3_inner_product_linearity() {
         assert!(
             diff < tol,
             "sample {}: |<au+bw, v> - a<u,v> - b<w,v>| = {:.2e} > tol = {:.2e}",
-            i, diff, tol
+            i,
+            diff,
+            tol
         );
     }
 }
@@ -368,7 +381,9 @@ fn se3_distance_symmetry_and_self() {
             assert!(
                 sym_err < tol_sym,
                 "sample {}: |d(p,q) - d(q,p)| = {:.2e} > tol = {:.2e}",
-                i, sym_err, tol_sym
+                i,
+                sym_err,
+                tol_sym
             );
         }
 
@@ -377,7 +392,9 @@ fn se3_distance_symmetry_and_self() {
             assert!(
                 d_pp < tol_self,
                 "sample {}: d(p,p) = {:.2e} > tol = {:.2e} (should be 0)",
-                i, d_pp, tol_self
+                i,
+                d_pp,
+                tol_self
             );
         }
     }
@@ -421,7 +438,9 @@ fn se3_project_tangent_idempotent() {
         assert!(
             diff < tol,
             "sample {}: project_tangent not idempotent: diff = {:.2e} > tol = {:.2e}",
-            i, diff, tol
+            i,
+            diff,
+            tol
         );
     }
 }
@@ -459,13 +478,18 @@ fn se3_project_point_idempotent() {
         assert!(
             diff < tol,
             "sample {}: project_point not idempotent: diff = {:.2e} > tol = {:.2e}",
-            i, diff, tol
+            i,
+            diff,
+            tol
         );
 
         // Additionally verify that the projected rotation component is in SO(3).
         // This checks that project_point produces valid SE(3) elements.
         se3.check_point(&proj_p).unwrap_or_else(|e| {
-            panic!("sample {}: project_point result failed check_point: {}", i, e)
+            panic!(
+                "sample {}: project_point result failed check_point: {}",
+                i, e
+            )
         });
     }
 }
@@ -493,7 +517,9 @@ fn se3_zero_tangent_has_zero_norm() {
         assert!(
             norm < tol,
             "sample {}: ||zero_tangent|| = {:.2e} > tol = {:.2e} (should be 0)",
-            i, norm, tol
+            i,
+            norm,
+            tol
         );
     }
 }
@@ -532,9 +558,8 @@ fn se3_retraction_lands_on_manifold() {
 
         // Retract and verify membership.
         let q = Retraction::retract(&se3, &p, &v_small);
-        se3.check_point(&q).unwrap_or_else(|e| {
-            panic!("sample {}: retract(p, v) failed check_point: {}", i, e)
-        });
+        se3.check_point(&q)
+            .unwrap_or_else(|e| panic!("sample {}: retract(p, v) failed check_point: {}", i, e));
     }
 }
 
@@ -585,7 +610,9 @@ fn se3_transport_preserves_norm() {
         assert!(
             norm_diff < tol,
             "sample {}: |||P u||_q - ||u||_p| = {:.2e} > tol = {:.2e}",
-            i, norm_diff, tol
+            i,
+            norm_diff,
+            tol
         );
     }
 }
@@ -624,7 +651,9 @@ fn se3_geodesic_boundary_conditions() {
         assert!(
             diff0 < tol,
             "sample {}: geodesic(p,q,0) ≠ p: diff = {:.2e} > tol = {:.2e}",
-            i, diff0, tol
+            i,
+            diff0,
+            tol
         );
 
         // -- geodesic(p, q, 1) = q --
@@ -635,7 +664,9 @@ fn se3_geodesic_boundary_conditions() {
         assert!(
             diff1 < tol,
             "sample {}: geodesic(p,q,1) ≠ q: diff = {:.2e} > tol = {:.2e}",
-            i, diff1, tol
+            i,
+            diff1,
+            tol
         );
     }
 }
@@ -669,23 +700,25 @@ fn se3_geodesic_constant_speed() {
         let q = se3.exp(&p, &scale_tangent(&v, scale));
 
         // Compute d(p, q) and the midpoint γ(0.5).
-        let d_pq = se3.dist(&p, &q).unwrap_or_else(|e| {
-            panic!("sample {}: dist(p,q) failed: {}", i, e)
-        });
+        let d_pq = se3
+            .dist(&p, &q)
+            .unwrap_or_else(|e| panic!("sample {}: dist(p,q) failed: {}", i, e));
         let g_half = se3
             .geodesic(&p, &q, 0.5)
             .unwrap_or_else(|e| panic!("sample {}: geodesic(p,q,0.5) failed: {}", i, e));
 
         // d(p, γ(0.5)) should equal d(p, q) / 2.
-        let d_half = se3.dist(&p, &g_half).unwrap_or_else(|e| {
-            panic!("sample {}: dist(p, g(0.5)) failed: {}", i, e)
-        });
+        let d_half = se3
+            .dist(&p, &g_half)
+            .unwrap_or_else(|e| panic!("sample {}: dist(p, g(0.5)) failed: {}", i, e));
 
         let speed_err = (d_half - 0.5 * d_pq).abs();
         assert!(
             speed_err < tol,
             "sample {}: |d(p, g(0.5)) - d(p,q)/2| = {:.2e} > tol = {:.2e}",
-            i, speed_err, tol
+            i,
+            speed_err,
+            tol
         );
     }
 }
@@ -724,12 +757,12 @@ fn se3_pure_rotation_preserves_zero_translation() {
     let angle = std::f64::consts::FRAC_PI_4; // π/4 ≈ 0.785 rad
     let mut omega = SMatrix::<Real, 3, 3>::zeros();
     omega[(0, 1)] = -angle; // Ω[0,1] = -θ (skew-symmetric: upper-right)
-    omega[(1, 0)] = angle;  // Ω[1,0] = +θ (skew-symmetric: lower-left)
+    omega[(1, 0)] = angle; // Ω[1,0] = +θ (skew-symmetric: lower-left)
     // Ω[2,*] = 0: pure rotation in the xy-plane, no z component.
 
     // The tangent at the identity is V_rot = I · Ω = Ω.
     let v_pure_rot = SETangent::<3> {
-        rotation: omega, // V_rot = Ω at the identity (I · Ω = Ω)
+        rotation: omega,                          // V_rot = Ω at the identity (I · Ω = Ω)
         translation: SVector::<Real, 3>::zeros(), // zero translational velocity
     };
 
@@ -745,7 +778,8 @@ fn se3_pure_rotation_preserves_zero_translation() {
     );
 
     // Also verify that the rotation is valid (in SO(3)).
-    se3.check_point(&q).expect("pure rotation result should be a valid SE(3) point");
+    se3.check_point(&q)
+        .expect("pure rotation result should be a valid SE(3) point");
 }
 
 /// Pure translation: exp at identity with zero rotation gives R = I and t = v_trans.
@@ -832,7 +866,9 @@ fn se3_exp_zero_tangent_is_identity() {
         assert!(
             diff < tol,
             "sample {}: exp(p, 0) ≠ p: diff = {:.2e} > tol = {:.2e}",
-            i, diff, tol
+            i,
+            diff,
+            tol
         );
     }
 }
@@ -873,7 +909,9 @@ fn se3_log_self_is_zero() {
         assert!(
             v_norm < tol,
             "sample {}: ||log(p, p)||_p = {:.2e} > tol = {:.2e} (expected 0)",
-            i, v_norm, tol
+            i,
+            v_norm,
+            tol
         );
     }
 }
@@ -897,17 +935,23 @@ fn se3_log_self_is_zero() {
 #[test]
 fn se3_weight_affects_translation_distance() {
     // Two manifolds with very different weights.
-    let se3_low = SpecialEuclidean::<3> { weight: 0.1 };  // rotation-dominant
+    let se3_low = SpecialEuclidean::<3> { weight: 0.1 }; // rotation-dominant
     let se3_high = SpecialEuclidean::<3> { weight: 10.0 }; // translation-dominant
 
     // Create two SE(3) points with the SAME rotation (identity) but different translations.
     // This isolates the effect of weight on the translational distance.
     let id = SMatrix::<Real, 3, 3>::identity();
-    let t1 = SVector::<Real, 3>::zeros();          // translation of point 1
+    let t1 = SVector::<Real, 3>::zeros(); // translation of point 1
     let t2 = SVector::<Real, 3>::new(1.0, 0.0, 0.0); // translation of point 2 (1 unit along x)
 
-    let p = SEPoint::<3> { rotation: id.clone(), translation: t1 };
-    let q = SEPoint::<3> { rotation: id.clone(), translation: t2 };
+    let p = SEPoint::<3> {
+        rotation: id.clone(),
+        translation: t1,
+    };
+    let q = SEPoint::<3> {
+        rotation: id.clone(),
+        translation: t2,
+    };
 
     // For (I, 0) → (I, [1,0,0]):
     //   log = (0, [1,0,0])  (pure translation, Ω = 0, v_body = [1,0,0])
@@ -915,13 +959,18 @@ fn se3_weight_affects_translation_distance() {
     //   d_high² = (1/2) tr(0) + 10.0 · 1 = 10 → d_high = sqrt(10)
     //   d_high / d_low = sqrt(10/0.1) = sqrt(100) = 10
 
-    let d_low = se3_low.dist(&p, &q).expect("dist with low weight should succeed");
-    let d_high = se3_high.dist(&p, &q).expect("dist with high weight should succeed");
+    let d_low = se3_low
+        .dist(&p, &q)
+        .expect("dist with low weight should succeed");
+    let d_high = se3_high
+        .dist(&p, &q)
+        .expect("dist with high weight should succeed");
 
     assert!(
         d_high > d_low,
         "weight=10 distance ({:.4}) should be greater than weight=0.1 distance ({:.4})",
-        d_high, d_low
+        d_high,
+        d_low
     );
 
     // Quantitative check: d_high / d_low should be ~10 (sqrt(10/0.1) = sqrt(100) = 10).
@@ -941,12 +990,14 @@ fn se3_weight_affects_translation_distance() {
     assert!(
         (d_low - expected_low).abs() < 1e-8,
         "d_low = {:.6}, expected {:.6}",
-        d_low, expected_low
+        d_low,
+        expected_low
     );
     assert!(
         (d_high - expected_high).abs() < 1e-8,
         "d_high = {:.6}, expected {:.6}",
-        d_high, expected_high
+        d_high,
+        expected_high
     );
 }
 
@@ -979,7 +1030,11 @@ fn se2_exp_log_roundtrip() {
 
         // Scale to target norm to stay well within the injectivity ball.
         let v_norm = se2.norm(&p, &v);
-        let scale = if v_norm > 1e-10 { target_norm / v_norm } else { 1.0 };
+        let scale = if v_norm > 1e-10 {
+            target_norm / v_norm
+        } else {
+            1.0
+        };
         let v_small = scale_tangent(&v, scale);
 
         // Forward roundtrip: log(p, exp(p, v)) = v.
@@ -992,7 +1047,9 @@ fn se2_exp_log_roundtrip() {
         assert!(
             diff < tol,
             "SE(2) sample {}: log(p, exp(p, v)) ≠ v: diff = {:.2e} > tol = {:.2e}",
-            i, diff, tol
+            i,
+            diff,
+            tol
         );
     }
 }

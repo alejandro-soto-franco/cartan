@@ -6,8 +6,8 @@
 //! These provide better error messages than raw float comparison,
 //! showing the actual vs expected values and the tolerance.
 
-use nalgebra::SVector;
 use cartan_core::Real;
+use nalgebra::SVector;
 
 /// Assert two scalars are approximately equal.
 ///
@@ -18,7 +18,11 @@ pub fn assert_real_eq(actual: Real, expected: Real, tol: Real, context: &str) {
     assert!(
         diff < tol,
         "{}: expected {:.2e}, got {:.2e}, diff {:.2e} > tol {:.2e}",
-        context, expected, actual, diff, tol
+        context,
+        expected,
+        actual,
+        diff,
+        tol
     );
 }
 
@@ -36,7 +40,11 @@ pub fn assert_vec_eq<const N: usize>(
     assert!(
         diff < tol,
         "{}: vector diff norm {:.2e} > tol {:.2e}\n  actual:   {:?}\n  expected: {:?}",
-        context, diff, tol, actual.as_slice(), expected.as_slice()
+        context,
+        diff,
+        tol,
+        actual.as_slice(),
+        expected.as_slice()
     );
 }
 
@@ -48,7 +56,9 @@ pub fn assert_near_zero(actual: Real, tol: Real, context: &str) {
     assert!(
         actual.abs() < tol,
         "{}: expected ~0, got {:.2e} (tol {:.2e})",
-        context, actual, tol
+        context,
+        actual,
+        tol
     );
 }
 
@@ -60,6 +70,7 @@ pub fn assert_nonneg(actual: Real, context: &str) {
     assert!(
         actual >= -1e-15,
         "{}: expected non-negative, got {:.2e}",
-        context, actual
+        context,
+        actual
     );
 }

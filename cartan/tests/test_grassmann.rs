@@ -16,11 +16,13 @@
 //! - Geodesic interpolation boundary conditions.
 //! - Dim = K(N-K).
 
-use cartan_core::{Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction};
+use cartan_core::{
+    Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction,
+};
 use cartan_manifolds::Grassmann;
 use nalgebra::SMatrix;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -85,11 +87,22 @@ fn gr52_exp_log_roundtrip() {
         let q = m.random_point(&mut rng);
         let v = m.random_tangent(&q, &mut rng);
         let v_norm = m.norm(&q, &v);
-        let v_small = if v_norm > 1e-10 { v * (inj * 0.4 / v_norm) } else { v };
+        let v_small = if v_norm > 1e-10 {
+            v * (inj * 0.4 / v_norm)
+        } else {
+            v
+        };
 
         let q2 = m.exp(&q, &v_small);
-        let v_rec = m.log(&q, &q2).expect("Log should succeed within injectivity ball");
-        assert_frob(&v_rec, &v_small, 1e-10, &format!("sample {i}: log(exp) roundtrip"));
+        let v_rec = m
+            .log(&q, &q2)
+            .expect("Log should succeed within injectivity ball");
+        assert_frob(
+            &v_rec,
+            &v_small,
+            1e-10,
+            &format!("sample {i}: log(exp) roundtrip"),
+        );
     }
 }
 
@@ -108,7 +121,12 @@ fn gr52_log_exp_roundtrip() {
         // ||P_{Q_rec} - P_Q||_F = 0, i.e. Q_rec Q_rec^T = Q Q^T.
         let proj_rec = &q_rec * q_rec.transpose();
         let proj_q = &q * q.transpose();
-        assert_frob(&proj_rec, &proj_q, 1e-10, &format!("sample {i}: exp(log) roundtrip (subspace)"));
+        assert_frob(
+            &proj_rec,
+            &proj_q,
+            1e-10,
+            &format!("sample {i}: exp(log) roundtrip (subspace)"),
+        );
     }
 }
 
@@ -121,7 +139,8 @@ fn gr52_exp_lands_on_manifold() {
         let v = m.random_tangent(&q, &mut rng);
         let v_small = v * 0.3;
         let q2 = m.exp(&q, &v_small);
-        m.check_point(&q2).unwrap_or_else(|e| panic!("sample {i}: exp result not on Gr(5,2): {e}"));
+        m.check_point(&q2)
+            .unwrap_or_else(|e| panic!("sample {i}: exp result not on Gr(5,2): {e}"));
     }
 }
 
@@ -277,7 +296,8 @@ fn gr52_retraction() {
 
         // retract(p, v) must land on Gr(5,2).
         let q = Retraction::retract(&m, &p, &v_small);
-        m.check_point(&q).unwrap_or_else(|e| panic!("sample {i}: retract not on Gr(5,2): {e}"));
+        m.check_point(&q)
+            .unwrap_or_else(|e| panic!("sample {i}: retract not on Gr(5,2): {e}"));
 
         // retract(p, 0) = p (as a subspace).
         let r0 = Retraction::retract(&m, &p, &m.zero_tangent(&p));
@@ -304,7 +324,10 @@ fn gr41_scalar_curvature() {
     let m = Grassmann::<4, 1>;
     let p = m.random_point(&mut rng());
     let s = m.scalar_curvature(&p);
-    assert!((s - 1.5).abs() < 1e-10, "Gr(4,1) scalar curvature = {s:.8e}, expected 1.5");
+    assert!(
+        (s - 1.5).abs() < 1e-10,
+        "Gr(4,1) scalar curvature = {s:.8e}, expected 1.5"
+    );
 }
 
 #[test]
@@ -316,20 +339,26 @@ fn gr41_base_identities() {
     // Manual base test for the rectangular matrix manifold.
     for i in 0..100 {
         let q = m.random_point(&mut rng);
-        m.check_point(&q).unwrap_or_else(|e| panic!("sample {i}: random_point invalid: {e}"));
+        m.check_point(&q)
+            .unwrap_or_else(|e| panic!("sample {i}: random_point invalid: {e}"));
 
         let v = m.random_tangent(&q, &mut rng);
-        m.check_tangent(&q, &v).unwrap_or_else(|e| panic!("sample {i}: random_tangent invalid: {e}"));
+        m.check_tangent(&q, &v)
+            .unwrap_or_else(|e| panic!("sample {i}: random_tangent invalid: {e}"));
 
         let v_small = v * (inj * 0.4 / m.norm(&q, &v).max(1e-10));
         let q2 = m.exp(&q, &v_small);
-        m.check_point(&q2).unwrap_or_else(|e| panic!("sample {i}: exp invalid: {e}"));
+        m.check_point(&q2)
+            .unwrap_or_else(|e| panic!("sample {i}: exp invalid: {e}"));
 
         // Inner product symmetry.
         let w = m.random_tangent(&q, &mut rng);
         let vw = m.inner(&q, &v, &w);
         let wv = m.inner(&q, &w, &v);
-        assert!((vw - wv).abs() < 1e-14, "sample {i}: inner product not symmetric");
+        assert!(
+            (vw - wv).abs() < 1e-14,
+            "sample {i}: inner product not symmetric"
+        );
     }
 }
 
@@ -348,7 +377,10 @@ fn gr63_scalar_curvature() {
     let m = Grassmann::<6, 3>;
     let p = m.random_point(&mut rng());
     let s = m.scalar_curvature(&p);
-    assert!((s - 9.0).abs() < 1e-10, "Gr(6,3) scalar curvature = {s:.8e}, expected 9.0");
+    assert!(
+        (s - 9.0).abs() < 1e-10,
+        "Gr(6,3) scalar curvature = {s:.8e}, expected 9.0"
+    );
 }
 
 #[test]

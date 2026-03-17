@@ -20,7 +20,7 @@
 //!
 //! ## Usage pattern
 //!
-//! ```rust,ignore
+//! ```rust,no_run
 //! use cartan_manifolds::Sphere;
 //! use cartan_optim::{minimize_rgd, RGDConfig};
 //!
@@ -50,8 +50,8 @@ pub mod result;
 pub mod rgd;
 pub mod rtr;
 
-pub use frechet::{frechet_mean, FrechetConfig};
-pub use rcg::{minimize_rcg, CgVariant, RCGConfig};
+pub use frechet::{FrechetConfig, frechet_mean};
+pub use rcg::{CgVariant, RCGConfig, minimize_rcg};
 pub use result::OptResult;
-pub use rgd::{minimize_rgd, RGDConfig};
-pub use rtr::{minimize_rtr, RTRConfig};
+pub use rgd::{RGDConfig, minimize_rgd};
+pub use rtr::{RTRConfig, minimize_rtr};

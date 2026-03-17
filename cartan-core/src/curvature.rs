@@ -39,8 +39,8 @@
 //! - Milnor. "Curvatures of Left-Invariant Metrics on Lie Groups." Advances in Math, 1976.
 //! - Bhatia. "Positive Definite Matrices." Princeton, 2007. Chapter 6 (curvature of SPD).
 
-use crate::connection::Connection;
 use crate::Real;
+use crate::connection::Connection;
 
 /// A manifold with explicitly computable Riemannian curvature.
 ///
@@ -88,12 +88,7 @@ pub trait Curvature: Connection {
     /// Manifolds with closed-form sectional curvature (sphere, hyperbolic) should
     /// override this with a direct formula to avoid the overhead of computing the
     /// full curvature tensor.
-    fn sectional_curvature(
-        &self,
-        p: &Self::Point,
-        u: &Self::Tangent,
-        v: &Self::Tangent,
-    ) -> Real {
+    fn sectional_curvature(&self, p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
         // Numerator: <R(u,v)v, u>_p
         // This is the standard formula for sectional curvature.
         let r_uvv = self.riemann_curvature(p, u, v, v);
@@ -132,12 +127,7 @@ pub trait Curvature: Connection {
     /// - Sphere S^{N-1}: Ric(u,v) = (N-2) <u,v>
     /// - SO(N): Ric(u,v) = (N-2)/4 * <u,v>  (for N >= 3)
     /// - Euclidean: Ric = 0
-    fn ricci_curvature(
-        &self,
-        p: &Self::Point,
-        u: &Self::Tangent,
-        v: &Self::Tangent,
-    ) -> Real;
+    fn ricci_curvature(&self, p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real;
 
     /// Scalar curvature at p.
     ///
