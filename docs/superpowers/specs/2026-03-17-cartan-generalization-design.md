@@ -2,6 +2,31 @@
 **Date:** 2026-03-17
 **Status:** Approved
 
+## Implementation Status (updated 2026-03-17)
+
+| Workstream | Status | Notes |
+|------------|--------|-------|
+| A -- no_std feature flags | In progress | cartan-manifolds, cartan-optim done. cartan-geo in progress. cartan-core, cartan-dec, facade pending. |
+| B -- Contained TODOs | **DONE** | All Weingarten corrections, tensor Ricci callbacks, and doctest annotations complete. See deviations below. |
+| C -- Generic Mesh<M,K,B> | **DONE** | FlatMesh alias kept permanent (not deleted). See deviations below. |
+
+### Implementation Deviations from Spec
+
+**Workstream B -- Grassmann Weingarten formula (B1):**
+The spec described the Grassmann Weingarten correction using the AMS (Absil-Mahony-Sepulchre) formula involving `(I - QQ^T)·G·(Q^T·V)`. The implemented formula follows Boumal 2022 Proposition 9.46 with the horizontal representation directly:
+```
+Hess f(Q)[V] = proj_Q(ehvp) - V * sym(Q^T * G)
+```
+where `sym(A) = (A + A^T)/2`. This is equivalent to the AMS result when restricted to the horizontal tangent space but is simpler to implement and aligns with the Boumal 2022 reference used throughout the codebase.
+
+**Workstream C -- FlatMesh alias:**
+The spec planned to delete the `FlatMesh` type alias after migration as a "final cleanup commit." Decision: keep `FlatMesh` as a permanent public alias. It provides a meaningful name for the most common use case (flat 2D triangular meshes) and allows downstream code to use the short form without spelling out all three type parameters. No deletion planned.
+
+**Workstream C -- Const generic parameter count:**
+The spec wrote `Mesh<M, const K: usize = 3>` with one size parameter. The implementation uses two: `Mesh<M, const K: usize = 3, const B: usize = 2>` where B = vertices per boundary face. This is required because Rust const generics do not support arithmetic expressions (`K-1`) as array sizes -- B must be an independent parameter. The spec noted this but the final type signature in the spec text did not reflect it.
+
+---
+
 ## Overview
 
 Two major features — generic manifold-embedded mesh (`Mesh<M>`) and `no_std` support — delivered as three sequential workstreams. End state: a single clean generic `Mesh<M>` that works across std, no_std+alloc, and no_std+no_alloc targets, with all existing TODOs resolved.
