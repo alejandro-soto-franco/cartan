@@ -12,13 +12,19 @@ documentation = "https://docs.rs/cartan-optim"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.1" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.1" }
+cartan-core = { path = "../cartan-core", version = "0.1", default-features = false }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.1", default-features = false }
+libm = { version = "0.2", default-features = false }
 
 [dev-dependencies]
 nalgebra = { workspace = true }
 rand = { workspace = true }
 approx = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["alloc", "cartan-core/std", "cartan-manifolds/std"]
+alloc = ["cartan-core/alloc", "cartan-manifolds/alloc"]
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

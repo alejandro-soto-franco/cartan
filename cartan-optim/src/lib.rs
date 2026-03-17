@@ -1,5 +1,7 @@
 // ~/cartan/cartan-optim/src/lib.rs
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
 //! # cartan-optim
 //!
 //! Riemannian optimization algorithms for the cartan library.
