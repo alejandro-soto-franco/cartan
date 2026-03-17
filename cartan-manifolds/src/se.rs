@@ -794,25 +794,41 @@ impl<const N: usize> ParallelTransport for SpecialEuclidean<N> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl<const N: usize> Connection for SpecialEuclidean<N> {
-    /// Riemannian Hessian-vector product on SE(N).
+    /// Riemannian Hessian-vector product on SE(N) with Weingarten correction.
     ///
-    /// Uses the projection formula: `Hess f [v] ≈ project_tangent(p, ehvp)`
-    /// where ehvp is the ambient (Euclidean) Hessian-vector product.
+    /// SE(N) = SO(N) x R^N (product manifold). The HVP is computed block-wise:
     ///
-    /// This is the dominant term of the Riemannian HVP. For many practical cost
-    /// functions, the Weingarten correction is either zero or absorbed into the
-    /// ambient computation.
-    ///
-    /// See `so.rs::Connection` for detailed discussion of this approximation.
+    /// - Rotation block: SO(N) Weingarten correction (Absil-Mahony-Sepulchre §5.3):
+    ///     Hess_R[V_R] = R*skew(R^T*ehvp_R) - 0.5*R*sym(R^T*egrad_R)*R^T*V_R
+    /// - Translation block: flat (Euclidean), no correction needed:
+    ///     Hess_t[V_t] = ehvp_t
     fn riemannian_hessian_vector_product(
         &self,
         p: &Self::Point,
-        _grad_f: &Self::Tangent,
+        grad_f: &Self::Tangent,
         v: &Self::Tangent,
         hess_ambient: &dyn Fn(&Self::Tangent) -> Self::Tangent,
     ) -> Result<Self::Tangent, CartanError> {
-        let ehvp = hess_ambient(v);
-        Ok(self.project_tangent(p, &ehvp))
+        let r = &p.rotation;
+        let egrad_r = &grad_f.rotation;
+        let ehvp_v = hess_ambient(v);
+
+        // Rotation block: SO(N) Weingarten correction
+        let rt_ehvp_r = r.transpose() * &ehvp_v.rotation;
+        let skew_rt_ehvp = (rt_ehvp_r - rt_ehvp_r.transpose()) * 0.5;
+        let term1 = r * skew_rt_ehvp;
+        let rt_egrad_r = r.transpose() * egrad_r;
+        let sym_rt_egrad = (rt_egrad_r + rt_egrad_r.transpose()) * 0.5;
+        let term2 = r * sym_rt_egrad * r.transpose() * &v.rotation * 0.5;
+        let hess_rotation = term1 - term2;
+
+        // Translation block: flat
+        let hess_translation = ehvp_v.translation;
+
+        Ok(SETangent {
+            rotation: hess_rotation,
+            translation: hess_translation,
+        })
     }
 }
 
@@ -1590,5 +1606,46 @@ mod tests {
             expected_ratio,
             actual_ratio
         );
+    }
+
+    #[test]
+    fn test_se_hessian_weingarten_correction() {
+        use cartan_core::Connection;
+        use nalgebra::{SMatrix, SVector};
+
+        let se2 = SpecialEuclidean::<2> { weight: 1.0 };
+        let p = SEPoint {
+            rotation: SMatrix::<Real, 2, 2>::identity(),
+            translation: SVector::<Real, 2>::zeros(),
+        };
+
+        let v = SETangent {
+            rotation: SMatrix::<Real, 2, 2>::from_row_slice(&[0.0, -1.0, 1.0, 0.0]),
+            translation: SVector::<Real, 2>::from([0.5, -0.3]),
+        };
+
+        // Cost: f(R, t) = tr(A^T R) for A = diag(1, 2); egrad_R = A, ehvp = 0
+        let a = SMatrix::<Real, 2, 2>::from_diagonal(&nalgebra::SVector::from([1.0_f64, 2.0]));
+        let egrad = SETangent {
+            rotation: a,
+            translation: SVector::<Real, 2>::zeros(),
+        };
+        let ehvp = |_w: &SETangent<2>| SETangent {
+            rotation: SMatrix::<Real, 2, 2>::zeros(),
+            translation: SVector::<Real, 2>::zeros(),
+        };
+
+        let hvp = se2
+            .riemannian_hessian_vector_product(&p, &egrad, &v, &ehvp)
+            .unwrap();
+
+        // At R=I: term1 = skew(0) = 0; term2 = 0.5*A*V_R
+        // rotation block = -0.5 * A * V_R
+        let expected_rotation = -(a * v.rotation) * 0.5;
+        let diff_r = (hvp.rotation - expected_rotation).norm();
+        assert!(diff_r < 1e-10, "SE rotation Weingarten wrong: diff = {diff_r}");
+
+        // translation block = ehvp_t = 0
+        assert!(hvp.translation.norm() < 1e-10, "SE translation should be zero");
     }
 }

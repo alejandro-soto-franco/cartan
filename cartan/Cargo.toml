@@ -20,7 +20,7 @@ cartan-geo = { path = "../cartan-geo", version = "0.1" }
 cartan-dec = { path = "../cartan-dec", version = "0.1" }
 
 [dev-dependencies]
-rand = { workspace = true }
+rand = { workspace = true, features = ["std_rng", "std"] }
 rand_distr = { workspace = true }
 nalgebra = { workspace = true }
 

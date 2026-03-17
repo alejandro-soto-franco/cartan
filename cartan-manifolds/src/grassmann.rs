@@ -425,23 +425,34 @@ impl<const N: usize, const K: usize> ParallelTransport for Grassmann<N, K> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 impl<const N: usize, const K: usize> Connection for Grassmann<N, K> {
-    /// Riemannian Hessian-vector product on Grassmann.
+    /// Riemannian Hessian-vector product on Grassmann with Weingarten correction.
     ///
-    /// For a function f on Gr(N,K), the Riemannian HVP is:
-    ///   Hess f(Q)\[V\] = proj_Q(D²f(Q)\[V\])
+    /// Full formula (Boumal 2022, §9.5, Proposition 9.46) for horizontal representation:
     ///
-    /// where proj_Q is the horizontal projection (I − QQ^T).
-    /// This is the standard formula for Grassmann manifolds embedded in R^{N×K}
-    /// with the horizontal tangent space structure.
+    ///   Hess f(Q)[V] = proj_Q(ehvp(V)) - V * sym(Q^T * G)
+    ///
+    /// where G = grad_f (Euclidean gradient, N×K), proj_Q(X) = (I - QQ^T)X,
+    /// and sym(A) = (A + A^T)/2 (K×K). The correction term is nonzero even
+    /// when Q^T V = 0 (horizontal tangent).
     fn riemannian_hessian_vector_product(
         &self,
         q: &Self::Point,
-        _grad_f: &Self::Tangent,
+        grad_f: &Self::Tangent,
         v: &Self::Tangent,
         hess_ambient: &dyn Fn(&Self::Tangent) -> Self::Tangent,
     ) -> Result<Self::Tangent, CartanError> {
-        let ehvp = hess_ambient(v);
-        Ok(self.project_tangent(q, &ehvp))
+        let g = grad_f;
+
+        // Step 1: horizontal projection of ambient HVP
+        let ehvp_v = hess_ambient(v);
+        let proj_ehvp = self.project_tangent(q, &ehvp_v);
+
+        // Step 2: Weingarten correction: V * sym(Q^T * G)  (K×K symmetric)
+        let qt_g = q.transpose() * g;
+        let sym_qt_g = (qt_g + qt_g.transpose()) * 0.5;
+        let correction = v * sym_qt_g;
+
+        Ok(proj_ehvp - correction)
     }
 }
 
@@ -768,5 +779,41 @@ mod tests {
         let wt = m.transport(&q, &p, &w).unwrap();
         let wt_norm = m.norm(&p, &wt);
         assert_abs_diff_eq!(w_norm, wt_norm, epsilon = 1e-7);
+    }
+
+    #[test]
+    fn test_grassmann_hessian_weingarten_correction() {
+        use cartan_core::Connection;
+        use nalgebra::SMatrix;
+
+        // Gr(3, 1) ~= S^2: 3-dim space, 1-dim subspaces
+        let gr = Grassmann::<3, 1>;
+        // Q = column [0, 0, 1]^T
+        let q = SMatrix::<Real, 3, 1>::from_column_slice(&[0.0, 0.0, 1.0]);
+        assert!(gr.check_point(&q).is_ok());
+
+        // Cost: f(Q) = tr(Q^T A Q) for A = diag(1, 2, 3)
+        // egrad = 2*A*Q; ehvp(V) = 2*A*V
+        let a_diag =
+            SMatrix::<Real, 3, 3>::from_diagonal(&nalgebra::SVector::from([1.0, 2.0, 3.0]));
+        let egrad = a_diag * q * 2.0;
+        let ehvp = |v: &SMatrix<Real, 3, 1>| a_diag * v * 2.0;
+
+        // Horizontal tangent: V = [1, 0, 0]^T (Q^T V = 0)
+        let v = SMatrix::<Real, 3, 1>::from_column_slice(&[1.0, 0.0, 0.0]);
+        assert!(gr.check_tangent(&q, &v).is_ok());
+
+        let hvp = gr
+            .riemannian_hessian_vector_product(&q, &egrad, &v, &ehvp)
+            .unwrap();
+
+        // Manual (Boumal formula):
+        // proj_Q(2*A*V) = proj_Q([2,0,0]) = [2,0,0] (already horizontal)
+        // sym(Q^T * G) = sym([[6]]) = [[6]]
+        // V * sym(Q^T*G) = [1,0,0]^T * 6 = [6,0,0]
+        // Hess[V] = [2,0,0] - [6,0,0] = [-4,0,0]
+        let expected = SMatrix::<Real, 3, 1>::from_column_slice(&[-4.0, 0.0, 0.0]);
+        let diff = (hvp - expected).norm();
+        assert!(diff < 1e-10, "Grassmann HVP wrong: diff = {diff}");
     }
 }

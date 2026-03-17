@@ -305,31 +305,36 @@ impl<const N: usize> ParallelTransport for Sphere<N> {
 // VectorTransport: blanket impl from ParallelTransport.
 
 impl<const N: usize> Connection for Sphere<N> {
-    /// Riemannian Hessian on the sphere (simplified).
+    /// Riemannian Hessian on the sphere with Weingarten correction.
     ///
-    /// The full formula is: Hess f(p)\[v\] = proj_p(D^2f(p)\[v\]) - <egrad, p> * v
-    /// where v is the tangent direction. Since the current trait interface
-    /// does not pass v explicitly, this returns proj_p(ehvp) which is
-    /// correct to leading order.
+    /// Full formula (Absil et al., Example 5.3.2):
     ///
-    /// TODO(phase6): Revise Connection trait to pass the tangent direction
-    /// explicitly, enabling the full Weingarten correction.
+    ///   Hess f(p)[v] = proj_p(D^2f(p)[v]) - <egrad, p> * v
     ///
-    /// Ref: Absil et al., Example 5.3.2.
+    /// where `grad_f` is the **Euclidean** gradient `egrad` (not the projected
+    /// Riemannian gradient), matching the Pymanopt/Manopt convention.
+    /// The term `<egrad, p>` is the normal component of the gradient and is
+    /// nonzero whenever the cost function has a component along the normal to
+    /// the sphere at p.
     fn riemannian_hessian_vector_product(
         &self,
         p: &Self::Point,
-        _grad_f: &Self::Tangent,
+        grad_f: &Self::Tangent,
         v: &Self::Tangent,
         hess_ambient: &dyn Fn(&Self::Tangent) -> Self::Tangent,
     ) -> Result<Self::Tangent, CartanError> {
-        // Compute the ambient Euclidean HVP, then project onto the tangent space.
-        // The full formula includes a Weingarten correction term:
-        //   Hess f(p)[v] = proj_p(D^2f(p)[v]) - <egrad, p> * v
-        // but the current interface does not separate the Weingarten term,
-        // so we return just proj_p(ehvp) which is correct to leading order.
+        // Step 1: project ambient HVP onto tangent space.
         let ehvp = hess_ambient(v);
-        Ok(self.project_tangent(p, &ehvp))
+        let proj_ehvp = self.project_tangent(p, &ehvp);
+
+        // Step 2: Weingarten correction — shape operator of S^{N-1} in R^N.
+        //   correction = <egrad, p> * v
+        // Convention: grad_f is the Euclidean gradient (egrad), so
+        // <egrad, p> = grad_f.dot(p).
+        let normal_component = grad_f.dot(p);
+        let weingarten = v * normal_component;
+
+        Ok(proj_ehvp - weingarten)
     }
 }
 
@@ -390,5 +395,57 @@ impl<const N: usize> GeodesicInterpolation for Sphere<N> {
     ) -> Result<Self::Point, CartanError> {
         let v = self.log(p, q)?;
         Ok(self.exp(p, &(v * t)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cartan_core::{Connection, Manifold};
+    use nalgebra::SVector;
+
+    #[test]
+    fn test_sphere_hessian_weingarten_correction() {
+        let s2 = Sphere::<3>;
+        // p = (1/sqrt(2), 0, 1/sqrt(2))
+        let p: SVector<f64, 3> = SVector::from([1.0 / 2f64.sqrt(), 0.0, 1.0 / 2f64.sqrt()]);
+        assert!(s2.check_point(&p).is_ok());
+
+        // Cost: f(x) = x[2] (height function, linear)
+        // egrad = [0, 0, 1] everywhere; Euclidean Hessian = 0
+        let egrad: SVector<f64, 3> = SVector::from([0.0, 0.0, 1.0]);
+        let ehvp = |_w: &SVector<f64, 3>| SVector::zeros();
+
+        // Tangent at p (perpendicular to p): [0, 1, 0]
+        let v: SVector<f64, 3> = SVector::from([0.0, 1.0, 0.0]);
+        assert!(p.dot(&v).abs() < 1e-10, "v must be in T_pS");
+
+        let hvp = s2
+            .riemannian_hessian_vector_product(&p, &egrad, &v, &ehvp)
+            .unwrap();
+
+        // Expected: -(1/sqrt(2)) * v = [0, -1/sqrt(2), 0]
+        // <egrad, p> = p[2] = 1/sqrt(2); proj_p(ehvp) = proj_p(0) = 0
+        let expected: SVector<f64, 3> = -v * (1.0 / 2f64.sqrt());
+        let diff = (hvp - expected).norm();
+        assert!(diff < 1e-10, "Weingarten correction wrong: diff = {diff}");
+    }
+
+    #[test]
+    fn test_sphere_hessian_no_correction_at_north_pole() {
+        let s2 = Sphere::<3>;
+        // At north pole with f(x) = x[0]^2 + x[1]^2, egrad = [0,0,0] at north pole
+        // => correction is zero; result = proj_p(ehvp)
+        let p: SVector<f64, 3> = SVector::from([0.0, 0.0, 1.0]);
+        let egrad: SVector<f64, 3> = SVector::zeros();
+        let v: SVector<f64, 3> = SVector::from([1.0, 0.0, 0.0]);
+        let ehvp = |w: &SVector<f64, 3>| *w * 2.0; // Hessian of x0^2+x1^2 = 2*I on first two dims
+        let hvp = s2
+            .riemannian_hessian_vector_product(&p, &egrad, &v, &ehvp)
+            .unwrap();
+        // proj_p(2*v) = 2*v since v perp p; correction = 0
+        let expected = v * 2.0;
+        let diff = (hvp - expected).norm();
+        assert!(diff < 1e-10, "HVP without correction wrong: diff = {diff}");
     }
 }
