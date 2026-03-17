@@ -154,7 +154,13 @@ where
     if discriminant < 0.0 {
         return eta.clone();
     }
-    let tau = (-ep + discriminant.sqrt()) / p_sq;
+    let sqrt_disc = {
+        #[cfg(feature = "std")]
+        { discriminant.sqrt() }
+        #[cfg(not(feature = "std"))]
+        { libm::sqrt(discriminant) }
+    };
+    let tau = (-ep + sqrt_disc) / p_sq;
     eta.clone() + p.clone() * tau
 }
 
