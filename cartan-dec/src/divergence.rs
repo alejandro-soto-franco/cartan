@@ -79,7 +79,7 @@ pub fn apply_divergence(
     // Step 2: Apply ⋆₁ to the 1-form.
     let star1_u1form = u1form.component_mul(&hodge.star1);
 
-    // Step 3: Apply d₀ᵀ: n_vertices × n_edges.
+    // Step 3: Apply d₀ᵀ: n_vertices × n_boundaries.
     let d0t_star1_u = ext.d0.transpose() * star1_u1form;
 
     // Step 4: Apply ⋆₀⁻¹.
