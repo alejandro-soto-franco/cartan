@@ -109,16 +109,17 @@ impl Operators {
 
     /// Apply the Bochner (connection) Laplacian to a vector field.
     ///
-    /// For a flat domain, this is the scalar Laplacian applied component-wise.
-    /// The input `u` is a 2*n_v vector with [u_x[0..n_v], u_y[0..n_v]] layout
+    /// Input `u` is a 2*n_v vector with [u_x[0..n_v], u_y[0..n_v]] layout
     /// (structure-of-arrays: x-components first, then y-components).
     ///
-    /// For curved manifolds with a Ricci curvature correction, pass
-    /// `ricci_correction` as Some(f64 * identity) for Einstein manifolds.
+    /// `ricci_correction`: optional per-vertex Ricci tensor callback.
+    /// Returns the 2×2 Ricci tensor at vertex v as `[[r00, r01], [r10, r11]]`.
+    /// For flat R²: `None`. For Einstein manifolds (Ric = κ·g):
+    /// `Some(&|_| [[κ, 0.0], [0.0, κ]])`.
     pub fn apply_bochner_laplacian(
         &self,
         u: &DVector<f64>,
-        ricci_correction: Option<f64>,
+        ricci_correction: Option<&dyn Fn(usize) -> [[f64; 2]; 2]>,
     ) -> DVector<f64> {
         let nv = self.laplace_beltrami.nrows();
         assert_eq!(u.len(), 2 * nv, "Bochner: u must have 2*n_v entries");
@@ -129,12 +130,15 @@ impl Operators {
         let mut lux = &self.laplace_beltrami * ux;
         let mut luy = &self.laplace_beltrami * uy;
 
-        // On an Einstein manifold with Ric = κ * g, the Bochner Laplacian
-        // gains a correction: (∇*∇ + Ric)(u) = Δu + κ * u.
-        // This is the Weitzenböck identity: ΔH = ∇*∇ + Ric.
-        if let Some(kappa) = ricci_correction {
-            lux += ux * kappa;
-            luy += uy * kappa;
+        // Weitzenboeck correction: (nabla*nabla + Ric)(u)_v = Delta*u_v + Ric_v * u_v
+        if let Some(ric) = ricci_correction {
+            for v in 0..nv {
+                let r = ric(v); // [[r00, r01], [r10, r11]]
+                let ux_v = ux[v];
+                let uy_v = uy[v];
+                lux[v] += r[0][0] * ux_v + r[0][1] * uy_v;
+                luy[v] += r[1][0] * ux_v + r[1][1] * uy_v;
+            }
         }
 
         let mut result = DVector::<f64>::zeros(2 * nv);
@@ -145,18 +149,17 @@ impl Operators {
 
     /// Apply the Lichnerowicz Laplacian to a symmetric 2-tensor field Q.
     ///
-    /// The input `q` is a 3*n_v vector with [Q_xx, Q_xy, Q_yy] layout
+    /// Input `q` is a 3*n_v vector with [Q_xx, Q_xy, Q_yy] layout
     /// (three independent components of a symmetric 2×2 tensor per vertex).
     ///
-    /// For flat domains: ΔL Q_ij = Δ Q_ij (component-wise scalar Laplacian).
-    ///
-    /// `curvature_correction`: optional constant κ for the curvature term
-    /// R_{ikjl} Q^{kl} = κ * Q_ij (valid on space forms with constant sectional K=κ).
-    /// For R², κ = 0.
+    /// `curvature_correction`: optional per-vertex curvature endomorphism callback.
+    /// Returns a 3×3 matrix acting on the [Qxx, Qxy, Qyy] components at vertex v.
+    /// For flat R²: `None`. For a space form with sectional curvature K=κ:
+    /// `Some(&|_| [[2.*κ,0.,0.],[0.,2.*κ,0.],[0.,0.,2.*κ]])`.
     pub fn apply_lichnerowicz_laplacian(
         &self,
         q: &DVector<f64>,
-        curvature_correction: Option<f64>,
+        curvature_correction: Option<&dyn Fn(usize) -> [[f64; 3]; 3]>,
     ) -> DVector<f64> {
         let nv = self.laplace_beltrami.nrows();
         assert_eq!(q.len(), 3 * nv, "Lichnerowicz: q must have 3*n_v entries");
@@ -169,12 +172,16 @@ impl Operators {
         let mut lxy = &self.laplace_beltrami * qxy;
         let mut lyy = &self.laplace_beltrami * qyy;
 
-        // Curvature correction: +2 * κ * Q for symmetric space form.
-        // For flat R²: κ = 0. For S²: κ = 1.
-        if let Some(kappa) = curvature_correction {
-            lxx += qxx * (2.0 * kappa);
-            lxy += qxy * (2.0 * kappa);
-            lyy += qyy * (2.0 * kappa);
+        if let Some(curv) = curvature_correction {
+            for v in 0..nv {
+                let c = curv(v); // 3x3 acting on [qxx, qxy, qyy]
+                let qx = qxx[v];
+                let qm = qxy[v];
+                let qy = qyy[v];
+                lxx[v] += c[0][0] * qx + c[0][1] * qm + c[0][2] * qy;
+                lxy[v] += c[1][0] * qx + c[1][1] * qm + c[1][2] * qy;
+                lyy[v] += c[2][0] * qx + c[2][1] * qm + c[2][2] * qy;
+            }
         }
 
         let mut result = DVector::<f64>::zeros(3 * nv);
@@ -182,5 +189,93 @@ impl Operators {
         result.rows_mut(nv, nv).copy_from(&lxy);
         result.rows_mut(2 * nv, nv).copy_from(&lyy);
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Mesh;
+
+    #[test]
+    fn test_bochner_tensor_ricci_zero() {
+        // Zero callback must match None
+        let mesh = Mesh::unit_square_grid(4);
+        let ops = Operators::from_mesh(&mesh);
+        let nv = mesh.n_vertices();
+        let u = DVector::from_element(2 * nv, 0.5);
+
+        let result_none = ops.apply_bochner_laplacian(&u, None);
+        let result_zero = ops.apply_bochner_laplacian(&u, Some(&|_| [[0.0, 0.0], [0.0, 0.0]]));
+        let diff = (&result_none - &result_zero).norm();
+        assert!(diff < 1e-12, "zero callback should equal None: diff = {diff}");
+    }
+
+    #[test]
+    fn test_bochner_tensor_ricci_einstein() {
+        // Einstein manifold Ric = kappa*I: tensor result must match manual scalar computation
+        let mesh = Mesh::unit_square_grid(4);
+        let ops = Operators::from_mesh(&mesh);
+        let nv = mesh.n_vertices();
+        let kappa = 2.5;
+        let u = DVector::from_fn(2 * nv, |i, _| i as f64 * 0.01);
+
+        let result_tensor =
+            ops.apply_bochner_laplacian(&u, Some(&|_| [[kappa, 0.0], [0.0, kappa]]));
+
+        // Manual: Delta*u_x + kappa*u_x, Delta*u_y + kappa*u_y
+        let ux = u.rows(0, nv).into_owned();
+        let uy = u.rows(nv, nv).into_owned();
+        let lux = &ops.laplace_beltrami * &ux + &ux * kappa;
+        let luy = &ops.laplace_beltrami * &uy + &uy * kappa;
+        let mut expected = DVector::zeros(2 * nv);
+        expected.rows_mut(0, nv).copy_from(&lux);
+        expected.rows_mut(nv, nv).copy_from(&luy);
+
+        let diff = (&result_tensor - &expected).norm();
+        assert!(diff < 1e-10, "Einstein tensor != scalar path: diff = {diff}");
+    }
+
+    #[test]
+    fn test_lichnerowicz_tensor_callback_zero() {
+        // Zero callback must match None
+        let mesh = Mesh::unit_square_grid(4);
+        let ops = Operators::from_mesh(&mesh);
+        let nv = mesh.n_vertices();
+        let q = DVector::from_element(3 * nv, 0.3);
+
+        let result_none = ops.apply_lichnerowicz_laplacian(&q, None);
+        let result_zero =
+            ops.apply_lichnerowicz_laplacian(&q, Some(&|_| [[0.0_f64; 3]; 3]));
+        let diff = (&result_none - &result_zero).norm();
+        assert!(diff < 1e-12, "zero callback should match None: diff = {diff}");
+    }
+
+    #[test]
+    fn test_lichnerowicz_tensor_callback_diagonal() {
+        // Diagonal callback with kappa matches manual computation
+        let mesh = Mesh::unit_square_grid(4);
+        let ops = Operators::from_mesh(&mesh);
+        let nv = mesh.n_vertices();
+        let kappa = 1.0;
+        let q = DVector::from_fn(3 * nv, |i, _| (i + 1) as f64 * 0.01);
+
+        let c = [[2.0 * kappa, 0., 0.], [0., 2.0 * kappa, 0.], [0., 0., 2.0 * kappa]];
+        let result_tensor = ops.apply_lichnerowicz_laplacian(&q, Some(&|_| c));
+
+        // Manual: Delta*q_xx + 2*kappa*q_xx, etc.
+        let qxx = q.rows(0, nv).into_owned();
+        let qxy = q.rows(nv, nv).into_owned();
+        let qyy = q.rows(2 * nv, nv).into_owned();
+        let lxx = &ops.laplace_beltrami * &qxx + &qxx * (2.0 * kappa);
+        let lxy = &ops.laplace_beltrami * &qxy + &qxy * (2.0 * kappa);
+        let lyy = &ops.laplace_beltrami * &qyy + &qyy * (2.0 * kappa);
+        let mut expected = DVector::zeros(3 * nv);
+        expected.rows_mut(0, nv).copy_from(&lxx);
+        expected.rows_mut(nv, nv).copy_from(&lxy);
+        expected.rows_mut(2 * nv, nv).copy_from(&lyy);
+
+        let diff = (&result_tensor - &expected).norm();
+        assert!(diff < 1e-10, "diagonal tensor != scalar path: diff = {diff}");
     }
 }
