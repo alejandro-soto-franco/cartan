@@ -31,12 +31,7 @@ impl<'a, M: Curvature> CurvatureQuery<'a, M> {
     /// Riemann curvature tensor: R(u, v)w at this point.
     ///
     /// Anti-symmetric in u, v: R(u,v)w = -R(v,u)w.
-    pub fn riemann(
-        &self,
-        u: &M::Tangent,
-        v: &M::Tangent,
-        w: &M::Tangent,
-    ) -> M::Tangent {
+    pub fn riemann(&self, u: &M::Tangent, v: &M::Tangent, w: &M::Tangent) -> M::Tangent {
         self.manifold.riemann_curvature(&self.point, u, v, w)
     }
 

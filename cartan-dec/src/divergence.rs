@@ -112,7 +112,11 @@ pub fn apply_tensor_divergence(
     t: &DVector<f64>,
 ) -> DVector<f64> {
     let nv = mesh.n_vertices();
-    assert_eq!(t.len(), 3 * nv, "tensor_divergence: t must have 3*n_v entries");
+    assert_eq!(
+        t.len(),
+        3 * nv,
+        "tensor_divergence: t must have 3*n_v entries"
+    );
 
     let txx = t.rows(0, nv).into_owned();
     let txy = t.rows(nv, nv).into_owned();

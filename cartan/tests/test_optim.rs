@@ -19,14 +19,14 @@
 mod common;
 
 use cartan_core::{Manifold, Real};
-use cartan_manifolds::{Corr, Euclidean, Grassmann, SpecialOrthogonal, Spd, Sphere};
+use cartan_manifolds::{Corr, Euclidean, Grassmann, Spd, SpecialOrthogonal, Sphere};
 use cartan_optim::{
-    frechet_mean, minimize_rcg, minimize_rgd, minimize_rtr, CgVariant, FrechetConfig, RCGConfig,
-    RGDConfig, RTRConfig,
+    CgVariant, FrechetConfig, RCGConfig, RGDConfig, RTRConfig, frechet_mean, minimize_rcg,
+    minimize_rgd, minimize_rtr,
 };
 use nalgebra::{SMatrix, SVector};
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ====  Euclidean<3>  ====
@@ -35,9 +35,8 @@ use rand::SeedableRng;
 // Euclidean gradient: 2(x - a).  Hessian-vector: 2v.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TARGET_EUCLIDEAN: SVector<Real, 3> = SVector::from_array_storage(
-    nalgebra::ArrayStorage([[1.5, -0.7, 2.3]]),
-);
+const TARGET_EUCLIDEAN: SVector<Real, 3> =
+    SVector::from_array_storage(nalgebra::ArrayStorage([[1.5, -0.7, 2.3]]));
 
 fn euc_cost(x: &SVector<Real, 3>) -> Real {
     (x - TARGET_EUCLIDEAN).norm_squared()
@@ -61,7 +60,11 @@ fn euclidean_rgd_recovers_target() {
         ..Default::default()
     };
     let res = minimize_rgd(&m, euc_cost, |x| euc_rgrad(&m, x), x0, &config);
-    assert!(res.converged, "Euclidean RGD did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "Euclidean RGD did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - TARGET_EUCLIDEAN).norm();
     assert!(err < 1e-6, "Euclidean RGD: ||x* - target|| = {err:.2e}");
 }
@@ -79,7 +82,11 @@ fn euclidean_rcg_recovers_target() {
         ..Default::default()
     };
     let res = minimize_rcg(&m, euc_cost, |x| euc_rgrad(&m, x), x0, &config);
-    assert!(res.converged, "Euclidean RCG did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "Euclidean RCG did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - TARGET_EUCLIDEAN).norm();
     assert!(err < 1e-6, "Euclidean RCG: ||x* - target|| = {err:.2e}");
 }
@@ -103,7 +110,11 @@ fn euclidean_rtr_recovers_target() {
         x0,
         &config,
     );
-    assert!(res.converged, "Euclidean RTR did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "Euclidean RTR did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - TARGET_EUCLIDEAN).norm();
     assert!(err < 1e-6, "Euclidean RTR: ||x* - target|| = {err:.2e}");
 }
@@ -121,11 +132,18 @@ fn euclidean_frechet_mean_recovers_center() {
         })
         .collect();
 
-    let config = FrechetConfig { max_iters: 200, tol: 1e-9, step_size: 1.0 };
+    let config = FrechetConfig {
+        max_iters: 200,
+        tol: 1e-9,
+        step_size: 1.0,
+    };
     let res = frechet_mean(&m, &points, None, &config);
     assert!(res.converged, "Euclidean Fréchet mean did not converge");
     let err = (res.point - center).norm();
-    assert!(err < 5e-2, "Euclidean Fréchet mean: ||mu - center|| = {err:.2e}");
+    assert!(
+        err < 5e-2,
+        "Euclidean Fréchet mean: ||mu - center|| = {err:.2e}"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -152,8 +170,18 @@ fn sphere_rgd_various_targets() {
         let a_hat = a / a.norm();
         let x0 = m.random_point(&mut rng);
 
-        let config = RGDConfig { max_iters: 2000, grad_tol: 1e-7, ..Default::default() };
-        let res = minimize_rgd(&m, |p| sph_cost(p, &a), |p| sph_rgrad(&m, p, &a), x0, &config);
+        let config = RGDConfig {
+            max_iters: 2000,
+            grad_tol: 1e-7,
+            ..Default::default()
+        };
+        let res = minimize_rgd(
+            &m,
+            |p| sph_cost(p, &a),
+            |p| sph_rgrad(&m, p, &a),
+            x0,
+            &config,
+        );
         assert!(res.converged, "Sphere RGD did not converge for a={a:?}");
         let err = (res.point - a_hat).norm();
         assert!(err < 1e-5, "Sphere RGD: err={err:.2e} for a={a:?}");
@@ -175,8 +203,18 @@ fn sphere_rcg_polak_ribiere() {
         variant: CgVariant::PolakRibiere,
         ..Default::default()
     };
-    let res = minimize_rcg(&m, |p| sph_cost(p, &a), |p| sph_rgrad(&m, p, &a), x0, &config);
-    assert!(res.converged, "Sphere RCG PR+ did not converge: grad_norm={:.2e}", res.grad_norm);
+    let res = minimize_rcg(
+        &m,
+        |p| sph_cost(p, &a),
+        |p| sph_rgrad(&m, p, &a),
+        x0,
+        &config,
+    );
+    assert!(
+        res.converged,
+        "Sphere RCG PR+ did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - a_hat).norm();
     assert!(err < 1e-5, "Sphere RCG PR+: err={err:.2e}");
 }
@@ -195,7 +233,11 @@ fn sphere_frechet_mean_near_equator() {
         })
         .collect();
 
-    let config = FrechetConfig { max_iters: 300, tol: 1e-10, step_size: 1.0 };
+    let config = FrechetConfig {
+        max_iters: 300,
+        tol: 1e-10,
+        step_size: 1.0,
+    };
     let res = frechet_mean(&m, &points, None, &config);
     assert!(res.converged, "Sphere Fréchet mean did not converge");
     let err = (res.point - mu_true).norm();
@@ -244,8 +286,18 @@ fn so3_rgd_recovers_rotation() {
         init_step: 0.5,
         ..Default::default()
     };
-    let res = minimize_rgd(&m, |r| so3_cost(r, &a), |r| so3_rgrad(&m, r, &a), x0, &config);
-    assert!(res.converged, "SO(3) RGD did not converge: grad_norm={:.2e}", res.grad_norm);
+    let res = minimize_rgd(
+        &m,
+        |r| so3_cost(r, &a),
+        |r| so3_rgrad(&m, r, &a),
+        x0,
+        &config,
+    );
+    assert!(
+        res.converged,
+        "SO(3) RGD did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - a).norm();
     assert!(err < 1e-4, "SO(3) RGD: ||R* - A||_F = {err:.2e}");
 }
@@ -262,8 +314,18 @@ fn so3_rcg_recovers_rotation() {
         grad_tol: 1e-7,
         ..Default::default()
     };
-    let res = minimize_rcg(&m, |r| so3_cost(r, &a), |r| so3_rgrad(&m, r, &a), x0, &config);
-    assert!(res.converged, "SO(3) RCG did not converge: grad_norm={:.2e}", res.grad_norm);
+    let res = minimize_rcg(
+        &m,
+        |r| so3_cost(r, &a),
+        |r| so3_rgrad(&m, r, &a),
+        x0,
+        &config,
+    );
+    assert!(
+        res.converged,
+        "SO(3) RCG did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - a).norm();
     assert!(err < 1e-4, "SO(3) RCG: ||R* - A||_F = {err:.2e}");
 }
@@ -288,7 +350,11 @@ fn so3_rtr_recovers_rotation() {
         x0,
         &config,
     );
-    assert!(res.converged, "SO(3) RTR did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "SO(3) RTR did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - a).norm();
     assert!(err < 1e-4, "SO(3) RTR: ||R* - A||_F = {err:.2e}");
 }
@@ -306,7 +372,11 @@ fn so3_frechet_mean_near_identity() {
         })
         .collect();
 
-    let config = FrechetConfig { max_iters: 300, tol: 1e-9, step_size: 1.0 };
+    let config = FrechetConfig {
+        max_iters: 300,
+        tol: 1e-9,
+        step_size: 1.0,
+    };
     let res = frechet_mean(&m, &points, None, &config);
     assert!(res.converged, "SO(3) Fréchet mean did not converge");
     let err = (res.point - identity).norm();
@@ -328,11 +398,7 @@ fn spd_cost(p: &SMatrix<Real, 3, 3>, a: &SMatrix<Real, 3, 3>) -> Real {
     (p - a).norm_squared()
 }
 
-fn spd_rgrad(
-    m: &Spd<3>,
-    p: &SMatrix<Real, 3, 3>,
-    a: &SMatrix<Real, 3, 3>,
-) -> SMatrix<Real, 3, 3> {
+fn spd_rgrad(m: &Spd<3>, p: &SMatrix<Real, 3, 3>, a: &SMatrix<Real, 3, 3>) -> SMatrix<Real, 3, 3> {
     let egrad = (p - a) * 2.0;
     m.project_tangent(p, &egrad)
 }
@@ -351,8 +417,18 @@ fn spd3_rcg_recovers_target() {
         grad_tol: 1e-5,
         ..Default::default()
     };
-    let res = minimize_rcg(&m, |p| spd_cost(p, &target), |p| spd_rgrad(&m, p, &target), x0, &config);
-    assert!(res.converged, "SPD(3) RCG did not converge: grad_norm={:.2e}", res.grad_norm);
+    let res = minimize_rcg(
+        &m,
+        |p| spd_cost(p, &target),
+        |p| spd_rgrad(&m, p, &target),
+        x0,
+        &config,
+    );
+    assert!(
+        res.converged,
+        "SPD(3) RCG did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - target).norm();
     assert!(err < 1e-2, "SPD(3) RCG: ||P* - target||_F = {err:.2e}");
 }
@@ -370,12 +446,20 @@ fn spd3_frechet_mean_recovers_center() {
         })
         .collect();
 
-    let config = FrechetConfig { max_iters: 200, tol: 1e-8, step_size: 1.0 };
+    let config = FrechetConfig {
+        max_iters: 200,
+        tol: 1e-8,
+        step_size: 1.0,
+    };
     let res = frechet_mean(&m, &points, None, &config);
     assert!(res.converged, "SPD(3) Fréchet mean did not converge");
-    m.check_point(&res.point).expect("SPD Fréchet mean result is not SPD");
+    m.check_point(&res.point)
+        .expect("SPD Fréchet mean result is not SPD");
     let err = (res.point - center).norm();
-    assert!(err < 2e-1, "SPD(3) Fréchet mean: ||mu - center||_F = {err:.2e}");
+    assert!(
+        err < 2e-1,
+        "SPD(3) Fréchet mean: ||mu - center||_F = {err:.2e}"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -418,8 +502,18 @@ fn corr3_rgd_recovers_target() {
         init_step: 0.5,
         ..Default::default()
     };
-    let res = minimize_rgd(&m, |c| corr_cost(c, &target), |c| corr_rgrad(&m, c, &target), x0, &config);
-    assert!(res.converged, "Corr(3) RGD did not converge: grad_norm={:.2e}", res.grad_norm);
+    let res = minimize_rgd(
+        &m,
+        |c| corr_cost(c, &target),
+        |c| corr_rgrad(&m, c, &target),
+        x0,
+        &config,
+    );
+    assert!(
+        res.converged,
+        "Corr(3) RGD did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - target).norm();
     assert!(err < 1e-5, "Corr(3) RGD: ||C* - target||_F = {err:.2e}");
 }
@@ -436,8 +530,18 @@ fn corr3_rcg_recovers_target() {
         grad_tol: 1e-9,
         ..Default::default()
     };
-    let res = minimize_rcg(&m, |c| corr_cost(c, &target), |c| corr_rgrad(&m, c, &target), x0, &config);
-    assert!(res.converged, "Corr(3) RCG did not converge: grad_norm={:.2e}", res.grad_norm);
+    let res = minimize_rcg(
+        &m,
+        |c| corr_cost(c, &target),
+        |c| corr_rgrad(&m, c, &target),
+        x0,
+        &config,
+    );
+    assert!(
+        res.converged,
+        "Corr(3) RCG did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - target).norm();
     assert!(err < 1e-5, "Corr(3) RCG: ||C* - target||_F = {err:.2e}");
 }
@@ -462,7 +566,11 @@ fn corr3_rtr_recovers_target() {
         x0,
         &config,
     );
-    assert!(res.converged, "Corr(3) RTR did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "Corr(3) RTR did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - target).norm();
     assert!(err < 1e-5, "Corr(3) RTR: ||C* - target||_F = {err:.2e}");
 }
@@ -480,12 +588,20 @@ fn corr3_frechet_mean_recovers_center() {
         })
         .collect();
 
-    let config = FrechetConfig { max_iters: 200, tol: 1e-10, step_size: 1.0 };
+    let config = FrechetConfig {
+        max_iters: 200,
+        tol: 1e-10,
+        step_size: 1.0,
+    };
     let res = frechet_mean(&m, &points, None, &config);
     assert!(res.converged, "Corr(3) Fréchet mean did not converge");
-    m.check_point(&res.point).expect("Corr Fréchet mean result is not a valid correlation matrix");
+    m.check_point(&res.point)
+        .expect("Corr Fréchet mean result is not a valid correlation matrix");
     let err = (res.point - center).norm();
-    assert!(err < 5e-2, "Corr(3) Fréchet mean: ||mu - center||_F = {err:.2e}");
+    assert!(
+        err < 5e-2,
+        "Corr(3) Fréchet mean: ||mu - center||_F = {err:.2e}"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -530,8 +646,18 @@ fn grassmann_rcg_pca() {
         grad_tol: 1e-5,
         ..Default::default()
     };
-    let res = minimize_rcg(&m, |q| grass_cost(q, &a), |q| grass_rgrad(&m, q, &a), x0, &config);
-    assert!(res.converged, "Grassmann RCG PCA did not converge: grad_norm={:.2e}", res.grad_norm);
+    let res = minimize_rcg(
+        &m,
+        |q| grass_cost(q, &a),
+        |q| grass_rgrad(&m, q, &a),
+        x0,
+        &config,
+    );
+    assert!(
+        res.converged,
+        "Grassmann RCG PCA did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let val = (a.transpose() * res.point).norm();
     assert!(
         (val - 2.0_f64.sqrt()).abs() < 1e-3,
@@ -561,7 +687,11 @@ fn grassmann_rtr_pca() {
         x0,
         &config,
     );
-    assert!(res.converged, "Grassmann RTR PCA did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "Grassmann RTR PCA did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let val = (a.transpose() * res.point).norm();
     assert!(
         (val - 2.0_f64.sqrt()).abs() < 1e-3,
@@ -582,15 +712,23 @@ fn grassmann_frechet_mean_near_target() {
         })
         .collect();
 
-    let config = FrechetConfig { max_iters: 300, tol: 1e-8, step_size: 1.0 };
+    let config = FrechetConfig {
+        max_iters: 300,
+        tol: 1e-8,
+        step_size: 1.0,
+    };
     let res = frechet_mean(&m, &points, None, &config);
     assert!(res.converged, "Grassmann Fréchet mean did not converge");
-    m.check_point(&res.point).expect("Grassmann Fréchet mean not on manifold");
+    m.check_point(&res.point)
+        .expect("Grassmann Fréchet mean not on manifold");
     // Check subspace distance: ||P_mu - P_center||_F where P = Q Q^T.
     let p_mu = res.point * res.point.transpose();
     let p_center = center * center.transpose();
     let err = (p_mu - p_center).norm();
-    assert!(err < 5e-1, "Grassmann Fréchet mean: subspace distance = {err:.2e}");
+    assert!(
+        err < 5e-1,
+        "Grassmann Fréchet mean: subspace distance = {err:.2e}"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -608,12 +746,33 @@ fn all_algorithms_decrease_cost_on_sphere() {
     let x0 = m.random_point(&mut rng);
     let f0 = sph_cost(&x0, &a);
 
-    let config_rgd = RGDConfig { max_iters: 50, ..Default::default() };
-    let config_rcg = RCGConfig { max_iters: 50, ..Default::default() };
-    let config_rtr = RTRConfig { max_iters: 50, ..Default::default() };
+    let config_rgd = RGDConfig {
+        max_iters: 50,
+        ..Default::default()
+    };
+    let config_rcg = RCGConfig {
+        max_iters: 50,
+        ..Default::default()
+    };
+    let config_rtr = RTRConfig {
+        max_iters: 50,
+        ..Default::default()
+    };
 
-    let res_rgd = minimize_rgd(&m, |p| sph_cost(p, &a), |p| sph_rgrad(&m, p, &a), x0.clone(), &config_rgd);
-    let res_rcg = minimize_rcg(&m, |p| sph_cost(p, &a), |p| sph_rgrad(&m, p, &a), x0.clone(), &config_rcg);
+    let res_rgd = minimize_rgd(
+        &m,
+        |p| sph_cost(p, &a),
+        |p| sph_rgrad(&m, p, &a),
+        x0.clone(),
+        &config_rgd,
+    );
+    let res_rcg = minimize_rcg(
+        &m,
+        |p| sph_cost(p, &a),
+        |p| sph_rgrad(&m, p, &a),
+        x0.clone(),
+        &config_rcg,
+    );
     let res_rtr = minimize_rtr(
         &m,
         |p| sph_cost(p, &a),
@@ -623,7 +782,19 @@ fn all_algorithms_decrease_cost_on_sphere() {
         &config_rtr,
     );
 
-    assert!(res_rgd.value <= f0, "RGD did not decrease cost: f0={f0:.4}, final={:.4}", res_rgd.value);
-    assert!(res_rcg.value <= f0, "RCG did not decrease cost: f0={f0:.4}, final={:.4}", res_rcg.value);
-    assert!(res_rtr.value <= f0, "RTR did not decrease cost: f0={f0:.4}, final={:.4}", res_rtr.value);
+    assert!(
+        res_rgd.value <= f0,
+        "RGD did not decrease cost: f0={f0:.4}, final={:.4}",
+        res_rgd.value
+    );
+    assert!(
+        res_rcg.value <= f0,
+        "RCG did not decrease cost: f0={f0:.4}, final={:.4}",
+        res_rcg.value
+    );
+    assert!(
+        res_rtr.value <= f0,
+        "RTR did not decrease cost: f0={f0:.4}, final={:.4}",
+        res_rtr.value
+    );
 }

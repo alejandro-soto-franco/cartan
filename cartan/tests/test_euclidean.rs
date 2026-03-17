@@ -79,9 +79,9 @@ fn euclidean_r3_curvature_harness() {
 /// curvature all vanish on R^N.
 #[test]
 fn euclidean_r3_zero_curvature() {
-    use rand::rngs::StdRng;
+    use cartan_core::{Curvature, Manifold};
     use rand::SeedableRng;
-    use cartan_core::{Manifold, Curvature};
+    use rand::rngs::StdRng;
 
     let manifold = Euclidean::<3>;
     let mut rng = StdRng::seed_from_u64(45);
@@ -94,7 +94,11 @@ fn euclidean_r3_zero_curvature() {
 
         // Riemann curvature tensor vanishes.
         let r = manifold.riemann_curvature(&p, &u, &v, &w);
-        assert!(r.norm() < 1e-14, "Euclidean curvature should be zero, got norm {:.2e}", r.norm());
+        assert!(
+            r.norm() < 1e-14,
+            "Euclidean curvature should be zero, got norm {:.2e}",
+            r.norm()
+        );
 
         // Sectional curvature vanishes.
         let sec = manifold.sectional_curvature(&p, &u, &v);
@@ -102,16 +106,28 @@ fn euclidean_r3_zero_curvature() {
         // For Euclidean: numerator = 0, so the result is 0/denom.
         // If u and v are parallel, denominator = 0 and result is NaN; skip those.
         if sec.is_finite() {
-            assert!(sec.abs() < 1e-14, "Euclidean sectional curvature should be zero, got {:.2e}", sec);
+            assert!(
+                sec.abs() < 1e-14,
+                "Euclidean sectional curvature should be zero, got {:.2e}",
+                sec
+            );
         }
 
         // Ricci curvature vanishes.
         let ric = manifold.ricci_curvature(&p, &u, &v);
-        assert!(ric.abs() < 1e-14, "Euclidean Ricci should be zero, got {:.2e}", ric);
+        assert!(
+            ric.abs() < 1e-14,
+            "Euclidean Ricci should be zero, got {:.2e}",
+            ric
+        );
 
         // Scalar curvature vanishes.
         let scal = manifold.scalar_curvature(&p);
-        assert!(scal.abs() < 1e-14, "Euclidean scalar curvature should be zero, got {:.2e}", scal);
+        assert!(
+            scal.abs() < 1e-14,
+            "Euclidean scalar curvature should be zero, got {:.2e}",
+            scal
+        );
     }
 }
 
@@ -121,9 +137,9 @@ fn euclidean_r3_zero_curvature() {
 /// approximately, since this is the defining property of Euclidean space.
 #[test]
 fn euclidean_exp_is_addition() {
-    use rand::rngs::StdRng;
-    use rand::SeedableRng;
     use cartan_core::Manifold;
+    use rand::SeedableRng;
+    use rand::rngs::StdRng;
 
     let manifold = Euclidean::<5>;
     let mut rng = StdRng::seed_from_u64(46);

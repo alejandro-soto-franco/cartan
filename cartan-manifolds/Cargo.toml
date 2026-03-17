@@ -31,4 +31,5 @@ approx = { workspace = true }
 rand = { workspace = true, features = ["small_rng"] }
 
 [package.metadata.docs.rs]
+all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

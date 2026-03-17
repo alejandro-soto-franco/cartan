@@ -14,11 +14,13 @@
 
 mod common;
 
-use cartan_core::{Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction};
+use cartan_core::{
+    Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction,
+};
 use cartan_manifolds::Spd;
 use nalgebra::SMatrix;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Harness tests
@@ -119,7 +121,10 @@ fn spd3_scalar_curvature_nonpositive() {
     for _ in 0..50 {
         let p = m.random_point(&mut rng);
         let s = m.scalar_curvature(&p);
-        assert!(s <= 1e-10, "SPD scalar curvature should be ≤ 0, got {s:.6e}");
+        assert!(
+            s <= 1e-10,
+            "SPD scalar curvature should be ≤ 0, got {s:.6e}"
+        );
     }
 }
 
@@ -159,7 +164,10 @@ fn spd3_geodesic_from_identity_to_diagonal() {
     // Midpoint should have eigenvalues between those of P and Q.
     let mid_eig = nalgebra::SymmetricEigen::new(mid);
     for &ev in mid_eig.eigenvalues.iter() {
-        assert!(ev > 0.0, "geodesic midpoint has non-positive eigenvalue {ev:.4e}");
+        assert!(
+            ev > 0.0,
+            "geodesic midpoint has non-positive eigenvalue {ev:.4e}"
+        );
     }
 }
 
@@ -179,11 +187,7 @@ fn spd3_affine_invariant_metric() {
     let v = m.random_tangent(&p, &mut rng);
 
     // Use A = a lower triangular with positive diagonal (guaranteed invertible).
-    let a = SMatrix::<Real, 3, 3>::from_row_slice(&[
-        2.0, 0.0, 0.0,
-        0.5, 1.5, 0.0,
-        0.3, 0.2, 1.0,
-    ]);
+    let a = SMatrix::<Real, 3, 3>::from_row_slice(&[2.0, 0.0, 0.0, 0.5, 1.5, 0.0, 0.3, 0.2, 1.0]);
 
     let p2 = a * p * a.transpose();
     let u2 = a * u * a.transpose();
@@ -208,7 +212,8 @@ fn spd_random_points_are_valid() {
     let mut rng = StdRng::seed_from_u64(103);
     for _ in 0..100 {
         let p = m.random_point(&mut rng);
-        m.check_point(&p).expect("random_point not a valid SPD matrix");
+        m.check_point(&p)
+            .expect("random_point not a valid SPD matrix");
     }
 }
 

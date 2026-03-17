@@ -396,24 +396,18 @@ fn pade6_exp<const N: usize>(a: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N> {
     // Source: Higham, N.J. (2005), Table 2.2. These match scipy.linalg.expm.
     let b0: Real = 1.0;
     let b1: Real = 1.0 / 2.0;
-    let b2: Real = 5.0 / 44.0;       // ≈ 0.11364
-    let b3: Real = 1.0 / 66.0;       // ≈ 0.01515
-    let b4: Real = 1.0 / 792.0;      // ≈ 0.001263
-    let b5: Real = 1.0 / 15840.0;    // ≈ 6.31e-5
-    let b6: Real = 1.0 / 665280.0;   // ≈ 1.50e-6
+    let b2: Real = 5.0 / 44.0; // ≈ 0.11364
+    let b3: Real = 1.0 / 66.0; // ≈ 0.01515
+    let b4: Real = 1.0 / 792.0; // ≈ 0.001263
+    let b5: Real = 1.0 / 15840.0; // ≈ 6.31e-5
+    let b6: Real = 1.0 / 665280.0; // ≈ 1.50e-6
 
     // Numerator: p_6(A) = sum_{k=0}^{6} b_k A^k
     // Denominator: q_6(A) = sum_{k=0}^{6} (-1)^k b_k A^k  = p_6(-A)
     //
     // We build p and q by adding scaled powers. The even terms (k=0,2,4,6) have
     // the same sign in p and q; odd terms (k=1,3,5) are negated in q.
-    let p = id * b0
-        + a * b1
-        + a2 * b2
-        + a3 * b3
-        + a4 * b4
-        + a5 * b5
-        + a6 * b6;
+    let p = id * b0 + a * b1 + a2 * b2 + a3 * b3 + a4 * b4 + a5 * b5 + a6 * b6;
 
     let q = id * b0
         - a * b1          // sign flipped for odd powers
@@ -732,9 +726,7 @@ mod tests {
     // This is the standard embedding R^3 → so(3) via the cross-product map.
     fn hat3(x: Real, y: Real, z: Real) -> SMatrix<Real, 3, 3> {
         // hat([x,y,z]) = [[0,-z,y],[z,0,-x],[-y,x,0]]; laid out in row-major order.
-        SMatrix::<Real, 3, 3>::from_row_slice(&[
-            0.0, -z, y, z, 0.0, -x, -y, x, 0.0,
-        ])
+        SMatrix::<Real, 3, 3>::from_row_slice(&[0.0, -z, y, z, 0.0, -x, -y, x, 0.0])
     }
 
     /// `exp(0) = I` for N = 2.
@@ -820,11 +812,7 @@ mod tests {
         // Check R^T R = I (orthogonality).
         let rtr = r.transpose() * &r;
         let orth_err = (rtr - id).norm();
-        assert!(
-            orth_err < MED,
-            "R^T R ≠ I: error = {:.2e}",
-            orth_err
-        );
+        assert!(orth_err < MED, "R^T R ≠ I: error = {:.2e}", orth_err);
 
         // Check det(R) = +1 (special orthogonal, not a reflection).
         let det = r.determinant();
@@ -984,11 +972,7 @@ mod tests {
 
         let product = j * j_inv;
         let err = (product - id).norm();
-        assert!(
-            err < MED,
-            "J · J^{{-1}} ≠ I for N=3: error = {:.2e}",
-            err
-        );
+        assert!(err < MED, "J · J^{{-1}} ≠ I for N=3: error = {:.2e}", err);
     }
 
     /// J · J^{-1} = I for N=4 (series + numerical inverse).
@@ -1009,11 +993,7 @@ mod tests {
 
         let product = j * j_inv;
         let err = (product - id).norm();
-        assert!(
-            err < MED,
-            "J · J^{{-1}} ≠ I for N=4: error = {:.2e}",
-            err
-        );
+        assert!(err < MED, "J · J^{{-1}} ≠ I for N=4: error = {:.2e}", err);
     }
 
     /// J^{-1}(0) = I for N=3.

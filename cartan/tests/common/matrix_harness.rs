@@ -39,9 +39,9 @@
 //! where `q` is the destination point (already computed).
 
 use nalgebra::SMatrix;
-use rand::rngs::StdRng;
 use rand::Rng; // required for rng.sample() calls
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use rand_distr::StandardNormal;
 
 use cartan_core::*;
@@ -69,7 +69,9 @@ fn assert_mat_eq<const N: usize>(
     assert!(
         err < tol,
         "{}: ||actual - expected||_F = {:.2e} >= tol {:.2e}",
-        context, err, tol
+        context,
+        err,
+        tol
     );
 }
 
@@ -77,16 +79,14 @@ fn assert_mat_eq<const N: usize>(
 ///
 /// Used to check that a matrix which should vanish (e.g., a curvature sum,
 /// a zero tangent, a skew-symmetry residual) is numerically zero.
-fn assert_mat_near_zero<const N: usize>(
-    actual: &SMatrix<Real, N, N>,
-    tol: Real,
-    context: &str,
-) {
+fn assert_mat_near_zero<const N: usize>(actual: &SMatrix<Real, N, N>, tol: Real, context: &str) {
     let norm = actual.norm();
     assert!(
         norm < tol,
         "{}: expected ~0 matrix, got ||A||_F = {:.2e} (tol {:.2e})",
-        context, norm, tol
+        context,
+        norm,
+        tol
     );
 }
 
@@ -130,16 +130,16 @@ where
         let q = manifold.random_point(&mut rng);
 
         // -- Validation: random_point must pass check_point --
-        manifold.check_point(&p).unwrap_or_else(|e| {
-            panic!("sample {}: random_point failed check_point: {}", i, e)
-        });
+        manifold
+            .check_point(&p)
+            .unwrap_or_else(|e| panic!("sample {}: random_point failed check_point: {}", i, e));
 
         // -- Zero tangent --
         // The zero matrix at p must be a valid tangent and have zero norm under the metric.
         let zero = manifold.zero_tangent(&p);
-        manifold.check_tangent(&p, &zero).unwrap_or_else(|e| {
-            panic!("sample {}: zero_tangent failed check_tangent: {}", i, e)
-        });
+        manifold
+            .check_tangent(&p, &zero)
+            .unwrap_or_else(|e| panic!("sample {}: zero_tangent failed check_tangent: {}", i, e));
         assert_near_zero(
             manifold.norm(&p, &zero),
             tol,
@@ -149,16 +149,16 @@ where
         // -- Random tangent validation --
         // random_tangent must return a matrix that passes check_tangent.
         let v = manifold.random_tangent(&p, &mut rng);
-        manifold.check_tangent(&p, &v).unwrap_or_else(|e| {
-            panic!("sample {}: random_tangent failed check_tangent: {}", i, e)
-        });
+        manifold
+            .check_tangent(&p, &v)
+            .unwrap_or_else(|e| panic!("sample {}: random_tangent failed check_tangent: {}", i, e));
 
         // -- Exp lands on manifold --
         // exp(p, v) must return a matrix that passes check_point.
         let exp_pv = manifold.exp(&p, &v);
-        manifold.check_point(&exp_pv).unwrap_or_else(|e| {
-            panic!("sample {}: exp(p, v) failed check_point: {}", i, e)
-        });
+        manifold
+            .check_point(&exp_pv)
+            .unwrap_or_else(|e| panic!("sample {}: exp(p, v) failed check_point: {}", i, e));
 
         // -- Exp/log roundtrip: log(p, exp(p, v_small)) ≈ v_small --
         // Scale v so ||v||_metric < injectivity_radius * 0.5 to stay well inside
@@ -190,12 +190,7 @@ where
 
         // -- Distance symmetry: dist(p, q) = dist(q, p) --
         if let (Ok(d_pq), Ok(d_qp)) = (manifold.dist(&p, &q), manifold.dist(&q, &p)) {
-            assert_real_eq(
-                d_pq,
-                d_qp,
-                tol,
-                &format!("sample {}: dist symmetry", i),
-            );
+            assert_real_eq(d_pq, d_qp, tol, &format!("sample {}: dist symmetry", i));
         }
 
         // -- dist(p, p) = 0 --
@@ -273,7 +268,10 @@ where
             SMatrix::from_fn(|_, _| rng.sample::<f64, _>(StandardNormal));
         let projected = manifold.project_point(&arb);
         manifold.check_point(&projected).unwrap_or_else(|e| {
-            panic!("sample {}: project_point result failed check_point: {}", i, e)
+            panic!(
+                "sample {}: project_point result failed check_point: {}",
+                i, e
+            )
         });
 
         // -- check_tangent(p, project_tangent(p, arbitrary_ambient_matrix)) --
@@ -281,12 +279,14 @@ where
         let arb_t: SMatrix<Real, N, N> =
             SMatrix::from_fn(|_, _| rng.sample::<f64, _>(StandardNormal));
         let projected_t = manifold.project_tangent(&p, &arb_t);
-        manifold.check_tangent(&p, &projected_t).unwrap_or_else(|e| {
-            panic!(
-                "sample {}: project_tangent result failed check_tangent: {}",
-                i, e
-            )
-        });
+        manifold
+            .check_tangent(&p, &projected_t)
+            .unwrap_or_else(|e| {
+                panic!(
+                    "sample {}: project_tangent result failed check_tangent: {}",
+                    i, e
+                )
+            });
     }
 
     // -- Triangle inequality: d(p, r) ≤ d(p, q) + d(q, r) --
@@ -406,11 +406,8 @@ where
 ///
 /// Parallel transport is isometric: ||P_{p→q} u||_q = ||u||_p exactly.
 /// This is stricter than vector transport, which is only approximately isometric.
-pub fn test_matrix_parallel_transport<const N: usize, M>(
-    manifold: &M,
-    tol: Real,
-    n_samples: usize,
-) where
+pub fn test_matrix_parallel_transport<const N: usize, M>(manifold: &M, tol: Real, n_samples: usize)
+where
     M: Manifold<Point = SMatrix<Real, N, N>, Tangent = SMatrix<Real, N, N>> + ParallelTransport,
 {
     let mut rng = StdRng::seed_from_u64(45);
@@ -448,14 +445,17 @@ pub fn test_matrix_parallel_transport<const N: usize, M>(
                 inner_after,
                 inner_before,
                 tol,
-                &format!("sample {}: parallel transport preserves inner product exactly", i),
+                &format!(
+                    "sample {}: parallel transport preserves inner product exactly",
+                    i
+                ),
             );
 
             // -- Transported vector is in tangent space at q --
             // check_tangent(q, P(u)) should succeed.
-            manifold.check_tangent(&q, &u_t).unwrap_or_else(|e| {
-                panic!("sample {}: transported vector not in T_qM: {}", i, e)
-            });
+            manifold
+                .check_tangent(&q, &u_t)
+                .unwrap_or_else(|e| panic!("sample {}: transported vector not in T_qM: {}", i, e));
         }
     }
 }
@@ -505,9 +505,9 @@ where
 
         // -- retract(p, v) must land on the manifold --
         let q = Retraction::retract(manifold, &p, &v_small);
-        manifold.check_point(&q).unwrap_or_else(|e| {
-            panic!("sample {}: retract(p, v) failed check_point: {}", i, e)
-        });
+        manifold
+            .check_point(&q)
+            .unwrap_or_else(|e| panic!("sample {}: retract(p, v) failed check_point: {}", i, e));
 
         // -- Roundtrip: inverse_retract(p, retract(p, v)) ≈ v --
         if let Ok(v_recovered) = manifold.inverse_retract(&p, &q) {
@@ -565,7 +565,10 @@ where
         assert_mat_near_zero(
             &bianchi,
             tol * 10.0,
-            &format!("sample {}: first Bianchi identity R(u,v)w + R(v,w)u + R(w,u)v = 0", i),
+            &format!(
+                "sample {}: first Bianchi identity R(u,v)w + R(v,w)u + R(w,u)v = 0",
+                i
+            ),
         );
     }
 }
@@ -585,8 +588,7 @@ where
 /// which is the defining property of a geodesic.
 pub fn test_matrix_geodesic<const N: usize, M>(manifold: &M, tol: Real, n_samples: usize)
 where
-    M: Manifold<Point = SMatrix<Real, N, N>, Tangent = SMatrix<Real, N, N>>
-        + GeodesicInterpolation,
+    M: Manifold<Point = SMatrix<Real, N, N>, Tangent = SMatrix<Real, N, N>> + GeodesicInterpolation,
 {
     let mut rng = StdRng::seed_from_u64(44);
 
@@ -601,22 +603,12 @@ where
 
         // -- Boundary value at t=0: geodesic(p, q, 0) = p --
         if let Ok(g0) = manifold.geodesic(&p, &q, 0.0) {
-            assert_mat_eq(
-                &g0,
-                &p,
-                tol,
-                &format!("sample {}: geodesic(p,q,0) = p", i),
-            );
+            assert_mat_eq(&g0, &p, tol, &format!("sample {}: geodesic(p,q,0) = p", i));
         }
 
         // -- Boundary value at t=1: geodesic(p, q, 1) = q --
         if let Ok(g1) = manifold.geodesic(&p, &q, 1.0) {
-            assert_mat_eq(
-                &g1,
-                &q,
-                tol,
-                &format!("sample {}: geodesic(p,q,1) = q", i),
-            );
+            assert_mat_eq(&g1, &q, tol, &format!("sample {}: geodesic(p,q,1) = q", i));
         }
 
         // -- Constant speed: dist(p, gamma(0.5)) = 0.5 * dist(p, q) --

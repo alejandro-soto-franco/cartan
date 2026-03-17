@@ -4,7 +4,7 @@
 // operator correctness, and physical sanity checks.
 
 use cartan_dec::{
-    apply_divergence, apply_scalar_advection, ExteriorDerivative, FlatMesh, HodgeStar, Operators,
+    ExteriorDerivative, FlatMesh, HodgeStar, Operators, apply_divergence, apply_scalar_advection,
 };
 use cartan_manifolds::euclidean::Euclidean;
 use nalgebra::DVector;
@@ -44,7 +44,9 @@ fn mesh_triangle_areas_positive() {
 #[test]
 fn mesh_total_area_is_one() {
     let mesh = FlatMesh::unit_square_grid(4);
-    let total: f64 = (0..mesh.n_simplices()).map(|t| mesh.triangle_area_flat(t)).sum();
+    let total: f64 = (0..mesh.n_simplices())
+        .map(|t| mesh.triangle_area_flat(t))
+        .sum();
     assert!(
         (total - 1.0).abs() < 1e-14,
         "total area = {total}, expected 1.0"
@@ -69,10 +71,7 @@ fn exterior_derivative_exactness() {
     let mesh = FlatMesh::unit_square_grid(4);
     let ext = ExteriorDerivative::from_mesh(&mesh);
     let err = ext.check_exactness();
-    assert!(
-        err < 1e-14,
-        "d1 * d0 is not zero: max entry = {err:.2e}"
-    );
+    assert!(err < 1e-14, "d1 * d0 is not zero: max entry = {err:.2e}");
 }
 
 #[test]
@@ -175,7 +174,10 @@ fn laplace_beltrami_is_positive_semidefinite() {
     let lf = ops.apply_laplace_beltrami(&f);
 
     // <f, Delta f>_{star0} = sum_v f[v] * (Delta f)[v] * star0[v] >= 0.
-    let f_dot_lf: f64 = f.iter().zip(lf.iter()).zip(ops.mass0.iter())
+    let f_dot_lf: f64 = f
+        .iter()
+        .zip(lf.iter())
+        .zip(ops.mass0.iter())
         .map(|((fi, lfi), mi)| fi * lfi * mi)
         .sum();
 
@@ -268,8 +270,8 @@ fn advection_of_constant_field_vanishes() {
     let f = DVector::<f64>::from_element(nv, 5.0);
     let mut u = DVector::<f64>::zeros(2 * nv);
     for v in 0..nv {
-        u[v] = 1.0;       // u_x = 1
-        u[nv + v] = 0.5;  // u_y = 0.5
+        u[v] = 1.0; // u_x = 1
+        u[nv + v] = 0.5; // u_y = 0.5
     }
 
     let adv = apply_scalar_advection(&mesh, &f, &u);
@@ -314,9 +316,9 @@ fn lichnerowicz_laplacian_flat_kills_constant_tensor() {
     // Q = [[1, 0.5], [0.5, -1]] everywhere (traceless symmetric).
     let mut q = DVector::<f64>::zeros(3 * nv);
     for v in 0..nv {
-        q[v] = 1.0;            // Q_xx
-        q[nv + v] = 0.5;       // Q_xy
-        q[2 * nv + v] = -1.0;  // Q_yy
+        q[v] = 1.0; // Q_xx
+        q[nv + v] = 0.5; // Q_xy
+        q[2 * nv + v] = -1.0; // Q_yy
     }
 
     let lq = ops.apply_lichnerowicz_laplacian(&q, None);

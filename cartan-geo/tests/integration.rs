@@ -2,7 +2,7 @@
 //
 // End-to-end tests for cartan-geo: geodesics, curvature, Jacobi fields.
 
-use cartan_geo::{integrate_jacobi, scalar_at, sectional_at, CurvatureQuery, Geodesic};
+use cartan_geo::{CurvatureQuery, Geodesic, integrate_jacobi, scalar_at, sectional_at};
 use cartan_manifolds::{Euclidean, Sphere};
 use nalgebra::SVector;
 
@@ -22,11 +22,19 @@ fn geodesic_sphere_endpoint_roundtrip() {
 
     // gamma(0) = p
     let start = geo.eval(0.0);
-    assert!((start - p).norm() < 1e-14, "gamma(0) != p: {:.2e}", (start - p).norm());
+    assert!(
+        (start - p).norm() < 1e-14,
+        "gamma(0) != p: {:.2e}",
+        (start - p).norm()
+    );
 
     // gamma(1) = q
     let end = geo.eval(1.0);
-    assert!((end - q).norm() < 1e-12, "gamma(1) != q: {:.2e}", (end - q).norm());
+    assert!(
+        (end - q).norm() < 1e-12,
+        "gamma(1) != q: {:.2e}",
+        (end - q).norm()
+    );
 }
 
 #[test]
@@ -38,7 +46,12 @@ fn geodesic_sphere_length_is_angle() {
 
     let geo = Geodesic::from_two_points(&s2, p, &q).unwrap();
     let err = (geo.length() - std::f64::consts::FRAC_PI_2).abs();
-    assert!(err < 1e-14, "length = {:.6}, expected pi/2: err = {:.2e}", geo.length(), err);
+    assert!(
+        err < 1e-14,
+        "length = {:.6}, expected pi/2: err = {:.2e}",
+        geo.length(),
+        err
+    );
 }
 
 #[test]
@@ -50,7 +63,11 @@ fn geodesic_sphere_sample_stays_on_manifold() {
     let geo = Geodesic::from_two_points(&s2, p, &q).unwrap();
     for pt in geo.sample(20) {
         let norm_err = (pt.norm() - 1.0).abs();
-        assert!(norm_err < 1e-13, "point not on sphere: ||p|| - 1 = {:.2e}", norm_err);
+        assert!(
+            norm_err < 1e-13,
+            "point not on sphere: ||p|| - 1 = {:.2e}",
+            norm_err
+        );
     }
 }
 
@@ -99,7 +116,10 @@ fn sphere_sectional_curvature_is_one() {
     let v = SVector::<Real, 3>::from([0.0, 1.0, 0.0]);
 
     let k = sectional_at(&s2, &p, &u, &v);
-    assert!((k - 1.0).abs() < 1e-12, "S² sectional curvature = {k:.6}, expected 1.0");
+    assert!(
+        (k - 1.0).abs() < 1e-12,
+        "S² sectional curvature = {k:.6}, expected 1.0"
+    );
 }
 
 #[test]
@@ -109,7 +129,10 @@ fn sphere_scalar_curvature_is_n_minus_1_times_n_minus_2() {
     let s2 = Sphere::<3>;
     let p = SVector::<Real, 3>::from([1.0, 0.0, 0.0]);
     let s = scalar_at(&s2, &p);
-    assert!((s - 2.0).abs() < 1e-12, "S² scalar curvature = {s:.6}, expected 2.0");
+    assert!(
+        (s - 2.0).abs() < 1e-12,
+        "S² scalar curvature = {s:.6}, expected 2.0"
+    );
 }
 
 #[test]
@@ -186,5 +209,8 @@ fn jacobi_sphere_norm_at_zero() {
         .iter()
         .map(|j| j.norm())
         .fold(0.0_f64, f64::max);
-    assert!(max_norm <= j0.norm() + 1e-3, "Jacobi field diverged: max ||J|| = {max_norm:.4}");
+    assert!(
+        max_norm <= j0.norm() + 1e-3,
+        "Jacobi field diverged: max ||J|| = {max_norm:.4}"
+    );
 }

@@ -23,8 +23,8 @@ use rand::Rng;
 use rand_distr::StandardNormal;
 
 use cartan_core::{
-    CartanError, Connection, Curvature, GeodesicInterpolation,
-    Manifold, ParallelTransport, Real, Retraction,
+    CartanError, Connection, Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real,
+    Retraction,
 };
 // Note: VectorTransport is NOT imported here because Euclidean<N> gets its
 // VectorTransport implementation automatically via the blanket impl in
@@ -216,12 +216,7 @@ impl<const N: usize> Curvature for Euclidean<N> {
     /// Ricci curvature is identically zero on R^N.
     ///
     /// Ric(u, v) = trace of Z -> R(Z, u)v = trace of 0 = 0.
-    fn ricci_curvature(
-        &self,
-        _p: &Self::Point,
-        _u: &Self::Tangent,
-        _v: &Self::Tangent,
-    ) -> Real {
+    fn ricci_curvature(&self, _p: &Self::Point, _u: &Self::Tangent, _v: &Self::Tangent) -> Real {
         0.0
     }
 

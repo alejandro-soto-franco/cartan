@@ -27,4 +27,5 @@ std = ["alloc", "cartan-core/std", "cartan-manifolds/std"]
 alloc = ["cartan-core/alloc", "cartan-manifolds/alloc"]
 
 [package.metadata.docs.rs]
+all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

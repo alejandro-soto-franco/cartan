@@ -100,7 +100,7 @@ pub fn is_skew<const N: usize>(a: &SMatrix<Real, N, N>, tol: Real) -> bool {
     // Sum = A + A^T; measure how far from zero.
     // We use the Frobenius norm: nalgebra's .norm() on matrices is the F-norm.
     let sum = a + a.transpose(); // A + A^T
-    sum.norm() < tol             // ||A + A^T||_F < tol ↔ A is (approximately) skew
+    sum.norm() < tol // ||A + A^T||_F < tol ↔ A is (approximately) skew
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,7 +149,9 @@ mod tests {
             assert!(
                 s[(i, i)].abs() < TOL,
                 "diagonal entry ({},{}) = {} should be 0",
-                i, i, s[(i, i)]
+                i,
+                i,
+                s[(i, i)]
             );
         }
 

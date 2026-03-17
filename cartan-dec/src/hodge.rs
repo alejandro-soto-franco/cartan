@@ -7,9 +7,9 @@
 //!
 //! ## Formulas (flat 2D mesh)
 //!
-//! - **star0[v]** = dual cell area = (1/3) * sum_{t containing v} area(t) (barycentric dual).
-//! - **star1[e]** = |dual edge| / |primal edge|.
-//! - **star2[t]** = 1 / area(t).
+//! - **star0\[v\]** = dual cell area = (1/3) * sum_{t containing v} area(t) (barycentric dual).
+//! - **star1\[e\]** = |dual edge| / |primal edge|.
+//! - **star2\[t\]** = 1 / area(t).
 //!
 //! ## References
 //!
@@ -93,21 +93,28 @@ impl HodgeStar {
             star1[e] = dual_len / primal_len;
         }
 
-        Self { star0, star1, star2 }
+        Self {
+            star0,
+            star1,
+            star2,
+        }
     }
 
-    /// Inverse Hodge star star0_inv (entries are 1/star0[v]).
+    /// Inverse Hodge star star0_inv (entries are 1/star0\[v\]).
     pub fn star0_inv(&self) -> DVector<f64> {
-        self.star0.map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
+        self.star0
+            .map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
     }
 
-    /// Inverse Hodge star star1_inv (entries are 1/star1[b] for each boundary b).
+    /// Inverse Hodge star star1_inv (entries are 1/star1\[b\] for each boundary b).
     pub fn star1_inv(&self) -> DVector<f64> {
-        self.star1.map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
+        self.star1
+            .map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
     }
 
-    /// Inverse Hodge star star2_inv (entries are 1/star2[t] = simplex volume).
+    /// Inverse Hodge star star2_inv (entries are 1/star2\[t\] = simplex volume).
     pub fn star2_inv(&self) -> DVector<f64> {
-        self.star2.map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
+        self.star2
+            .map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
     }
 }

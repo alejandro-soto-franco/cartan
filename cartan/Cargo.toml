@@ -25,4 +25,5 @@ rand_distr = { workspace = true }
 nalgebra = { workspace = true }
 
 [package.metadata.docs.rs]
+all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

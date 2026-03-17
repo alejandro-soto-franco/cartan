@@ -27,11 +27,11 @@
 
 mod common;
 
-use cartan_manifolds::SpecialOrthogonal;
 use cartan_core::{CartanError, Curvature, Manifold, ParallelTransport, Real, Retraction};
+use cartan_manifolds::SpecialOrthogonal;
 use nalgebra::SMatrix;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SO(3) harness tests — the primary test target
@@ -200,12 +200,7 @@ fn so3_sectional_curvature_constant() {
         if denom > 1e-10 {
             // For SO(3), K = 1/4 for all non-degenerate planes.
             // We use a tolerance of 1e-9 (consistent with matrix operation precision).
-            common::approx::assert_real_eq(
-                k,
-                0.25,
-                1e-9,
-                "SO(3) sectional curvature = 1/4",
-            );
+            common::approx::assert_real_eq(k, 0.25, 1e-9, "SO(3) sectional curvature = 1/4");
         }
     }
 }
@@ -319,7 +314,9 @@ fn so3_known_rotation_exp_log() {
     );
 
     // -- Test log(I, R_90) = Ω --
-    let v_recovered = manifold.log(&id, &expected_r).expect("log should succeed for 90° rotation");
+    let v_recovered = manifold
+        .log(&id, &expected_r)
+        .expect("log should succeed for 90° rotation");
     let log_err = (v_recovered - omega).norm();
     assert!(
         log_err < 1e-12,
@@ -451,7 +448,10 @@ fn so3_cayley_retraction_lands_on_so() {
 
         // Verify that the result is in SO(3).
         manifold.check_point(&q).unwrap_or_else(|e| {
-            panic!("sample {}: Cayley retract(R, V) failed check_point: {}", i, e)
+            panic!(
+                "sample {}: Cayley retract(R, V) failed check_point: {}",
+                i, e
+            )
         });
     }
 }
