@@ -106,11 +106,28 @@ const PROJ_TOL: Real = 1e-12;
 ///
 /// # Examples
 ///
-/// ```rust,ignore
-/// use cartan::manifolds::Corr;
+/// ```rust
+/// use cartan_manifolds::Corr;
 /// use cartan_core::Manifold;
+/// use nalgebra::SMatrix;
+///
+/// let m = Corr::<2>;
+/// // Identity is a valid 2x2 correlation matrix
+/// let c = SMatrix::<f64, 2, 2>::identity();
+/// assert!(m.check_point(&c).is_ok());
+/// // Symmetric zero-diagonal tangent
+/// let v = SMatrix::<f64, 2, 2>::from_row_slice(&[0.0, 0.3, 0.3, 0.0]);
+/// let q = m.exp(&c, &v);
+/// assert!(m.check_point(&q).is_ok());
+/// ```
+///
+/// ```rust,no_run
+/// use cartan_manifolds::Corr;
+/// use cartan_core::Manifold;
+/// use rand::SeedableRng;
 ///
 /// let m = Corr::<3>;
+/// let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
 /// let c = m.random_point(&mut rng);
 /// let v = m.random_tangent(&c, &mut rng);
 /// let q = m.exp(&c, &v);

@@ -55,14 +55,31 @@ use cartan_core::{
 ///
 /// # Examples
 ///
-/// ```rust,ignore
-/// use cartan::prelude::*;
-/// use cartan::manifolds::Grassmann;
+/// ```rust
+/// use cartan_manifolds::Grassmann;
+/// use cartan_core::Manifold;
+/// use nalgebra::SMatrix;
 ///
-/// let gr = Grassmann::<5, 2>; // 2-planes in R^5
+/// let gr = Grassmann::<3, 1>; // 1-planes (lines) in R^3
+/// // Q = [1, 0, 0]^T (first standard basis vector)
+/// let q = SMatrix::<f64, 3, 1>::from_column_slice(&[1.0, 0.0, 0.0]);
+/// assert!(gr.check_point(&q).is_ok());
+/// // Horizontal tangent: [0, 1, 0]^T
+/// let v = SMatrix::<f64, 3, 1>::from_column_slice(&[0.0, 1.0, 0.0]);
+/// let p = gr.exp(&q, &v);
+/// assert!(gr.check_point(&p).is_ok());
+/// ```
+///
+/// ```rust,no_run
+/// use cartan_manifolds::Grassmann;
+/// use cartan_core::Manifold;
+/// use rand::SeedableRng;
+///
+/// let gr = Grassmann::<5, 2>;
+/// let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
 /// let q = gr.random_point(&mut rng);
 /// let v = gr.random_tangent(&q, &mut rng);
-/// let p = gr.exp(&q, &v);
+/// let _p = gr.exp(&q, &v);
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Grassmann<const N: usize, const K: usize>;
