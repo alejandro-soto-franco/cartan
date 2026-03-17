@@ -37,20 +37,25 @@
 //! - do Carmo. "Riemannian Geometry." Chapter 5 (Jacobi fields).
 //! - Milnor. "Morse Theory." Chapter 2 (index theorem via Jacobi fields).
 
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+
 use cartan_core::{Curvature, Manifold, ParallelTransport, Real};
 
 use crate::geodesic::Geodesic;
 
 /// Result of a Jacobi field integration.
+#[cfg(feature = "alloc")]
 pub struct JacobiResult<T> {
     /// Parameter values t_0, t_1, ..., t_n where samples were taken.
-    pub params: Vec<Real>,
+    pub params: alloc::vec::Vec<Real>,
     /// J(t_i): the Jacobi field values at each sample parameter.
-    pub field: Vec<T>,
+    pub field: alloc::vec::Vec<T>,
     /// J'(t_i): the covariant derivative (velocity) of J at each sample.
-    pub velocity: Vec<T>,
+    pub velocity: alloc::vec::Vec<T>,
 }
 
+#[cfg(feature = "alloc")]
 /// Integrate a Jacobi field along a geodesic using 4th-order Runge-Kutta.
 ///
 /// # Arguments
