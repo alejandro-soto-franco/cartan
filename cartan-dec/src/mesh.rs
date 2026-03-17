@@ -118,7 +118,10 @@ impl<M: Manifold> Mesh<M, 3, 2> {
         let mut boundary_signs = Vec::with_capacity(triangles.len());
 
         for &[i, j, k] in &triangles {
-            assert!(i < n_v && j < n_v && k < n_v, "triangle index out of bounds");
+            assert!(
+                i < n_v && j < n_v && k < n_v,
+                "triangle index out of bounds"
+            );
 
             // The three edges of triangle [i, j, k]:
             //   (i,j): boundary coeff = +1
@@ -273,8 +276,10 @@ impl Mesh<Euclidean<2>, 3, 2> {
     /// Backward-compatible entry point. Converts positions to `SVector<f64, 2>`.
     pub fn from_triangles(vertices: Vec<[f64; 2]>, triangles: Vec<[usize; 3]>) -> Self {
         let manifold = Euclidean::<2>;
-        let mv: Vec<SVector<f64, 2>> =
-            vertices.iter().map(|&[x, y]| SVector::from([x, y])).collect();
+        let mv: Vec<SVector<f64, 2>> = vertices
+            .iter()
+            .map(|&[x, y]| SVector::from([x, y]))
+            .collect();
         Self::from_simplices(&manifold, mv, triangles)
     }
 
@@ -318,16 +323,12 @@ impl Mesh<Euclidean<2>, 3, 2> {
         if d.abs() < 1e-30 {
             return (a + b + c) / 3.0;
         }
-        let ux = (ac.y * (ab.x * ab.x + ab.y * ab.y)
-            - ab.y * (ac.x * ac.x + ac.y * ac.y))
-            / d;
-        let uy = (ab.x * (ac.x * ac.x + ac.y * ac.y)
-            - ac.x * (ab.x * ab.x + ab.y * ab.y))
-            / d;
+        let ux = (ac.y * (ab.x * ab.x + ab.y * ab.y) - ab.y * (ac.x * ac.x + ac.y * ac.y)) / d;
+        let uy = (ab.x * (ac.x * ac.x + ac.y * ac.y) - ac.x * (ab.x * ab.x + ab.y * ab.y)) / d;
         a + Vector2::new(ux, uy)
     }
 
-    /// Build a uniform triangulated grid on [0,1]^2 with `n` divisions per side.
+    /// Build a uniform triangulated grid on \[0,1\]^2 with `n` divisions per side.
     ///
     /// Produces 2n^2 right triangles. Well-centered for all n.
     pub fn unit_square_grid(n: usize) -> Self {

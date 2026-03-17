@@ -100,8 +100,8 @@ use rand::Rng;
 use rand_distr::StandardNormal;
 
 use cartan_core::{
-    CartanError, Connection, Curvature, GeodesicInterpolation,
-    Manifold, ParallelTransport, Real, Retraction,
+    CartanError, Connection, Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real,
+    Retraction,
 };
 
 use crate::util::sym::{
@@ -179,9 +179,9 @@ fn transport_op<const N: usize>(
 ) -> SMatrix<Real, N, N> {
     let sqrt_p = sym_sqrt(p);
     let sqrt_p_inv = sym_sqrt_inv(p);
-    let m = sqrt_p_inv * q * sqrt_p_inv;    // P^{-1/2} Q P^{-1/2}, symmetric PD
-    let m_sqrt = sym_sqrt(&m);              // M^{1/2}
-    sqrt_p * m_sqrt * sqrt_p_inv           // E = P^{1/2} M^{1/2} P^{-1/2}
+    let m = sqrt_p_inv * q * sqrt_p_inv; // P^{-1/2} Q P^{-1/2}, symmetric PD
+    let m_sqrt = sym_sqrt(&m); // M^{1/2}
+    sqrt_p * m_sqrt * sqrt_p_inv // E = P^{1/2} M^{1/2} P^{-1/2}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -226,8 +226,8 @@ impl<const N: usize> Manifold for Spd<N> {
     fn exp(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Point {
         let sqrt_p = sym_sqrt(p);
         let sqrt_p_inv = sym_sqrt_inv(p);
-        let s = sqrt_p_inv * v * sqrt_p_inv;   // P^{-1/2} V P^{-1/2}, symmetric
-        sqrt_p * sym_exp(&s) * sqrt_p           // P^{1/2} exp(S) P^{1/2}
+        let s = sqrt_p_inv * v * sqrt_p_inv; // P^{-1/2} V P^{-1/2}, symmetric
+        sqrt_p * sym_exp(&s) * sqrt_p // P^{1/2} exp(S) P^{1/2}
     }
 
     /// Logarithmic map (affine-invariant geodesic):
@@ -240,8 +240,8 @@ impl<const N: usize> Manifold for Spd<N> {
     fn log(&self, p: &Self::Point, q: &Self::Point) -> Result<Self::Tangent, CartanError> {
         let sqrt_p = sym_sqrt(p);
         let sqrt_p_inv = sym_sqrt_inv(p);
-        let m = sqrt_p_inv * q * sqrt_p_inv;   // P^{-1/2} Q P^{-1/2}, symmetric PD
-        Ok(sqrt_p * sym_log(&m) * sqrt_p)       // P^{1/2} log(M) P^{1/2}
+        let m = sqrt_p_inv * q * sqrt_p_inv; // P^{-1/2} Q P^{-1/2}, symmetric PD
+        Ok(sqrt_p * sym_log(&m) * sqrt_p) // P^{1/2} log(M) P^{1/2}
     }
 
     /// Project ambient matrix onto T_P SPD(N): symmetrize.
@@ -478,12 +478,7 @@ impl<const N: usize> Curvature for Spd<N> {
     /// ```
     ///
     /// Ref: Bridson-Haefliger (1999), symmetric space structure of SPD(N).
-    fn ricci_curvature(
-        &self,
-        p: &Self::Point,
-        u: &Self::Tangent,
-        v: &Self::Tangent,
-    ) -> Real {
+    fn ricci_curvature(&self, p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
         -(N as Real + 1.0) / 4.0 * self.inner(p, u, v)
     }
 
@@ -523,7 +518,7 @@ impl<const N: usize> GeodesicInterpolation for Spd<N> {
     ) -> Result<Self::Point, CartanError> {
         let sqrt_p = sym_sqrt(p);
         let sqrt_p_inv = sym_sqrt_inv(p);
-        let m = sqrt_p_inv * q * sqrt_p_inv;   // P^{-1/2} Q P^{-1/2}, symmetric PD
+        let m = sqrt_p_inv * q * sqrt_p_inv; // P^{-1/2} Q P^{-1/2}, symmetric PD
         // M^t = exp(t * log(M))
         let log_m = sym_log(&m);
         let mt = sym_exp(&(log_m * t));
@@ -541,19 +536,11 @@ mod tests {
     use approx::assert_relative_eq;
 
     fn sample_spd_3() -> SMatrix<Real, 3, 3> {
-        SMatrix::<Real, 3, 3>::from_row_slice(&[
-            4.0, 2.0, 1.0,
-            2.0, 3.0, 0.5,
-            1.0, 0.5, 2.0,
-        ])
+        SMatrix::<Real, 3, 3>::from_row_slice(&[4.0, 2.0, 1.0, 2.0, 3.0, 0.5, 1.0, 0.5, 2.0])
     }
 
     fn sample_spd_3b() -> SMatrix<Real, 3, 3> {
-        SMatrix::<Real, 3, 3>::from_row_slice(&[
-            3.0, 1.0, 0.5,
-            1.0, 4.0, 1.5,
-            0.5, 1.5, 2.5,
-        ])
+        SMatrix::<Real, 3, 3>::from_row_slice(&[3.0, 1.0, 0.5, 1.0, 4.0, 1.5, 0.5, 1.5, 2.5])
     }
 
     // ── Basic geometry ──────────────────────────────────────────────────────
@@ -572,13 +559,17 @@ mod tests {
 
     #[test]
     fn test_check_point_identity() {
-        assert!(Spd::<3>.check_point(&SMatrix::<Real, 3, 3>::identity()).is_ok());
+        assert!(
+            Spd::<3>
+                .check_point(&SMatrix::<Real, 3, 3>::identity())
+                .is_ok()
+        );
     }
 
     #[test]
     fn test_check_point_not_pd_fails() {
         let mut m = sample_spd_3();
-        m[(0, 0)] = -1.0;   // break PD
+        m[(0, 0)] = -1.0; // break PD
         assert!(Spd::<3>.check_point(&m).is_err());
     }
 
@@ -597,7 +588,7 @@ mod tests {
         let m = Spd::<3>;
         let p = sample_spd_3();
         let mut v = SMatrix::<Real, 3, 3>::zeros();
-        v[(0, 1)] = 1.0;  // asymmetric
+        v[(0, 1)] = 1.0; // asymmetric
         assert!(m.check_tangent(&p, &v).is_err());
     }
 
@@ -652,7 +643,11 @@ mod tests {
         let q = sample_spd_3b();
         let dpq = m.dist(&p, &q).unwrap();
         let dqp = m.dist(&q, &p).unwrap();
-        assert!((dpq - dqp).abs() < 1e-12, "dist not symmetric: {:.2e}", (dpq - dqp).abs());
+        assert!(
+            (dpq - dqp).abs() < 1e-12,
+            "dist not symmetric: {:.2e}",
+            (dpq - dqp).abs()
+        );
     }
 
     #[test]
@@ -699,7 +694,11 @@ mod tests {
 
         let u_t = m.transport(&p, &q, &u).unwrap();
         let sym_err = (u_t - u_t.transpose()).norm();
-        assert!(sym_err < 1e-12, "transported vector not symmetric: {:.2e}", sym_err);
+        assert!(
+            sym_err < 1e-12,
+            "transported vector not symmetric: {:.2e}",
+            sym_err
+        );
     }
 
     // ── Curvature: K ≤ 0 ────────────────────────────────────────────────────
@@ -722,12 +721,8 @@ mod tests {
         // At identity, K(U,V) = -||[U,V]||^2 / (4 * area^2).
         // For diagonal (commuting) U, V: [U,V] = 0, so K = 0.
         let p = SMatrix::<Real, 3, 3>::identity();
-        let u = SMatrix::<Real, 3, 3>::from_diagonal(
-            &nalgebra::SVector::from([1.0_f64, 2.0, 3.0]),
-        );
-        let v = SMatrix::<Real, 3, 3>::from_diagonal(
-            &nalgebra::SVector::from([3.0_f64, 1.0, 2.0]),
-        );
+        let u = SMatrix::<Real, 3, 3>::from_diagonal(&nalgebra::SVector::from([1.0_f64, 2.0, 3.0]));
+        let v = SMatrix::<Real, 3, 3>::from_diagonal(&nalgebra::SVector::from([3.0_f64, 1.0, 2.0]));
         let k = m.sectional_curvature(&p, &u, &v);
         assert!(k.abs() < 1e-12, "K for commuting matrices: {:.2e}", k);
     }
@@ -832,25 +827,20 @@ mod tests {
         let p = m.random_point(&mut rng);
         for _ in 0..10 {
             let v = m.random_tangent(&p, &mut rng);
-            assert!(m.check_tangent(&p, &v).is_ok(), "random_tangent not symmetric");
+            assert!(
+                m.check_tangent(&p, &v).is_ok(),
+                "random_tangent not symmetric"
+            );
         }
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     fn sample_symmetric_tangent_3() -> SMatrix<Real, 3, 3> {
-        SMatrix::<Real, 3, 3>::from_row_slice(&[
-            0.2,  0.1, -0.05,
-            0.1,  0.3,  0.08,
-           -0.05, 0.08, 0.15,
-        ])
+        SMatrix::<Real, 3, 3>::from_row_slice(&[0.2, 0.1, -0.05, 0.1, 0.3, 0.08, -0.05, 0.08, 0.15])
     }
 
     fn sample_symmetric_tangent_3b() -> SMatrix<Real, 3, 3> {
-        SMatrix::<Real, 3, 3>::from_row_slice(&[
-            0.1, -0.2, 0.0,
-           -0.2,  0.4, 0.1,
-            0.0,  0.1, 0.2,
-        ])
+        SMatrix::<Real, 3, 3>::from_row_slice(&[0.1, -0.2, 0.0, -0.2, 0.4, 0.1, 0.0, 0.1, 0.2])
     }
 }

@@ -288,7 +288,7 @@ fn log_general<const N: usize>(
     // ||Y - I||_1 < 0.5 (within the Mercator convergence radius).
     // We track the number of square roots taken as `s`.
     let mut y = *r; // Y will converge to R^{1/2^s}
-    let mut s = 0usize;    // number of square roots taken so far
+    let mut s = 0usize; // number of square roots taken so far
 
     for _sqrts in 0..MAX_SQRTS {
         // Check if Y is already close enough to I for Mercator to converge well.
@@ -302,17 +302,21 @@ fn log_general<const N: usize>(
         // Compute sqrt(Y) via Denman–Beavers iteration.
         let y_sqrt = denman_beavers_sqrt(&y, DB_ITERS, DB_TOL).ok_or_else(|| {
             #[cfg(feature = "alloc")]
-            { CartanError::CutLocus {
-                message: alloc::format!(
-                    "Denman–Beavers square root did not converge after {} iterations \
+            {
+                CartanError::CutLocus {
+                    message: alloc::format!(
+                        "Denman–Beavers square root did not converge after {} iterations \
                      (rotation may be near cut locus, i.e., angle near π)",
-                    DB_ITERS
-                ),
-            } }
+                        DB_ITERS
+                    ),
+                }
+            }
             #[cfg(not(feature = "alloc"))]
-            { CartanError::CutLocus {
-                message: "Denman-Beavers sqrt did not converge (rotation near cut locus)",
-            } }
+            {
+                CartanError::CutLocus {
+                    message: "Denman-Beavers sqrt did not converge (rotation near cut locus)",
+                }
+            }
         })?;
 
         y = y_sqrt;
@@ -327,7 +331,8 @@ fn log_general<const N: usize>(
             message: alloc::format!(
                 "after {} square roots, ||R^{{1/2^s}} - I||_1 = {:.4e} ≥ 0.5; \
                  matrix may be at the cut locus (rotation angle near π)",
-                s, y_minus_id_norm
+                s,
+                y_minus_id_norm
             ),
         });
         #[cfg(not(feature = "alloc"))]
@@ -494,9 +499,7 @@ mod tests {
     // ── Helper: so(3) hat map ────────────────────────────────────────────────
     fn hat3(x: Real, y: Real, z: Real) -> SMatrix<Real, 3, 3> {
         // hat([x,y,z]) = [[0,-z,y],[z,0,-x],[-y,x,0]]; laid out in row-major order.
-        SMatrix::<Real, 3, 3>::from_row_slice(&[
-            0.0, -z, y, z, 0.0, -x, -y, x, 0.0,
-        ])
+        SMatrix::<Real, 3, 3>::from_row_slice(&[0.0, -z, y, z, 0.0, -x, -y, x, 0.0])
     }
 
     /// `log(I) = 0` for N = 2.
@@ -505,7 +508,11 @@ mod tests {
         let id = SMatrix::<Real, 2, 2>::identity();
         let omega = matrix_log_orthogonal(&id).expect("log(I) should succeed for N=2");
         let err = omega.norm();
-        assert!(err < TIGHT, "log(I) ≠ 0 for N=2: ||log(I)||_F = {:.2e}", err);
+        assert!(
+            err < TIGHT,
+            "log(I) ≠ 0 for N=2: ||log(I)||_F = {:.2e}",
+            err
+        );
     }
 
     /// `log(I) = 0` for N = 3.
@@ -514,7 +521,11 @@ mod tests {
         let id = SMatrix::<Real, 3, 3>::identity();
         let omega = matrix_log_orthogonal(&id).expect("log(I) should succeed for N=3");
         let err = omega.norm();
-        assert!(err < TIGHT, "log(I) ≠ 0 for N=3: ||log(I)||_F = {:.2e}", err);
+        assert!(
+            err < TIGHT,
+            "log(I) ≠ 0 for N=3: ||log(I)||_F = {:.2e}",
+            err
+        );
     }
 
     /// `log(I) = 0` for N = 4.
@@ -523,7 +534,11 @@ mod tests {
         let id = SMatrix::<Real, 4, 4>::identity();
         let omega = matrix_log_orthogonal(&id).expect("log(I) should succeed for N=4");
         let err = omega.norm();
-        assert!(err < TIGHT, "log(I) ≠ 0 for N=4: ||log(I)||_F = {:.2e}", err);
+        assert!(
+            err < TIGHT,
+            "log(I) ≠ 0 for N=4: ||log(I)||_F = {:.2e}",
+            err
+        );
     }
 
     /// Roundtrip N=3: `log(exp(Ω)) ≈ Ω` for a small rotation.
@@ -536,11 +551,7 @@ mod tests {
         let r = matrix_exp_skew(&omega);
         let omega_recovered = matrix_log_orthogonal(&r).expect("log should succeed");
         let err = (omega_recovered - omega).norm();
-        assert!(
-            err < MED,
-            "log(exp(Ω)) ≠ Ω for N=3: error = {:.2e}",
-            err
-        );
+        assert!(err < MED, "log(exp(Ω)) ≠ Ω for N=3: error = {:.2e}", err);
     }
 
     /// Roundtrip N=3: `exp(log(R)) ≈ R` for a moderate rotation.
@@ -575,11 +586,7 @@ mod tests {
         let r = matrix_exp_skew(&omega);
         let omega_recovered = matrix_log_orthogonal(&r).expect("log should succeed for N=4");
         let err = (omega_recovered - omega).norm();
-        assert!(
-            err < MED,
-            "N=4: log(exp(Ω)) ≠ Ω: error = {:.2e}",
-            err
-        );
+        assert!(err < MED, "N=4: log(exp(Ω)) ≠ Ω: error = {:.2e}", err);
     }
 
     /// N=4 roundtrip: `exp(log(R)) ≈ R`.
@@ -657,10 +664,6 @@ mod tests {
         let r = matrix_exp_skew(&omega);
         let omega_recovered = matrix_log_orthogonal(&r).expect("log should succeed for N=2");
         let err = (omega_recovered - omega).norm();
-        assert!(
-            err < MED,
-            "N=2: log(exp(Ω)) ≠ Ω: error = {:.2e}",
-            err
-        );
+        assert!(err < MED, "N=2: log(exp(Ω)) ≠ Ω: error = {:.2e}", err);
     }
 }
