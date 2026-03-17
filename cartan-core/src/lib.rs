@@ -28,6 +28,11 @@
 //! This exists so that a future version can generify over `T: Scalar`
 //! with a mechanical find-and-replace refactor.
 
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 pub mod connection;
 pub mod curvature;
 pub mod error;
