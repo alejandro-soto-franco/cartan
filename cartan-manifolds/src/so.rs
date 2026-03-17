@@ -833,28 +833,34 @@ impl<const N: usize> Connection for SpecialOrthogonal<N> {
     /// Riemannian gradient separately. Since the current trait interface combines grad and
     /// Hessian into a single ehvp, we implement the dominant projection term.
     ///
-    /// For many practical cost functions (e.g., ||A R||², tr(R^T C)), the Weingarten
-    /// correction is either zero or absorbed into the ambient computation, so
-    /// `project_tangent(R, ehvp)` gives the correct Riemannian HVP.
-    ///
-    /// TODO(phase6): Extend Connection trait to pass the tangent direction v separately
-    /// so that the full correction R skew(R^T ehvp) + symmetric_correction can be computed.
-    ///
     /// Ref: Absil-Mahony-Sepulchre (2008), Proposition 5.3.2;
     ///      Boumal (2023), §6.3 (Hessian on matrix manifolds).
     fn riemannian_hessian_vector_product(
         &self,
         p: &Self::Point,
-        _grad_f: &Self::Tangent,
+        grad_f: &Self::Tangent,
         v: &Self::Tangent,
         hess_ambient: &dyn Fn(&Self::Tangent) -> Self::Tangent,
     ) -> Result<Self::Tangent, CartanError> {
-        // Compute the ambient (Euclidean) Hessian-vector product ehvp = D²f(R)[V].
-        // `hess_ambient` is a callback provided by the caller.
-        let ehvp = hess_ambient(v);
+        // Full formula (Absil-Mahony-Sepulchre 2008, §5.3; Boumal 2023, §6.3):
+        //   Hess f(R)[V] = R * skew(R^T * ehvp(V)) - 0.5 * R * sym(R^T * egrad) * R^T * V
+        // where egrad = grad_f (Euclidean gradient), skew(A) = (A - A^T)/2,
+        // sym(A) = (A + A^T)/2.
+        let r = p;
+        let egrad = grad_f;
 
-        // Project ehvp onto T_R SO(N): R skew(R^T ehvp).
-        Ok(self.project_tangent(p, &ehvp))
+        // Step 1: R * skew(R^T * ehvp(V))
+        let ehvp_v = hess_ambient(v);
+        let rt_ehvp = r.transpose() * ehvp_v;
+        let skew_rt_ehvp = (rt_ehvp - rt_ehvp.transpose()) * 0.5;
+        let term1 = r * skew_rt_ehvp;
+
+        // Step 2: Weingarten correction: -0.5 * R * sym(R^T * egrad) * R^T * V
+        let rt_egrad = r.transpose() * egrad;
+        let sym_rt_egrad = (rt_egrad + rt_egrad.transpose()) * 0.5;
+        let term2 = r * sym_rt_egrad * r.transpose() * v * 0.5;
+
+        Ok(term1 - term2)
     }
 }
 
@@ -1890,5 +1896,40 @@ mod tests {
             m.check_tangent(&id, &sym_part).is_err(),
             "check_tangent should reject a symmetric matrix at I"
         );
+    }
+
+    #[test]
+    fn test_so_hessian_weingarten_correction() {
+        use cartan_core::Connection;
+
+        let so3 = SpecialOrthogonal::<3>;
+        let r = SMatrix::<Real, 3, 3>::identity();
+
+        // Zero egrad: correction = 0; HVP = skew(V) = V (V already skew)
+        let egrad = SMatrix::<Real, 3, 3>::zeros();
+        let ehvp = |v: &SMatrix<Real, 3, 3>| *v;
+        let v_data = [0.0_f64, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
+        let v = SMatrix::<Real, 3, 3>::from_row_slice(&v_data);
+        assert!(so3.check_tangent(&r, &v).is_ok());
+
+        let hvp = so3
+            .riemannian_hessian_vector_product(&r, &egrad, &v, &ehvp)
+            .unwrap();
+        let diff = (hvp - v).norm();
+        assert!(diff < 1e-10, "SO(3) HVP at identity with zero egrad: diff = {diff}");
+
+        // Nonzero symmetric egrad: A = diag(1, 2, 3)
+        // Cost f(R) = tr(A^T R), egrad = A, ehvp = 0 (linear)
+        // At R=I: Hess[V] = I*skew(0) - 0.5*I*sym(A)*I^T*V = -0.5*A*V
+        let a = SMatrix::<Real, 3, 3>::from_diagonal(
+            &nalgebra::SVector::from([1.0_f64, 2.0, 3.0]),
+        );
+        let ehvp_zero = |_: &SMatrix<Real, 3, 3>| SMatrix::<Real, 3, 3>::zeros();
+        let hvp2 = so3
+            .riemannian_hessian_vector_product(&r, &a, &v, &ehvp_zero)
+            .unwrap();
+        let expected = -(a * v) * 0.5;
+        let diff2 = (hvp2 - expected).norm();
+        assert!(diff2 < 1e-10, "SO(3) Weingarten correction wrong: diff = {diff2}");
     }
 }
