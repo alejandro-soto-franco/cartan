@@ -247,15 +247,35 @@ impl<const N: usize> Neg for SETangent<N> {
 ///
 /// ## Examples
 ///
-/// ```rust,ignore
-/// use cartan::manifolds::SpecialEuclidean;
+/// ```rust
+/// use cartan_manifolds::{SpecialEuclidean, SEPoint, SETangent};
+/// use cartan_core::Manifold;
+/// use nalgebra::{SMatrix, SVector};
 ///
-/// // SE(3) with default weight
+/// let se2 = SpecialEuclidean::<2> { weight: 1.0 };
+/// let p = SEPoint {
+///     rotation: SMatrix::<f64, 2, 2>::identity(),
+///     translation: SVector::<f64, 2>::zeros(),
+/// };
+/// assert!(se2.check_point(&p).is_ok());
+/// let v = SETangent {
+///     rotation: SMatrix::<f64, 2, 2>::from_row_slice(&[0., -1., 1., 0.]),
+///     translation: SVector::<f64, 2>::from([0.1, 0.2]),
+/// };
+/// let q = se2.exp(&p, &v);
+/// assert!(se2.check_point(&q).is_ok());
+/// ```
+///
+/// ```rust,no_run
+/// use cartan_manifolds::SpecialEuclidean;
+/// use cartan_core::Manifold;
+/// use rand::SeedableRng;
+///
 /// let se3 = SpecialEuclidean::<3> { weight: 1.0 };
-/// let mut rng = rand::thread_rng();
+/// let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
 /// let p = se3.random_point(&mut rng);
 /// let v = se3.random_tangent(&p, &mut rng);
-/// let q = se3.exp(&p, &v);
+/// let _q = se3.exp(&p, &v);
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct SpecialEuclidean<const N: usize> {

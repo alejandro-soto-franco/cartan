@@ -117,16 +117,31 @@ const TANGENT_TOL: Real = 1e-8;
 ///
 /// # Examples
 ///
-/// ```rust,ignore
-/// use cartan::prelude::*;
-/// use cartan::manifolds::SpecialOrthogonal;
+/// ```rust
+/// use cartan_manifolds::SpecialOrthogonal;
+/// use cartan_core::Manifold;
+/// use nalgebra::SMatrix;
 ///
-/// let so3 = SpecialOrthogonal::<3>;   // SO(3) — rotation group in 3D
-/// let mut rng = rand::thread_rng();
-/// let r = so3.random_point(&mut rng);   // Haar-uniform rotation
+/// let so3 = SpecialOrthogonal::<3>;
+/// // A tangent vector at I: any skew-symmetric matrix
+/// let r = SMatrix::<f64, 3, 3>::identity();
+/// let v = SMatrix::<f64, 3, 3>::from_row_slice(&[0., -1., 0., 1., 0., 0., 0., 0., 0.]);
+/// let q = so3.exp(&r, &v);
+/// assert!((q.transpose() * q - SMatrix::identity()).norm() < 1e-10);
+/// let v_back = so3.log(&r, &q).unwrap();
+/// assert!((v_back - v).norm() < 1e-10);
+/// ```
+///
+/// ```rust,no_run
+/// use cartan_manifolds::SpecialOrthogonal;
+/// use cartan_core::Manifold;
+/// use rand::SeedableRng;
+///
+/// let so3 = SpecialOrthogonal::<3>;
+/// let mut rng = rand::rngs::SmallRng::seed_from_u64(42);
+/// let r = so3.random_point(&mut rng);
 /// let v = so3.random_tangent(&r, &mut rng);
-/// let q = so3.exp(&r, &v);              // geodesic step
-/// let v_back = so3.log(&r, &q).unwrap(); // should recover v
+/// let _q = so3.exp(&r, &v);
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct SpecialOrthogonal<const N: usize>;
