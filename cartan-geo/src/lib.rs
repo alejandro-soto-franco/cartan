@@ -13,14 +13,18 @@
 //!
 //! | Module | Contents |
 //! |--------|----------|
-//! | [`geodesic`] | `Geodesic<M>` — parameterized geodesic, sampling, two-point construction |
-//! | [`curvature`] | `CurvatureQuery<M>` — sectional, Ricci, scalar curvature at a point |
-//! | [`jacobi`] | `integrate_jacobi` — RK4 Jacobi field ODE integration |
+//! | [`geodesic`] | `Geodesic<M>` -- parameterized geodesic, sampling, two-point construction |
+//! | [`curvature`] | `CurvatureQuery<M>` -- sectional, Ricci, scalar curvature at a point |
+//! | [`jacobi`] | `integrate_jacobi` -- RK4 Jacobi field ODE integration |
 //!
 //! ## References
 //!
-//! - do Carmo. "Riemannian Geometry." Birkhäuser, 1992. Chapters 3–5.
+//! - do Carmo. "Riemannian Geometry." Birkhauser, 1992. Chapters 3-5.
 //! - Petersen. "Riemannian Geometry." Springer, 2016. Chapter 11.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
 pub mod curvature;
 pub mod geodesic;
@@ -28,4 +32,5 @@ pub mod jacobi;
 
 pub use curvature::{scalar_at, sectional_at, CurvatureQuery};
 pub use geodesic::Geodesic;
+#[cfg(feature = "alloc")]
 pub use jacobi::{integrate_jacobi, JacobiResult};
