@@ -22,13 +22,14 @@
 //!
 //! ## Quick start
 //!
-//! ```rust,ignore
-//! use cartan_dec::{Mesh, Operators};
+//! ```rust,no_run
+//! use cartan_dec::{FlatMesh, Operators};
+//! use cartan_manifolds::euclidean::Euclidean;
 //! use nalgebra::DVector;
 //!
-//! // Build a 4×4 uniform grid on [0,1]².
-//! let mesh = Mesh::unit_square_grid(4);
-//! let ops = Operators::from_mesh(&mesh);
+//! // Build a 4x4 uniform grid on [0,1]^2.
+//! let mesh = FlatMesh::unit_square_grid(4);
+//! let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
 //!
 //! // Apply the scalar Laplacian to a vertex field.
 //! let f = DVector::from_element(mesh.n_vertices(), 1.0);
@@ -54,4 +55,4 @@ pub use error::DecError;
 pub use exterior::ExteriorDerivative;
 pub use hodge::HodgeStar;
 pub use laplace::Operators;
-pub use mesh::Mesh;
+pub use mesh::{FlatMesh, Mesh};

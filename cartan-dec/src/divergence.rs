@@ -37,7 +37,7 @@ use nalgebra::DVector;
 
 use crate::exterior::ExteriorDerivative;
 use crate::hodge::HodgeStar;
-use crate::mesh::Mesh;
+use crate::mesh::FlatMesh;
 
 /// Compute the discrete divergence of a vertex-based vector field.
 ///
@@ -52,19 +52,19 @@ use crate::mesh::Mesh;
 ///
 /// div(u) at each vertex as an n_v vector.
 pub fn apply_divergence(
-    mesh: &Mesh,
+    mesh: &FlatMesh,
     ext: &ExteriorDerivative,
     hodge: &HodgeStar,
     u: &DVector<f64>,
 ) -> DVector<f64> {
     let nv = mesh.n_vertices();
-    let ne = mesh.n_edges();
+    let ne = mesh.n_boundaries();
     assert_eq!(u.len(), 2 * nv, "divergence: u must have 2*n_v entries");
 
     // Step 1: Build the 1-form û from u.
     // û[e] = avg(u[i], u[j]) · (v_j - v_i)  for edge e = [i, j].
     let mut u1form = DVector::<f64>::zeros(ne);
-    for (e, &[i, j]) in mesh.edges.iter().enumerate() {
+    for (e, &[i, j]) in mesh.boundaries.iter().enumerate() {
         let vi = mesh.vertex(i);
         let vj = mesh.vertex(j);
         let edge_vec = vj - vi;
@@ -106,7 +106,7 @@ pub fn apply_divergence(
 ///
 /// div(T) at each vertex as a 2*n_v vector [div_x, div_y].
 pub fn apply_tensor_divergence(
-    mesh: &Mesh,
+    mesh: &FlatMesh,
     ext: &ExteriorDerivative,
     hodge: &HodgeStar,
     t: &DVector<f64>,
