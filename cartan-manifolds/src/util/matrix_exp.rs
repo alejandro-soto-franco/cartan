@@ -776,7 +776,7 @@ mod tests {
     ///   R = [[0, -1, 0], [1, 0, 0], [0, 0, 1]]
     #[test]
     fn test_exp_rodrigues_90deg_z() {
-        use std::f64::consts::FRAC_PI_2; // π/2
+        use core::f64::consts::FRAC_PI_2; // π/2
 
         // hat(0, 0, π/2): rotation axis ẑ, angle π/2.
         let omega = hat3(0.0, 0.0, FRAC_PI_2);

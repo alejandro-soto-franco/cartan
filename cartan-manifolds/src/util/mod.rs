@@ -37,4 +37,6 @@
 pub mod matrix_exp;
 pub mod matrix_log;
 pub mod skew;
+// sym uses DMatrix/DVector (heap-allocated dynamic matrices); requires alloc.
+#[cfg(feature = "alloc")]
 pub mod sym;
