@@ -6,7 +6,7 @@
 //! logarithmic map failures at cut loci, numerical breakdowns in matrix
 //! decompositions, constraint violations, and optimizer convergence failures.
 
-use std::fmt;
+use core::fmt;
 
 use crate::Real;
 
@@ -16,6 +16,9 @@ use crate::Real;
 /// to diagnose the problem. Mathematical operations that can fail (log map,
 /// parallel transport across cut locus, Cholesky of near-singular matrix)
 /// return Result<T, CartanError>.
+///
+/// Under `no_alloc`, message fields are `&'static str` (no heap).
+/// Under `alloc` or `std`, message fields are `String` (rich formatting).
 #[derive(Debug, Clone)]
 pub enum CartanError {
     /// Log map failed: point is on or near the cut locus.
@@ -25,7 +28,10 @@ pub enum CartanError {
     /// On Cartan-Hadamard manifolds (SPD, Hyperbolic), this should
     /// never occur since the cut locus is empty.
     CutLocus {
-        message: String,
+        #[cfg(feature = "alloc")]
+        message: alloc::string::String,
+        #[cfg(not(feature = "alloc"))]
+        message: &'static str,
     },
 
     /// A matrix decomposition or numerical computation failed.
@@ -34,8 +40,14 @@ pub enum CartanError {
     /// due to roundoff, SVD that did not converge, matrix logarithm
     /// of a matrix with negative eigenvalues.
     NumericalFailure {
-        operation: String,
-        message: String,
+        #[cfg(feature = "alloc")]
+        operation: alloc::string::String,
+        #[cfg(feature = "alloc")]
+        message: alloc::string::String,
+        #[cfg(not(feature = "alloc"))]
+        operation: &'static str,
+        #[cfg(not(feature = "alloc"))]
+        message: &'static str,
     },
 
     /// Point does not satisfy the manifold constraint.
@@ -43,7 +55,10 @@ pub enum CartanError {
     /// The `constraint` field describes what was checked (e.g., "||p|| = 1"
     /// for the sphere), and `violation` gives the magnitude of the deviation.
     NotOnManifold {
-        constraint: String,
+        #[cfg(feature = "alloc")]
+        constraint: alloc::string::String,
+        #[cfg(not(feature = "alloc"))]
+        constraint: &'static str,
         violation: Real,
     },
 
@@ -52,7 +67,10 @@ pub enum CartanError {
     /// The `constraint` field describes the tangent space condition
     /// (e.g., "p^T v = 0" for the sphere).
     NotInTangentSpace {
-        constraint: String,
+        #[cfg(feature = "alloc")]
+        constraint: alloc::string::String,
+        #[cfg(not(feature = "alloc"))]
+        constraint: &'static str,
         violation: Real,
     },
 
@@ -108,4 +126,5 @@ impl fmt::Display for CartanError {
     }
 }
 
+#[cfg(feature = "std")]
 impl std::error::Error for CartanError {}
