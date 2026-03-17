@@ -98,7 +98,12 @@ where
     let mut f_x = cost(&x);
     let mut g = rgrad(&x);
     let mut g_sq = manifold.inner(&x, &g, &g);
-    let mut g_norm = g_sq.sqrt();
+    let mut g_norm = {
+        #[cfg(feature = "std")]
+        { g_sq.sqrt() }
+        #[cfg(not(feature = "std"))]
+        { libm::sqrt(g_sq) }
+    };
 
     // Initial direction: steepest descent.
     let mut p = -g.clone();
@@ -144,7 +149,12 @@ where
         f_x = f_new;
         g = rgrad(&x);
         g_sq = manifold.inner(&x, &g, &g);
-        g_norm = g_sq.sqrt();
+        g_norm = {
+            #[cfg(feature = "std")]
+            { g_sq.sqrt() }
+            #[cfg(not(feature = "std"))]
+            { libm::sqrt(g_sq) }
+        };
 
         // Forced restart check.
         let force_restart =
