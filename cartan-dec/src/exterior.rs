@@ -7,11 +7,11 @@
 //!
 //! ## Matrices
 //!
-//! - **d0**: n_edges x n_vertices. d0[e, v] = +1 if v is the head of edge e,
+//! - **d0**: n_boundaries x n_vertices. d0[b, v] = +1 if v is the head of boundary b,
 //!   -1 if v is the tail.
 //!
-//! - **d1**: n_triangles x n_edges. d1[t, e] = +1 if edge e is positively
-//!   oriented relative to triangle t, -1 if negatively oriented.
+//! - **d1**: n_simplices x n_boundaries. d1[t, b] = +1 if boundary b is positively
+//!   oriented relative to simplex t, -1 if negatively oriented.
 //!
 //! ## Exactness: d1 * d0 = 0
 //!
@@ -28,9 +28,9 @@ use crate::mesh::{FlatMesh, Mesh};
 
 /// The discrete exterior derivative operators for a simplicial complex.
 pub struct ExteriorDerivative {
-    /// d0: n_edges x n_vertices. Maps 0-forms to 1-forms.
+    /// d0: n_boundaries x n_vertices. Maps 0-forms to 1-forms.
     pub d0: DMatrix<f64>,
-    /// d1: n_triangles x n_edges. Maps 1-forms to 2-forms.
+    /// d1: n_simplices x n_boundaries. Maps 1-forms to 2-forms.
     pub d1: DMatrix<f64>,
 }
 
@@ -46,14 +46,14 @@ impl ExteriorDerivative {
         let ne = mesh.n_boundaries();
         let nt = mesh.n_simplices();
 
-        // d0: n_edges x n_vertices
+        // d0: n_boundaries x n_vertices
         let mut d0 = DMatrix::<f64>::zeros(ne, nv);
         for (e, &[i, j]) in mesh.boundaries.iter().enumerate() {
             d0[(e, i)] = -1.0;
             d0[(e, j)] = 1.0;
         }
 
-        // d1: n_triangles x n_edges
+        // d1: n_simplices x n_boundaries
         let mut d1 = DMatrix::<f64>::zeros(nt, ne);
         for (t, (local_e, local_s)) in mesh
             .simplex_boundary_ids
