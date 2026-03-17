@@ -127,10 +127,11 @@ let result = integrate_jacobi(&geo, j0, j0_dot, 200);
 On a well-centered Delaunay mesh the Hodge star is diagonal, so the full Laplace-Beltrami operator factors into sparse {0, +1, -1} incidence matrix-vector products interleaved with diagonal scalings (cache-friendly and SIMD-vectorizable). Fields use structure-of-arrays layout.
 
 ```rust
-use cartan_dec::{Mesh, Operators};
+use cartan_dec::{FlatMesh, Operators};
+use cartan_manifolds::euclidean::Euclidean;
 
-let mesh = Mesh::unit_square_grid(32);    // 32×32 uniform grid on [0,1]²
-let ops = Operators::from_mesh(&mesh);
+let mesh = FlatMesh::unit_square_grid(32);    // 32x32 uniform grid on [0,1]^2
+let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
 
 // Scalar Laplacian, Bochner Laplacian (vector fields),
 // Lichnerowicz Laplacian (symmetric 2-tensors / Q-tensor equation)

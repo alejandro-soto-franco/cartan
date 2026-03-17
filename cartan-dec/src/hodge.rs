@@ -26,9 +26,9 @@ use crate::mesh::FlatMesh;
 pub struct HodgeStar {
     /// star0: diagonal entries for the n_vertices x n_vertices Hodge star on 0-forms.
     pub star0: DVector<f64>,
-    /// star1: diagonal entries for the n_edges x n_edges Hodge star on 1-forms.
+    /// star1: diagonal entries for the n_boundaries Hodge star on 1-forms.
     pub star1: DVector<f64>,
-    /// star2: diagonal entries for the n_triangles x n_triangles Hodge star on 2-forms.
+    /// star2: diagonal entries for the n_simplices Hodge star on 2-forms.
     pub star2: DVector<f64>,
 }
 
@@ -101,12 +101,12 @@ impl HodgeStar {
         self.star0.map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
     }
 
-    /// Inverse Hodge star star1_inv (entries are 1/star1[e]).
+    /// Inverse Hodge star star1_inv (entries are 1/star1[b] for each boundary b).
     pub fn star1_inv(&self) -> DVector<f64> {
         self.star1.map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
     }
 
-    /// Inverse Hodge star star2_inv (entries are 1/star2[t] = area(t)).
+    /// Inverse Hodge star star2_inv (entries are 1/star2[t] = simplex volume).
     pub fn star2_inv(&self) -> DVector<f64> {
         self.star2.map(|x| if x.abs() > 1e-30 { 1.0 / x } else { 0.0 })
     }
