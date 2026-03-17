@@ -30,7 +30,7 @@
 
 use nalgebra::DVector;
 
-use crate::mesh::Mesh;
+use crate::mesh::FlatMesh;
 
 /// Apply the upwind covariant advection operator to a scalar 0-form.
 ///
@@ -43,7 +43,7 @@ use crate::mesh::Mesh;
 /// # Returns
 ///
 /// `(u · ∇) f` at each vertex as an n_v vector.
-pub fn apply_scalar_advection(mesh: &Mesh, f: &DVector<f64>, u: &DVector<f64>) -> DVector<f64> {
+pub fn apply_scalar_advection(mesh: &FlatMesh, f: &DVector<f64>, u: &DVector<f64>) -> DVector<f64> {
     let nv = mesh.n_vertices();
     assert_eq!(f.len(), nv, "advection: f must have n_v entries");
     assert_eq!(u.len(), 2 * nv, "advection: u must have 2*n_v entries");
@@ -56,7 +56,7 @@ pub fn apply_scalar_advection(mesh: &Mesh, f: &DVector<f64>, u: &DVector<f64>) -
 
         // Accumulate advective flux from all edges containing v.
         // We iterate over edges and contribute to both endpoints.
-        for &[i, j] in &mesh.edges {
+        for &[i, j] in &mesh.boundaries {
             if i != v && j != v {
                 continue;
             }
@@ -100,7 +100,7 @@ pub fn apply_scalar_advection(mesh: &Mesh, f: &DVector<f64>, u: &DVector<f64>) -
 ///
 /// `(u · ∇) q` at each vertex as a 2*n_v vector.
 pub fn apply_vector_advection(
-    mesh: &Mesh,
+    mesh: &FlatMesh,
     q: &DVector<f64>,
     u: &DVector<f64>,
 ) -> DVector<f64> {

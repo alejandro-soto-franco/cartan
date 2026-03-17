@@ -50,40 +50,42 @@
 //! - Hirani. "Discrete Exterior Calculus." Caltech PhD thesis, 2003.
 //! - Lichnerowicz. "Propagateurs et Commutateurs en Relativité Générale." 1961.
 
+use core::marker::PhantomData;
+
 use nalgebra::{DMatrix, DVector};
+
+use cartan_core::Manifold;
+use cartan_manifolds::euclidean::Euclidean;
 
 use crate::exterior::ExteriorDerivative;
 use crate::hodge::HodgeStar;
-use crate::mesh::Mesh;
+use crate::mesh::FlatMesh;
 
 /// Assembled discrete differential operators for a mesh.
 ///
-/// The operators are assembled once from the mesh and reused for all
-/// field evaluations. Store the `Operators` and call `apply_*` methods.
-pub struct Operators {
-    /// Scalar Laplace-Beltrami: n_vertices × n_vertices.
+/// Generic over the manifold type `M`. All `apply_*` methods work for any M.
+/// `from_mesh` is currently only implemented for `Euclidean<2>` (flat meshes).
+pub struct Operators<M: Manifold = Euclidean<2>> {
+    /// Scalar Laplace-Beltrami: n_vertices x n_vertices.
     pub laplace_beltrami: DMatrix<f64>,
-    /// Diagonal entries of ⋆₀ (dual cell areas, for mass matrix).
+    /// Diagonal entries of star0 (dual cell areas, for mass matrix).
     pub mass0: DVector<f64>,
-    /// Diagonal entries of ⋆₁ (for 1-form computations).
+    /// Diagonal entries of star1 (for 1-form computations).
     pub mass1: DVector<f64>,
-    /// Exterior derivative d₀ and d₁ (kept for advection/divergence).
+    /// Exterior derivative d0 and d1 (kept for advection/divergence).
     pub ext: ExteriorDerivative,
     /// Hodge star diagonals (kept for user access).
     pub hodge: HodgeStar,
+    _phantom: PhantomData<M>,
 }
 
-impl Operators {
-    /// Assemble all discrete operators from a mesh.
-    ///
-    /// Cost: O(n_v² + n_e² + n_t²) for the matrix products.
-    /// Worthwhile since operators are reused across many time steps.
-    pub fn from_mesh(mesh: &Mesh) -> Self {
+impl Operators<Euclidean<2>> {
+    /// Assemble all discrete operators from a flat mesh.
+    pub fn from_mesh(mesh: &FlatMesh, manifold: &Euclidean<2>) -> Self {
         let ext = ExteriorDerivative::from_mesh(mesh);
-        let hodge = HodgeStar::from_mesh(mesh);
+        let hodge = HodgeStar::from_mesh(mesh, manifold);
 
-        // L = ⋆₀⁻¹ * d₀ᵀ * diag(⋆₁) * d₀
-        // = diag(1/star0) * d0^T * diag(star1) * d0
+        // L = star0_inv * d0^T * diag(star1) * d0
         let star1_d0 = DMatrix::from_diagonal(&hodge.star1) * &ext.d0;
         let d0t_star1_d0 = ext.d0.transpose() * star1_d0;
         let star0_inv = hodge.star0_inv();
@@ -95,8 +97,12 @@ impl Operators {
             mass1: hodge.star1.clone(),
             ext,
             hodge,
+            _phantom: PhantomData,
         }
     }
+}
+
+impl<M: Manifold> Operators<M> {
 
     /// Apply the scalar Laplace-Beltrami operator to a 0-form (vertex field).
     ///
@@ -195,13 +201,13 @@ impl Operators {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Mesh;
+    use cartan_manifolds::euclidean::Euclidean;
 
     #[test]
     fn test_bochner_tensor_ricci_zero() {
         // Zero callback must match None
-        let mesh = Mesh::unit_square_grid(4);
-        let ops = Operators::from_mesh(&mesh);
+        let mesh = FlatMesh::unit_square_grid(4);
+        let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
         let nv = mesh.n_vertices();
         let u = DVector::from_element(2 * nv, 0.5);
 
@@ -214,8 +220,8 @@ mod tests {
     #[test]
     fn test_bochner_tensor_ricci_einstein() {
         // Einstein manifold Ric = kappa*I: tensor result must match manual scalar computation
-        let mesh = Mesh::unit_square_grid(4);
-        let ops = Operators::from_mesh(&mesh);
+        let mesh = FlatMesh::unit_square_grid(4);
+        let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
         let nv = mesh.n_vertices();
         let kappa = 2.5;
         let u = DVector::from_fn(2 * nv, |i, _| i as f64 * 0.01);
@@ -239,8 +245,8 @@ mod tests {
     #[test]
     fn test_lichnerowicz_tensor_callback_zero() {
         // Zero callback must match None
-        let mesh = Mesh::unit_square_grid(4);
-        let ops = Operators::from_mesh(&mesh);
+        let mesh = FlatMesh::unit_square_grid(4);
+        let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
         let nv = mesh.n_vertices();
         let q = DVector::from_element(3 * nv, 0.3);
 
@@ -254,8 +260,8 @@ mod tests {
     #[test]
     fn test_lichnerowicz_tensor_callback_diagonal() {
         // Diagonal callback with kappa matches manual computation
-        let mesh = Mesh::unit_square_grid(4);
-        let ops = Operators::from_mesh(&mesh);
+        let mesh = FlatMesh::unit_square_grid(4);
+        let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
         let nv = mesh.n_vertices();
         let kappa = 1.0;
         let q = DVector::from_fn(3 * nv, |i, _| (i + 1) as f64 * 0.01);
