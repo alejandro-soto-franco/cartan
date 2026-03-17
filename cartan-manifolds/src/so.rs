@@ -70,7 +70,10 @@
 //! - Bröcker, T. & tom Dieck, T. (1985). *Representations of Compact Lie Groups.*
 //!   §I.4 (structure of SO(N)).
 
-use std::f64::consts::PI;
+use core::f64::consts::PI;
+
+#[cfg(feature = "alloc")]
+use alloc::string::ToString;
 
 use nalgebra::SMatrix;
 use rand::Rng;
@@ -424,8 +427,14 @@ impl<const N: usize> Manifold for SpecialOrthogonal<N> {
         let ortho_violation = (rtr - id).norm(); // Frobenius norm of deviation from identity
 
         if ortho_violation >= VALIDATION_TOL {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotOnManifold {
-                constraint: format!("R^T R = I (SO({}))", N),
+                constraint: alloc::format!("R^T R = I (SO({}))", N),
+                violation: ortho_violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotOnManifold {
+                constraint: "R^T R = I (orthogonality of SO(N))",
                 violation: ortho_violation,
             });
         }
@@ -442,8 +451,14 @@ impl<const N: usize> Manifold for SpecialOrthogonal<N> {
         let det_violation = (det_approx - 1.0).abs();
 
         if det_violation >= VALIDATION_TOL {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotOnManifold {
-                constraint: format!("det(R) = +1 (SO({}))", N),
+                constraint: alloc::format!("det(R) = +1 (SO({}))", N),
+                violation: det_violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotOnManifold {
+                constraint: "det(R) = +1 (orientation of SO(N))",
                 violation: det_violation,
             });
         }
@@ -467,8 +482,14 @@ impl<const N: usize> Manifold for SpecialOrthogonal<N> {
         if !is_skew(&omega_approx, TANGENT_TOL) {
             // Measure the actual violation for the error message.
             let violation = (omega_approx + omega_approx.transpose()).norm();
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotInTangentSpace {
-                constraint: format!("R^T V is skew-symmetric (T_R SO({}))", N),
+                constraint: alloc::format!("R^T V is skew-symmetric (T_R SO({}))", N),
+                violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotInTangentSpace {
+                constraint: "R^T V is skew-symmetric (tangent space of SO(N))",
                 violation,
             });
         }
@@ -717,11 +738,19 @@ impl<const N: usize> Retraction for SpecialOrthogonal<N> {
         // We use try_inverse() instead of lu().solve() for generic const N compatibility.
         let m_plus_i_inv = m_plus_i
             .try_inverse()
-            .ok_or_else(|| CartanError::NumericalFailure {
-                operation: "inverse_retract(SO(N))".to_string(),
-                message: "matrix (M + I) is singular — Q may be at the Cayley cut locus of R \
-                          (R^T Q has eigenvalue -1). Consider using log instead."
-                    .to_string(),
+            .ok_or_else(|| {
+                #[cfg(feature = "alloc")]
+                { CartanError::NumericalFailure {
+                    operation: "inverse_retract(SO(N))".to_string(),
+                    message: "matrix (M + I) is singular — Q may be at the Cayley cut locus of R \
+                              (R^T Q has eigenvalue -1). Consider using log instead."
+                        .to_string(),
+                } }
+                #[cfg(not(feature = "alloc"))]
+                { CartanError::NumericalFailure {
+                    operation: "inverse_retract(SO(N))",
+                    message: "(M + I) singular (Cayley cut locus, R^T Q has eigenvalue -1)",
+                } }
             })?;
         let half_omega = m_plus_i_inv * m_minus_i;
         let omega = half_omega * 2.0; // Ω = 2 · (half Ω)

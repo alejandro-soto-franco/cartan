@@ -76,8 +76,11 @@
 //! - Sola, J. et al. (2018). "A micro Lie theory for state estimation in robotics."
 //!   arXiv:1812.01537. (Concise reference for SE(3) operations.)
 
-use std::f64::consts::PI;
-use std::ops::{Add, Mul, Neg, Sub};
+use core::f64::consts::PI;
+use core::ops::{Add, Mul, Neg, Sub};
+
+#[cfg(feature = "alloc")]
+use alloc::string::ToString;
 
 use nalgebra::{SMatrix, SVector};
 use rand::Rng;
@@ -442,11 +445,19 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
 
         // Step 4: Invert the left Jacobian coupling.
         //   v_body = J(Ω)^{-1} · Δt
-        let j_inv = left_jacobian_inverse(&omega).ok_or_else(|| CartanError::NumericalFailure {
-            operation: "log(SE(N))".to_string(),
-            message: "left Jacobian J(Ω) is singular — rotation may have angle at 2kπ \
-                      where k ≥ 1, causing the Jacobian to degenerate."
-                .to_string(),
+        let j_inv = left_jacobian_inverse(&omega).ok_or_else(|| {
+            #[cfg(feature = "alloc")]
+            { CartanError::NumericalFailure {
+                operation: "log(SE(N))".to_string(),
+                message: "left Jacobian J(Ω) is singular — rotation may have angle at 2kπ \
+                          where k ≥ 1, causing the Jacobian to degenerate."
+                    .to_string(),
+            } }
+            #[cfg(not(feature = "alloc"))]
+            { CartanError::NumericalFailure {
+                operation: "log(SE(N))",
+                message: "left Jacobian J(Omega) is singular (rotation angle at 2k*pi)",
+            } }
         })?;
         let v_body = j_inv * delta_t;
 
@@ -531,8 +542,14 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         let ortho_violation = (rtr - id).norm();
 
         if ortho_violation >= VALIDATION_TOL {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotOnManifold {
-                constraint: format!("R^T R = I (rotation component of SE({}))", N),
+                constraint: alloc::format!("R^T R = I (rotation component of SE({}))", N),
+                violation: ortho_violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotOnManifold {
+                constraint: "R^T R = I (rotation component of SE(N))",
                 violation: ortho_violation,
             });
         }
@@ -544,8 +561,14 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         let det_violation = (det_sign - 1.0).abs();
 
         if det_violation >= VALIDATION_TOL {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotOnManifold {
-                constraint: format!("det(R) = +1 (rotation component of SE({}))", N),
+                constraint: alloc::format!("det(R) = +1 (rotation component of SE({}))", N),
+                violation: det_violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotOnManifold {
+                constraint: "det(R) = +1 (rotation component of SE(N))",
                 violation: det_violation,
             });
         }
@@ -563,8 +586,14 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
 
         if !is_skew(&omega_approx, TANGENT_TOL) {
             let violation = (omega_approx + omega_approx.transpose()).norm();
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotInTangentSpace {
-                constraint: format!("R^T V_rot is skew-symmetric (T_{{(R,t)}} SE({}))", N),
+                constraint: alloc::format!("R^T V_rot is skew-symmetric (T_{{(R,t)}} SE({}))", N),
+                violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotInTangentSpace {
+                constraint: "R^T V_rot is skew-symmetric (tangent space of SE(N))",
                 violation,
             });
         }
@@ -692,11 +721,19 @@ impl<const N: usize> Retraction for SpecialEuclidean<N> {
         let m_plus_i_inv =
             m_plus_i
                 .try_inverse()
-                .ok_or_else(|| CartanError::NumericalFailure {
-                    operation: "inverse_retract(SE(N))".to_string(),
-                    message: "matrix (M + I) is singular — R₁^T R₂ has eigenvalue -1 \
-                          (Cayley cut locus). Consider using log instead."
-                        .to_string(),
+                .ok_or_else(|| {
+                    #[cfg(feature = "alloc")]
+                    { CartanError::NumericalFailure {
+                        operation: "inverse_retract(SE(N))".to_string(),
+                        message: "matrix (M + I) is singular — R₁^T R₂ has eigenvalue -1 \
+                              (Cayley cut locus). Consider using log instead."
+                            .to_string(),
+                    } }
+                    #[cfg(not(feature = "alloc"))]
+                    { CartanError::NumericalFailure {
+                        operation: "inverse_retract(SE(N))",
+                        message: "(M + I) singular (Cayley cut locus, eigenvalue -1)",
+                    } }
                 })?;
         let half_omega = m_plus_i_inv * m_minus_i;
         let omega = half_omega * 2.0;

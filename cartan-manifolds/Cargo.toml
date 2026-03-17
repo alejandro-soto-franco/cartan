@@ -11,14 +11,24 @@ categories = ["mathematics", "science", "algorithms"]
 documentation = "https://docs.rs/cartan-manifolds"
 homepage = "https://cartan.sotofranco.dev"
 
+[features]
+default = ["std"]
+std = ["alloc", "cartan-core/std", "rand/std", "rand_distr/std"]
+# nalgebra/std is declared unconditionally in [dependencies] (float ops require it).
+# Alloc-dependent manifolds (Grassmann, SPD, Corr) are gated behind #[cfg(feature="alloc")].
+alloc = ["cartan-core/alloc", "rand/alloc", "rand_distr/alloc"]
+
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.1" }
-nalgebra = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
+cartan-core = { path = "../cartan-core", version = "0.1", default-features = false }
+# nalgebra/std is required unconditionally: float ops (norm, SVD, trig) need RealField
+# which nalgebra only provides via its `std` feature. Bare no_std is a known limitation.
+nalgebra = { workspace = true, features = ["std"] }
+rand = { workspace = true, default-features = false }
+rand_distr = { workspace = true, default-features = false }
 
 [dev-dependencies]
 approx = { workspace = true }
+rand = { workspace = true, features = ["small_rng"] }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

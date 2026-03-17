@@ -34,7 +34,10 @@
 //!   Princeton, 2009. Chapters 2, 8.
 //! - Chikuse. "Statistics on Special Manifolds." Springer, 2003.
 
-use std::f64::consts::PI;
+use core::f64::consts::PI;
+
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
 use nalgebra::{DMatrix, DVector, SMatrix};
 use rand::Rng;
@@ -151,11 +154,16 @@ fn gr_log_dyn(
     // Check cut locus: cos(π/2) = 0, so d_i near 0 means θ_i near π/2.
     for &d in d_vals.iter() {
         if d < GR_SING_EPS {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::CutLocus {
-                message: format!(
+                message: alloc::format!(
                     "Grassmann Log: principal angle ≥ π/2 (cos = {:.2e})",
                     d
                 ),
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::CutLocus {
+                message: "Grassmann Log: principal angle >= pi/2 (cut locus)",
             });
         }
     }
@@ -270,8 +278,14 @@ impl<const N: usize, const K: usize> Manifold for Grassmann<N, K> {
         if orth_err < GR_TOL {
             Ok(())
         } else {
+            #[cfg(feature = "alloc")]
+            { return Err(CartanError::NotOnManifold {
+                constraint: alloc::format!("Q^T Q = I_{K} (Gr({N},{K}))"),
+                violation: orth_err,
+            }); }
+            #[cfg(not(feature = "alloc"))]
             Err(CartanError::NotOnManifold {
-                constraint: format!("Q^T Q = I_{K} (Gr({N},{K}))"),
+                constraint: "Q^T Q = I_K (Gr(N,K))",
                 violation: orth_err,
             })
         }
@@ -283,8 +297,14 @@ impl<const N: usize, const K: usize> Manifold for Grassmann<N, K> {
         if horiz_err < GR_TOL {
             Ok(())
         } else {
+            #[cfg(feature = "alloc")]
+            { return Err(CartanError::NotInTangentSpace {
+                constraint: alloc::format!("Q^T V = 0 (T_Q Gr({N},{K}))"),
+                violation: horiz_err,
+            }); }
+            #[cfg(not(feature = "alloc"))]
             Err(CartanError::NotInTangentSpace {
-                constraint: format!("Q^T V = 0 (T_Q Gr({N},{K}))"),
+                constraint: "Q^T V = 0 (horizontal tangent at Gr(N,K))",
                 violation: horiz_err,
             })
         }

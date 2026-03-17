@@ -27,7 +27,10 @@
 //! - Absil et al., "Optimization Algorithms on Matrix Manifolds", Example 3.5.1
 //! - do Carmo, "Riemannian Geometry", Chapter 3, Example 2.5
 
-use std::f64::consts::PI;
+use core::f64::consts::PI;
+
+#[cfg(feature = "alloc")]
+use alloc::string::ToString;
 
 use nalgebra::SVector;
 use rand::Rng;
@@ -124,13 +127,18 @@ impl<const N: usize> Manifold for Sphere<N> {
 
         // Near cut locus: antipodal points.
         if (PI - theta).abs() < ANGLE_EPS {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::CutLocus {
-                message: format!(
+                message: alloc::format!(
                     "points are nearly antipodal on S^{}: angle = {:.2e}, |pi - angle| = {:.2e}",
                     N - 1,
                     theta,
                     (PI - theta).abs()
                 ),
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::CutLocus {
+                message: "points are nearly antipodal (cut locus of sphere)",
             });
         }
 
@@ -179,8 +187,14 @@ impl<const N: usize> Manifold for Sphere<N> {
         if violation < VALIDATION_TOL {
             Ok(())
         } else {
+            #[cfg(feature = "alloc")]
+            { return Err(CartanError::NotOnManifold {
+                constraint: alloc::format!("||p|| = 1 (S^{})", N - 1),
+                violation,
+            }); }
+            #[cfg(not(feature = "alloc"))]
             Err(CartanError::NotOnManifold {
-                constraint: format!("||p|| = 1 (S^{})", N - 1),
+                constraint: "||p|| = 1 (unit sphere S^(N-1))",
                 violation,
             })
         }
@@ -192,8 +206,14 @@ impl<const N: usize> Manifold for Sphere<N> {
         if violation < VALIDATION_TOL {
             Ok(())
         } else {
+            #[cfg(feature = "alloc")]
+            { return Err(CartanError::NotInTangentSpace {
+                constraint: alloc::format!("p^T v = 0 (T_p S^{})", N - 1),
+                violation,
+            }); }
+            #[cfg(not(feature = "alloc"))]
             Err(CartanError::NotInTangentSpace {
-                constraint: format!("p^T v = 0 (T_p S^{})", N - 1),
+                constraint: "p^T v = 0 (tangent space of S^(N-1))",
                 violation,
             })
         }
@@ -235,8 +255,13 @@ impl<const N: usize> Retraction for Sphere<N> {
         // v = q / (p^T q) - p (when p^T q > 0).
         let cos_theta = p.dot(q);
         if cos_theta < ANGLE_EPS {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::CutLocus {
                 message: "inverse_retract: points too far apart".to_string(),
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::CutLocus {
+                message: "inverse_retract: points too far apart",
             });
         }
         Ok(q / cos_theta - p)

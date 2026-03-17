@@ -223,8 +223,14 @@ impl<const N: usize> Manifold for Corr<N> {
         for i in 0..N {
             let diag_violation = (p[(i, i)] - 1.0).abs();
             if diag_violation > VALIDATION_TOL {
+                #[cfg(feature = "alloc")]
                 return Err(CartanError::NotOnManifold {
-                    constraint: format!("C_{{{}{}}} = 1 (Corr({}))", i, i, N),
+                    constraint: alloc::format!("C_{{{}{}}} = 1 (Corr({}))", i, i, N),
+                    violation: diag_violation,
+                });
+                #[cfg(not(feature = "alloc"))]
+                return Err(CartanError::NotOnManifold {
+                    constraint: "C_{ii} = 1 (diagonal of Corr(N))",
                     violation: diag_violation,
                 });
             }
@@ -233,8 +239,14 @@ impl<const N: usize> Manifold for Corr<N> {
         // Check symmetry.
         let sym_violation = (p - p.transpose()).norm();
         if sym_violation > VALIDATION_TOL {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotOnManifold {
-                constraint: format!("C = C^T (Corr({}))", N),
+                constraint: alloc::format!("C = C^T (Corr({}))", N),
+                violation: sym_violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotOnManifold {
+                constraint: "C = C^T (symmetry of Corr(N))",
                 violation: sym_violation,
             });
         }
@@ -242,8 +254,14 @@ impl<const N: usize> Manifold for Corr<N> {
         // Check positive definiteness.
         let min_ev = sym_min_eigenvalue(p);
         if min_ev <= 0.0 {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotOnManifold {
-                constraint: format!("C > 0 (Corr({})), min eigenvalue", N),
+                constraint: alloc::format!("C > 0 (Corr({})), min eigenvalue", N),
+                violation: -min_ev,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotOnManifold {
+                constraint: "C > 0 (positive definiteness of Corr(N))",
                 violation: -min_ev,
             });
         }
@@ -260,8 +278,14 @@ impl<const N: usize> Manifold for Corr<N> {
         // Check symmetry.
         let sym_violation = (v - v.transpose()).norm();
         if sym_violation > VALIDATION_TOL {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotInTangentSpace {
-                constraint: format!("V = V^T (T_C Corr({}))", N),
+                constraint: alloc::format!("V = V^T (T_C Corr({}))", N),
+                violation: sym_violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotInTangentSpace {
+                constraint: "V = V^T (symmetry of tangent at Corr(N))",
                 violation: sym_violation,
             });
         }
@@ -270,8 +294,14 @@ impl<const N: usize> Manifold for Corr<N> {
         for i in 0..N {
             let diag_violation = v[(i, i)].abs();
             if diag_violation > VALIDATION_TOL {
+                #[cfg(feature = "alloc")]
                 return Err(CartanError::NotInTangentSpace {
-                    constraint: format!("V_{{{}{}}} = 0 (T_C Corr({}))", i, i, N),
+                    constraint: alloc::format!("V_{{{}{}}} = 0 (T_C Corr({}))", i, i, N),
+                    violation: diag_violation,
+                });
+                #[cfg(not(feature = "alloc"))]
+                return Err(CartanError::NotInTangentSpace {
+                    constraint: "V_{ii} = 0 (zero diagonal of tangent at Corr(N))",
                     violation: diag_violation,
                 });
             }

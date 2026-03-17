@@ -257,15 +257,27 @@ impl<const N: usize> Manifold for Spd<N> {
     fn check_point(&self, p: &Self::Point) -> Result<(), CartanError> {
         let sym_violation = (p - p.transpose()).norm();
         if sym_violation > VALIDATION_TOL {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotOnManifold {
-                constraint: format!("P = P^T (SPD({}))", N),
+                constraint: alloc::format!("P = P^T (SPD({}))", N),
+                violation: sym_violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotOnManifold {
+                constraint: "P = P^T (symmetry of SPD(N))",
                 violation: sym_violation,
             });
         }
         let min_ev = sym_min_eigenvalue(p);
         if min_ev <= 0.0 {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotOnManifold {
-                constraint: format!("P > 0 (SPD({})), min eigenvalue", N),
+                constraint: alloc::format!("P > 0 (SPD({})), min eigenvalue", N),
+                violation: -min_ev,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotOnManifold {
+                constraint: "P > 0 (positive definiteness of SPD(N))",
                 violation: -min_ev,
             });
         }
@@ -276,8 +288,14 @@ impl<const N: usize> Manifold for Spd<N> {
     fn check_tangent(&self, _p: &Self::Point, v: &Self::Tangent) -> Result<(), CartanError> {
         let sym_violation = (v - v.transpose()).norm();
         if sym_violation > VALIDATION_TOL {
+            #[cfg(feature = "alloc")]
             return Err(CartanError::NotInTangentSpace {
-                constraint: format!("V = V^T (T_P SPD({}))", N),
+                constraint: alloc::format!("V = V^T (T_P SPD({}))", N),
+                violation: sym_violation,
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::NotInTangentSpace {
+                constraint: "V = V^T (symmetry of tangent at SPD(N))",
                 violation: sym_violation,
             });
         }

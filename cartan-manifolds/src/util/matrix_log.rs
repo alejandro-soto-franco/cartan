@@ -179,16 +179,21 @@ fn log_rodrigues<const N: usize>(
     // Step 3: Cut locus branch — θ near π (half-turn).
     // When θ is within 1e-7 of π, the formula coefficient θ/(2 sin θ)
     // diverges (sin(π) = 0), and the geodesic is non-unique.
-    let pi: Real = std::f64::consts::PI;
+    let pi: Real = core::f64::consts::PI;
     if (pi - theta).abs() < 1e-7 {
         // The rotation is a half-turn: every point on the "opposite hemisphere"
         // of SO(3) is a cut point. We cannot determine which of the two shortest
         // geodesics (around ±n̂ by angle π) the user wants.
+        #[cfg(feature = "alloc")]
         return Err(CartanError::CutLocus {
-            message: format!(
+            message: alloc::format!(
                 "rotation angle θ = {:.6} rad is near π; logarithm is not unique (cut locus of SO(3))",
                 theta
             ),
+        });
+        #[cfg(not(feature = "alloc"))]
+        return Err(CartanError::CutLocus {
+            message: "rotation angle near π; logarithm is not unique (cut locus of SO(3))",
         });
     }
 
@@ -296,13 +301,18 @@ fn log_general<const N: usize>(
 
         // Compute sqrt(Y) via Denman–Beavers iteration.
         let y_sqrt = denman_beavers_sqrt(&y, DB_ITERS, DB_TOL).ok_or_else(|| {
-            CartanError::CutLocus {
-                message: format!(
+            #[cfg(feature = "alloc")]
+            { CartanError::CutLocus {
+                message: alloc::format!(
                     "Denman–Beavers square root did not converge after {} iterations \
                      (rotation may be near cut locus, i.e., angle near π)",
                     DB_ITERS
                 ),
-            }
+            } }
+            #[cfg(not(feature = "alloc"))]
+            { CartanError::CutLocus {
+                message: "Denman-Beavers sqrt did not converge (rotation near cut locus)",
+            } }
         })?;
 
         y = y_sqrt;
@@ -312,12 +322,17 @@ fn log_general<const N: usize>(
     // Final check: did we actually converge?
     let y_minus_id_norm = matrix_norm1(&(y - id));
     if y_minus_id_norm >= 0.5 {
+        #[cfg(feature = "alloc")]
         return Err(CartanError::CutLocus {
-            message: format!(
+            message: alloc::format!(
                 "after {} square roots, ||R^{{1/2^s}} - I||_1 = {:.4e} ≥ 0.5; \
                  matrix may be at the cut locus (rotation angle near π)",
                 s, y_minus_id_norm
             ),
+        });
+        #[cfg(not(feature = "alloc"))]
+        return Err(CartanError::CutLocus {
+            message: "scaling-and-squaring did not converge (matrix near cut locus)",
         });
     }
 
@@ -635,7 +650,7 @@ mod tests {
     /// N=2 roundtrip: `log(exp(Ω)) ≈ Ω` for a 45-degree rotation.
     #[test]
     fn test_log_roundtrip_2d() {
-        use std::f64::consts::FRAC_PI_4; // π/4 = 45°
+        use core::f64::consts::FRAC_PI_4; // π/4 = 45°
 
         // Ω = [[0, -π/4], [π/4, 0]] (45° rotation in 2D)
         let omega = SMatrix::<Real, 2, 2>::from_row_slice(&[0.0, -FRAC_PI_4, FRAC_PI_4, 0.0]);
