@@ -86,7 +86,7 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
         self.simplices.len()
     }
 
-    /// Euler characteristic: V - E + F (for 2D: n_vertices - n_edges + n_triangles).
+    /// Euler characteristic: V - E + F (for 2D: n_vertices - n_boundaries + n_simplices).
     pub fn euler_characteristic(&self) -> i32 {
         self.n_vertices() as i32 - self.n_boundaries() as i32 + self.n_simplices() as i32
     }
@@ -353,16 +353,12 @@ impl Mesh<Euclidean<2>, 3, 2> {
         Self::from_triangles(vertices, triangles)
     }
 
-    // Deprecated stubs for migration: removed after internal consumers are updated.
-
-    /// Deprecated: use `n_boundaries()` instead.
-    #[allow(dead_code)]
+    #[deprecated(since = "0.1.1", note = "use n_boundaries() instead")]
     pub fn n_edges(&self) -> usize {
         self.n_boundaries()
     }
 
-    /// Deprecated: use `n_simplices()` instead.
-    #[allow(dead_code)]
+    #[deprecated(since = "0.1.1", note = "use n_simplices() instead")]
     pub fn n_triangles(&self) -> usize {
         self.n_simplices()
     }

@@ -12,8 +12,8 @@
 //!
 //! | Module | Contents |
 //! |--------|----------|
-//! | [`mesh`] | `Mesh` — 2D simplicial complex with vertices, edges, triangles |
-//! | [`exterior`] | `ExteriorDerivative` — d₀ (V→E) and d₁ (E→T) incidence matrices |
+//! | [`mesh`] | `Mesh<M,K,B>` generic simplicial complex; `FlatMesh` = flat 2D triangular mesh |
+//! | [`exterior`] | `ExteriorDerivative` — d₀ (0-forms to 1-forms) and d₁ (1-forms to 2-forms) |
 //! | [`hodge`] | `HodgeStar` — diagonal ⋆₀, ⋆₁, ⋆₂ from primal/dual volumes |
 //! | [`laplace`] | `Operators` — Laplace-Beltrami, Bochner, and Lichnerowicz Laplacians |
 //! | [`advection`] | Upwind covariant advection for scalar and vector fields |
