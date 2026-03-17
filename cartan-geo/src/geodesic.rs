@@ -83,13 +83,40 @@ impl<'a, M: Manifold> Geodesic<'a, M> {
     /// For n >= 2: returns points at t = 0, 1/(n-1), 2/(n-1), ..., 1.
     ///
     /// Panics if n == 0.
-    pub fn sample(&self, n: usize) -> Vec<M::Point> {
+    #[cfg(feature = "alloc")]
+    pub fn sample(&self, n: usize) -> alloc::vec::Vec<M::Point> {
         assert!(n > 0, "Geodesic::sample: n must be at least 1");
         if n == 1 {
-            return vec![self.eval(0.0)];
+            return alloc::vec![self.eval(0.0)];
         }
         let step = 1.0 / (n - 1) as Real;
         (0..n).map(|i| self.eval(i as Real * step)).collect()
+    }
+
+    /// Sample up to N evenly-spaced points (no_alloc version).
+    ///
+    /// Returns an array of `Option<M::Point>` of length N, filled for indices
+    /// 0..count, plus the actual count of filled entries.
+    /// Use this instead of `sample` when the `alloc` feature is unavailable.
+    ///
+    /// Panics if n == 0.
+    #[cfg(not(feature = "alloc"))]
+    pub fn sample_fixed<const N: usize>(&self, n: usize) -> ([Option<M::Point>; N], usize)
+    where
+        M::Point: Copy,
+    {
+        assert!(n > 0, "Geodesic::sample_fixed: n must be at least 1");
+        let count = n.min(N);
+        let mut out = [None; N];
+        if count == 1 {
+            out[0] = Some(self.eval(0.0));
+            return (out, 1);
+        }
+        let step = 1.0 / (count - 1) as Real;
+        for i in 0..count {
+            out[i] = Some(self.eval(i as Real * step));
+        }
+        (out, count)
     }
 
     /// Midpoint of the geodesic: gamma(0.5) = Exp_{base}(0.5 * velocity).

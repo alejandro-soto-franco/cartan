@@ -11,9 +11,14 @@ categories = ["mathematics", "science", "algorithms"]
 documentation = "https://docs.rs/cartan-geo"
 homepage = "https://cartan.sotofranco.dev"
 
+[features]
+default = ["std"]
+std = ["alloc", "cartan-core/std", "cartan-manifolds/std"]
+alloc = ["cartan-core/alloc", "cartan-manifolds/alloc"]
+
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.1" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.1" }
+cartan-core = { path = "../cartan-core", version = "0.1", default-features = false }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.1", default-features = false }
 
 [dev-dependencies]
 nalgebra = { workspace = true }
