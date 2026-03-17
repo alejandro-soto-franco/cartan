@@ -138,8 +138,7 @@ where
         // RK4 update in ambient space
         let j_new_ambient = j.clone()
             + (k1_j.clone() + k2_j.clone() * 2.0 + k3_j.clone() * 2.0 + k4_j) * (dt / 6.0);
-        let v_new_ambient = j_dot.clone()
-            + (k1_v + k2_v * 2.0 + k3_v * 2.0 + k4_v) * (dt / 6.0);
+        let v_new_ambient = j_dot.clone() + (k1_v + k2_v * 2.0 + k3_v * 2.0 + k4_v) * (dt / 6.0);
 
         // Project back onto tangent space at p_next (corrects ambient drift).
         let j_new = m.project_tangent(&p_next, &j_new_ambient);

@@ -66,8 +66,8 @@ use rand::Rng;
 use rand_distr::StandardNormal;
 
 use cartan_core::{
-    CartanError, Connection, Curvature, GeodesicInterpolation,
-    Manifold, ParallelTransport, Real, Retraction,
+    CartanError, Connection, Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real,
+    Retraction,
 };
 
 use crate::util::sym::{nearest_corr_matrix, sym_min_eigenvalue, sym_symmetrize};
@@ -473,12 +473,7 @@ impl<const N: usize> Curvature for Corr<N> {
     }
 
     /// Ricci curvature: identically zero (flat manifold).
-    fn ricci_curvature(
-        &self,
-        _p: &Self::Point,
-        _u: &Self::Tangent,
-        _v: &Self::Tangent,
-    ) -> Real {
+    fn ricci_curvature(&self, _p: &Self::Point, _u: &Self::Tangent, _v: &Self::Tangent) -> Real {
         0.0
     }
 
@@ -537,11 +532,7 @@ mod tests {
 
     /// A 3×3 correlation matrix with off-diagonal entries in (-1, 1).
     fn sample_corr_3() -> SMatrix<Real, 3, 3> {
-        SMatrix::<Real, 3, 3>::from_row_slice(&[
-            1.0, 0.5, 0.3,
-            0.5, 1.0, 0.2,
-            0.3, 0.2, 1.0,
-        ])
+        SMatrix::<Real, 3, 3>::from_row_slice(&[1.0, 0.5, 0.3, 0.5, 1.0, 0.2, 0.3, 0.2, 1.0])
     }
 
     // ── Manifold: basic geometry ────────────────────────────────────────────
@@ -640,7 +631,11 @@ mod tests {
         let pv = m.project_tangent(&c, &v);
         let ppv = m.project_tangent(&c, &pv);
         let diff = (pv - ppv).norm();
-        assert!(diff < 1e-14, "project_tangent not idempotent: diff = {:.2e}", diff);
+        assert!(
+            diff < 1e-14,
+            "project_tangent not idempotent: diff = {:.2e}",
+            diff
+        );
     }
 
     #[test]
@@ -668,7 +663,10 @@ mod tests {
         let v = m.project_tangent(&c, &g);
 
         let sym_violation = (v - v.transpose()).norm();
-        assert!(sym_violation < 1e-14, "project_tangent result not symmetric");
+        assert!(
+            sym_violation < 1e-14,
+            "project_tangent result not symmetric"
+        );
     }
 
     // ── project_point ───────────────────────────────────────────────────────
@@ -687,7 +685,11 @@ mod tests {
         let c = sample_corr_3();
         let c2 = m.project_point(&c);
         let diff = (c - c2).norm();
-        assert!(diff < 1e-8, "project_point moved a valid correlation matrix: diff = {:.2e}", diff);
+        assert!(
+            diff < 1e-8,
+            "project_point moved a valid correlation matrix: diff = {:.2e}",
+            diff
+        );
     }
 
     // ── Inner product / norm ─────────────────────────────────────────────────
@@ -738,7 +740,11 @@ mod tests {
         let u = small_tangent_3();
         let transported = m.transport(&c, &q, &u).unwrap();
         let diff = (u - transported).norm();
-        assert!(diff < 1e-14, "parallel transport is not identity: diff = {:.2e}", diff);
+        assert!(
+            diff < 1e-14,
+            "parallel transport is not identity: diff = {:.2e}",
+            diff
+        );
     }
 
     // ── Curvature (identically zero) ─────────────────────────────────────────
@@ -808,7 +814,11 @@ mod tests {
         let mid = m.geodesic(&c, &q, 0.5).unwrap();
         let expected = (c + q) * 0.5;
         let diff = (mid - expected).norm();
-        assert!(diff < 1e-14, "geodesic midpoint incorrect: diff = {:.2e}", diff);
+        assert!(
+            diff < 1e-14,
+            "geodesic midpoint incorrect: diff = {:.2e}",
+            diff
+        );
     }
 
     // ── Random point / tangent ───────────────────────────────────────────────

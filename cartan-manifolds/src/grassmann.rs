@@ -44,8 +44,8 @@ use rand::Rng;
 use rand_distr::StandardNormal;
 
 use cartan_core::{
-    CartanError, Connection, Curvature, GeodesicInterpolation,
-    Manifold, ParallelTransport, Real, Retraction,
+    CartanError, Connection, Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real,
+    Retraction,
 };
 
 /// The Grassmann manifold Gr(N, K): K-planes in R^N.
@@ -152,10 +152,7 @@ fn gr_exp_dyn(q: &DMatrix<Real>, v: &DMatrix<Real>) -> DMatrix<Real> {
 ///   6.  Log = Q_Z diag(θ) U_M^T
 ///
 /// Returns CutLocus error if any principal angle ≥ π/2 − ε (cos ≤ ε).
-fn gr_log_dyn(
-    q: &DMatrix<Real>,
-    p: &DMatrix<Real>,
-) -> Result<DMatrix<Real>, CartanError> {
+fn gr_log_dyn(q: &DMatrix<Real>, p: &DMatrix<Real>) -> Result<DMatrix<Real>, CartanError> {
     let k = q.ncols();
 
     // M = Q^T P (K×K)
@@ -173,10 +170,7 @@ fn gr_log_dyn(
         if d < GR_SING_EPS {
             #[cfg(feature = "alloc")]
             return Err(CartanError::CutLocus {
-                message: alloc::format!(
-                    "Grassmann Log: principal angle ≥ π/2 (cos = {:.2e})",
-                    d
-                ),
+                message: alloc::format!("Grassmann Log: principal angle ≥ π/2 (cos = {:.2e})", d),
             });
             #[cfg(not(feature = "alloc"))]
             return Err(CartanError::CutLocus {
@@ -191,8 +185,9 @@ fn gr_log_dyn(
 
     // Normalize columns of Z by sin(θ_i) = sqrt(1 − cos²(θ_i)).
     // This gives Q_Z (N×K orthonormal, perpendicular to Q).
-    let sin_vals: Vec<Real> =
-        (0..k).map(|i| (1.0 - d_vals[i].powi(2)).max(0.0).sqrt()).collect();
+    let sin_vals: Vec<Real> = (0..k)
+        .map(|i| (1.0 - d_vals[i].powi(2)).max(0.0).sqrt())
+        .collect();
 
     let mut q_z = z.clone();
     for (i, &s) in sin_vals.iter().enumerate() {
@@ -296,10 +291,12 @@ impl<const N: usize, const K: usize> Manifold for Grassmann<N, K> {
             Ok(())
         } else {
             #[cfg(feature = "alloc")]
-            { return Err(CartanError::NotOnManifold {
-                constraint: alloc::format!("Q^T Q = I_{K} (Gr({N},{K}))"),
-                violation: orth_err,
-            }); }
+            {
+                Err(CartanError::NotOnManifold {
+                    constraint: alloc::format!("Q^T Q = I_{K} (Gr({N},{K}))"),
+                    violation: orth_err,
+                })
+            }
             #[cfg(not(feature = "alloc"))]
             Err(CartanError::NotOnManifold {
                 constraint: "Q^T Q = I_K (Gr(N,K))",
@@ -315,10 +312,12 @@ impl<const N: usize, const K: usize> Manifold for Grassmann<N, K> {
             Ok(())
         } else {
             #[cfg(feature = "alloc")]
-            { return Err(CartanError::NotInTangentSpace {
-                constraint: alloc::format!("Q^T V = 0 (T_Q Gr({N},{K}))"),
-                violation: horiz_err,
-            }); }
+            {
+                Err(CartanError::NotInTangentSpace {
+                    constraint: alloc::format!("Q^T V = 0 (T_Q Gr({N},{K}))"),
+                    violation: horiz_err,
+                })
+            }
             #[cfg(not(feature = "alloc"))]
             Err(CartanError::NotInTangentSpace {
                 constraint: "Q^T V = 0 (horizontal tangent at Gr(N,K))",
@@ -420,10 +419,8 @@ impl<const N: usize, const K: usize> ParallelTransport for Grassmann<N, K> {
         let alpha = a.transpose() * &w_dyn;
 
         // Correction: (A(cos Σ − I) − Q B sin Σ) α B^T
-        let cos_m1 =
-            DMatrix::from_diagonal(&DVector::from_fn(k, |i, _| svals[i].cos() - 1.0));
-        let sin_diag =
-            DMatrix::from_diagonal(&DVector::from_fn(k, |i, _| svals[i].sin()));
+        let cos_m1 = DMatrix::from_diagonal(&DVector::from_fn(k, |i, _| svals[i].cos() - 1.0));
+        let sin_diag = DMatrix::from_diagonal(&DVector::from_fn(k, |i, _| svals[i].sin()));
 
         // Δ = (A(cosΣ−I) − QB sinΣ) α   (no B^T: this is the O(N)-rotation formula)
         let correction = (&a * cos_m1 - &q_dyn * &b * sin_diag) * alpha;
@@ -446,7 +443,7 @@ impl<const N: usize, const K: usize> Connection for Grassmann<N, K> {
     ///
     /// Full formula (Boumal 2022, §9.5, Proposition 9.46) for horizontal representation:
     ///
-    ///   Hess f(Q)[V] = proj_Q(ehvp(V)) - V * sym(Q^T * G)
+    ///   Hess f(Q)\[V\] = proj_Q(ehvp(V)) - V * sym(Q^T * G)
     ///
     /// where G = grad_f (Euclidean gradient, N×K), proj_Q(X) = (I - QQ^T)X,
     /// and sym(A) = (A + A^T)/2 (K×K). The correction term is nonzero even
@@ -523,12 +520,7 @@ impl<const N: usize, const K: usize> Curvature for Grassmann<N, K> {
     /// Riemann tensor formula above and the Kronecker delta algebra:
     ///   Ric(E_ab, E_ab) = (N−2)/4  (for all a, b)
     /// Since Gr(N,K) is O(N)-homogeneous, the Einstein constant is uniform.
-    fn ricci_curvature(
-        &self,
-        _q: &Self::Point,
-        u: &Self::Tangent,
-        v: &Self::Tangent,
-    ) -> Real {
+    fn ricci_curvature(&self, _q: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
         let n = N as Real;
         (n - 2.0) / 4.0 * (u.transpose() * v).trace()
     }
@@ -579,9 +571,7 @@ mod tests {
 
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    fn orthogonality_err<const N: usize, const K: usize>(
-        q: &SMatrix<Real, N, K>,
-    ) -> Real {
+    fn orthogonality_err<const N: usize, const K: usize>(q: &SMatrix<Real, N, K>) -> Real {
         (q.transpose() * q - SMatrix::<Real, K, K>::identity()).norm()
     }
 
@@ -679,7 +669,10 @@ mod tests {
         let w = m.random_tangent(&q, &mut rng);
         let wt = m.transport(&q, &p, &w).unwrap();
         let horiz_err = horizontality_err(&p, &wt);
-        assert!(horiz_err < 1e-8, "transported vector not horizontal: {horiz_err:.2e}");
+        assert!(
+            horiz_err < 1e-8,
+            "transported vector not horizontal: {horiz_err:.2e}"
+        );
     }
 
     #[test]

@@ -99,14 +99,18 @@ pub fn apply_scalar_advection(mesh: &FlatMesh, f: &DVector<f64>, u: &DVector<f64
 /// # Returns
 ///
 /// `(u · ∇) q` at each vertex as a 2*n_v vector.
-pub fn apply_vector_advection(
-    mesh: &FlatMesh,
-    q: &DVector<f64>,
-    u: &DVector<f64>,
-) -> DVector<f64> {
+pub fn apply_vector_advection(mesh: &FlatMesh, q: &DVector<f64>, u: &DVector<f64>) -> DVector<f64> {
     let nv = mesh.n_vertices();
-    assert_eq!(q.len(), 2 * nv, "vector_advection: q must have 2*n_v entries");
-    assert_eq!(u.len(), 2 * nv, "vector_advection: u must have 2*n_v entries");
+    assert_eq!(
+        q.len(),
+        2 * nv,
+        "vector_advection: q must have 2*n_v entries"
+    );
+    assert_eq!(
+        u.len(),
+        2 * nv,
+        "vector_advection: u must have 2*n_v entries"
+    );
 
     let qx = q.rows(0, nv).into_owned();
     let qy = q.rows(nv, nv).into_owned();

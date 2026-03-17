@@ -3,10 +3,10 @@
 // End-to-end tests: minimize known functions on manifolds and check recovery.
 
 use cartan_core::Manifold;
-use cartan_manifolds::{Grassmann, Sphere, Spd};
+use cartan_manifolds::{Grassmann, Spd, Sphere};
 use cartan_optim::{
-    frechet_mean, minimize_rcg, minimize_rgd, minimize_rtr,
-    FrechetConfig, RCGConfig, RGDConfig, RTRConfig,
+    FrechetConfig, RCGConfig, RGDConfig, RTRConfig, frechet_mean, minimize_rcg, minimize_rgd,
+    minimize_rtr,
 };
 use nalgebra::{SMatrix, SVector};
 use rand::SeedableRng;
@@ -29,11 +29,7 @@ fn sphere_cost(p: &SVector<Real, 3>, a: &SVector<Real, 3>) -> Real {
     -p.dot(a)
 }
 
-fn sphere_rgrad(
-    m: &Sphere<3>,
-    p: &SVector<Real, 3>,
-    a: &SVector<Real, 3>,
-) -> SVector<Real, 3> {
+fn sphere_rgrad(m: &Sphere<3>, p: &SVector<Real, 3>, a: &SVector<Real, 3>) -> SVector<Real, 3> {
     // Euclidean gradient of -p^T a is -a; project onto tangent space.
     let egrad = -a;
     m.project_tangent(p, &egrad)
@@ -63,7 +59,11 @@ fn rgd_sphere_recovers_north_pole() {
         &config,
     );
 
-    assert!(res.converged, "RGD did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "RGD did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - a_hat).norm();
     assert!(err < 1e-5, "RGD sphere: ||p* - a_hat|| = {err:.2e}");
 }
@@ -91,7 +91,11 @@ fn rcg_sphere_recovers_north_pole() {
         &config,
     );
 
-    assert!(res.converged, "RCG did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "RCG did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - a_hat).norm();
     assert!(err < 1e-5, "RCG sphere: ||p* - a_hat|| = {err:.2e}");
 }
@@ -121,7 +125,11 @@ fn rtr_sphere_recovers_north_pole() {
         &config,
     );
 
-    assert!(res.converged, "RTR did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "RTR did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - a_hat).norm();
     assert!(err < 1e-5, "RTR sphere: ||p* - a_hat|| = {err:.2e}");
 }
@@ -135,11 +143,8 @@ fn rtr_sphere_recovers_north_pole() {
 
 fn make_spd3() -> SMatrix<Real, 3, 3> {
     // A simple SPD matrix: I + small perturbation
-    let a: SMatrix<Real, 3, 3> = SMatrix::from_row_slice(&[
-        2.0, 0.5, 0.1,
-        0.5, 3.0, 0.2,
-        0.1, 0.2, 1.5,
-    ]);
+    let a: SMatrix<Real, 3, 3> =
+        SMatrix::from_row_slice(&[2.0, 0.5, 0.1, 0.5, 3.0, 0.2, 0.1, 0.2, 1.5]);
     a
 }
 
@@ -169,7 +174,11 @@ fn rgd_spd_recovers_target() {
         &config,
     );
 
-    assert!(res.converged, "RGD SPD did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "RGD SPD did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - target).norm();
     assert!(err < 1e-3, "RGD SPD: ||P* - target||_F = {err:.2e}");
 }
@@ -202,7 +211,11 @@ fn rtr_spd_recovers_target() {
         &config,
     );
 
-    assert!(res.converged, "RTR SPD did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "RTR SPD did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - target).norm();
     assert!(err < 1e-3, "RTR SPD: ||P* - target||_F = {err:.2e}");
 }
@@ -236,10 +249,17 @@ fn frechet_mean_sphere_recovers_center() {
     let res = frechet_mean(&m, &points, None, &config);
 
     // The algorithm should converge to the sample mean.
-    assert!(res.converged, "Fréchet mean did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "Fréchet mean did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
     // With small noise (0.05) and 50 samples, sample mean is within ~1e-2 of true mean.
     let err = (res.point - mu_true).norm();
-    assert!(err < 5e-2, "Fréchet mean sphere: ||mu - mu_true|| = {err:.2e}");
+    assert!(
+        err < 5e-2,
+        "Fréchet mean sphere: ||mu - mu_true|| = {err:.2e}"
+    );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -254,10 +274,8 @@ fn rgd_grassmann_principal_subspace() {
 
     // A is 5×2 with columns forming an orthonormal frame.
     // We'll use the first two standard basis vectors.
-    let a: SMatrix<Real, 5, 2> = SMatrix::from_column_slice(&[
-        1.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0, 0.0,
-    ]);
+    let a: SMatrix<Real, 5, 2> =
+        SMatrix::from_column_slice(&[1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0]);
 
     // f(Q) = -||A^T Q||_F^2  →  max ||A^T Q||_F^2  →  Q* = span(e1, e2)
     // Euclidean gradient of -||A^T Q||_F^2 = -2 A A^T Q
@@ -280,7 +298,11 @@ fn rgd_grassmann_principal_subspace() {
         &config,
     );
 
-    assert!(res.converged, "RGD Grassmann did not converge: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "RGD Grassmann did not converge: grad_norm={:.2e}",
+        res.grad_norm
+    );
 
     // Check that the optimal subspace aligns with span(e1, e2):
     // ||A^T Q*||_F should be ≈ √2 (Q* ≈ A up to rotation)
@@ -324,7 +346,14 @@ fn rtr_converges_quadratic_sphere() {
         &config,
     );
 
-    assert!(res.converged, "RTR quadratic sphere: grad_norm={:.2e}", res.grad_norm);
+    assert!(
+        res.converged,
+        "RTR quadratic sphere: grad_norm={:.2e}",
+        res.grad_norm
+    );
     let err = (res.point - target).norm();
-    assert!(err < 1e-5, "RTR quadratic sphere: ||p* - target|| = {err:.2e}");
+    assert!(
+        err < 1e-5,
+        "RTR quadratic sphere: ||p* - target|| = {err:.2e}"
+    );
 }

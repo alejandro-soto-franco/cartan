@@ -75,9 +75,7 @@ pub enum CartanError {
     },
 
     /// Line search failed to find a step size satisfying the Armijo condition.
-    LineSearchFailed {
-        steps_tried: usize,
-    },
+    LineSearchFailed { steps_tried: usize },
 
     /// Optimizer did not converge within the maximum number of iterations.
     ConvergenceFailure {
@@ -95,14 +93,20 @@ impl fmt::Display for CartanError {
             CartanError::NumericalFailure { operation, message } => {
                 write!(f, "numerical failure in {}: {}", operation, message)
             }
-            CartanError::NotOnManifold { constraint, violation } => {
+            CartanError::NotOnManifold {
+                constraint,
+                violation,
+            } => {
                 write!(
                     f,
                     "point not on manifold: {} violated by {}",
                     constraint, violation
                 )
             }
-            CartanError::NotInTangentSpace { constraint, violation } => {
+            CartanError::NotInTangentSpace {
+                constraint,
+                violation,
+            } => {
                 write!(
                     f,
                     "tangent vector not in tangent space: {} violated by {}",

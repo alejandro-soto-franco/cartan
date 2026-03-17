@@ -30,7 +30,7 @@ pub mod curvature;
 pub mod geodesic;
 pub mod jacobi;
 
-pub use curvature::{scalar_at, sectional_at, CurvatureQuery};
+pub use curvature::{CurvatureQuery, scalar_at, sectional_at};
 pub use geodesic::Geodesic;
 #[cfg(feature = "alloc")]
-pub use jacobi::{integrate_jacobi, JacobiResult};
+pub use jacobi::{JacobiResult, integrate_jacobi};

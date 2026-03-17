@@ -156,9 +156,13 @@ where
     }
     let sqrt_disc = {
         #[cfg(feature = "std")]
-        { discriminant.sqrt() }
+        {
+            discriminant.sqrt()
+        }
         #[cfg(not(feature = "std"))]
-        { libm::sqrt(discriminant) }
+        {
+            libm::sqrt(discriminant)
+        }
     };
     let tau = (-ep + sqrt_disc) / p_sq;
     eta.clone() + p.clone() * tau
@@ -227,8 +231,7 @@ where
 
         // Model decrease: m(0) - m(eta) = -<g, eta> - ½<H[eta], eta>
         let h_eta = hess_riem(&eta);
-        let model_decrease =
-            -manifold.inner(&x, &g, &eta) - 0.5 * manifold.inner(&x, &h_eta, &eta);
+        let model_decrease = -manifold.inner(&x, &g, &eta) - 0.5 * manifold.inner(&x, &h_eta, &eta);
 
         // Actual decrease: f(x) - f(Retract(x, eta))
         let x_new = manifold.retract(&x, &eta);

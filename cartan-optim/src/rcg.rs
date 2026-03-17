@@ -100,9 +100,13 @@ where
     let mut g_sq = manifold.inner(&x, &g, &g);
     let mut g_norm = {
         #[cfg(feature = "std")]
-        { g_sq.sqrt() }
+        {
+            g_sq.sqrt()
+        }
         #[cfg(not(feature = "std"))]
-        { libm::sqrt(g_sq) }
+        {
+            libm::sqrt(g_sq)
+        }
     };
 
     // Initial direction: steepest descent.
@@ -151,14 +155,17 @@ where
         g_sq = manifold.inner(&x, &g, &g);
         g_norm = {
             #[cfg(feature = "std")]
-            { g_sq.sqrt() }
+            {
+                g_sq.sqrt()
+            }
             #[cfg(not(feature = "std"))]
-            { libm::sqrt(g_sq) }
+            {
+                libm::sqrt(g_sq)
+            }
         };
 
         // Forced restart check.
-        let force_restart =
-            config.restart_every > 0 && (iter + 1) % config.restart_every == 0;
+        let force_restart = config.restart_every > 0 && (iter + 1) % config.restart_every == 0;
 
         let beta = if force_restart || g_sq_prev < 1e-30 {
             0.0

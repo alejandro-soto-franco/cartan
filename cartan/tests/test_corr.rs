@@ -14,12 +14,14 @@
 
 mod common;
 
-use cartan_core::{Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction};
+use cartan_core::{
+    Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction,
+};
 use cartan_manifolds::Corr;
 use nalgebra::SMatrix;
-use rand::rngs::StdRng;
 use rand::Rng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Harness tests
@@ -85,7 +87,11 @@ fn corr3_curvature_exactly_zero() {
         let w = m.random_tangent(&p, &mut rng);
 
         let r = m.riemann_curvature(&p, &u, &v, &w);
-        assert!(r.norm() < 1e-15, "R(u,v)w should be exactly 0, got ||R|| = {:.2e}", r.norm());
+        assert!(
+            r.norm() < 1e-15,
+            "R(u,v)w should be exactly 0, got ||R|| = {:.2e}",
+            r.norm()
+        );
 
         let k = m.sectional_curvature(&p, &u, &v);
         assert_eq!(k, 0.0, "sectional curvature should be exactly 0");
@@ -150,7 +156,10 @@ fn corr3_geodesic_is_linear() {
             let gamma_t = m.geodesic(&p, &q, t).unwrap();
             let linear_t = p * (1.0 - t) + q * t;
             let err = (gamma_t - linear_t).norm();
-            assert!(err < 1e-13, "geodesic is not linear at t={t}: err = {err:.2e}");
+            assert!(
+                err < 1e-13,
+                "geodesic is not linear at t={t}: err = {err:.2e}"
+            );
         }
     }
 }
@@ -177,10 +186,13 @@ fn corr3_project_point_finds_valid_corr() {
         let sym = (a + a.transpose()) * 0.5;
         // Set diagonal to 1.
         let mut input = sym;
-        input[(0,0)] = 1.0; input[(1,1)] = 1.0; input[(2,2)] = 1.0;
+        input[(0, 0)] = 1.0;
+        input[(1, 1)] = 1.0;
+        input[(2, 2)] = 1.0;
 
         let c = m.project_point(&input);
-        m.check_point(&c).expect("project_point result not a valid correlation matrix");
+        m.check_point(&c)
+            .expect("project_point result not a valid correlation matrix");
     }
 }
 
@@ -197,7 +209,10 @@ fn corr3_project_point_fixpoint() {
         let c = m.random_point(&mut rng);
         let c2 = m.project_point(&c);
         let err = (c - c2).norm();
-        assert!(err < 1e-8, "project_point moved a valid correlation matrix: err = {err:.2e}");
+        assert!(
+            err < 1e-8,
+            "project_point moved a valid correlation matrix: err = {err:.2e}"
+        );
     }
 }
 
@@ -212,12 +227,16 @@ fn corr2_is_interval() {
     for k in [-9i32, -7, -5, -3, 0, 3, 5, 7, 9] {
         let r = k as Real / 10.0;
         let c = SMatrix::<Real, 2, 2>::from_row_slice(&[1.0, r, r, 1.0]);
-        m.check_point(&c).unwrap_or_else(|e| panic!("Corr(2) point r={r} invalid: {e}"));
+        m.check_point(&c)
+            .unwrap_or_else(|e| panic!("Corr(2) point r={r} invalid: {e}"));
     }
     // r = ±1 must fail (boundary of PD cone).
     for &r in &[-1.0_f64, 1.0_f64] {
         let c = SMatrix::<Real, 2, 2>::from_row_slice(&[1.0, r, r, 1.0]);
-        assert!(m.check_point(&c).is_err(), "Corr(2) r={r} should fail (singular)");
+        assert!(
+            m.check_point(&c).is_err(),
+            "Corr(2) r={r} should fail (singular)"
+        );
     }
 }
 
@@ -234,7 +253,10 @@ fn corr3_injectivity_radius_is_min_eigenvalue() {
         let c = m.random_point(&mut rng);
         let r = m.injectivity_radius(&c);
         assert!(r > 0.0, "injectivity radius should be positive, got {r}");
-        assert!(r <= 1.0, "injectivity radius of a correlation matrix cannot exceed 1, got {r}");
+        assert!(
+            r <= 1.0,
+            "injectivity radius of a correlation matrix cannot exceed 1, got {r}"
+        );
     }
 }
 

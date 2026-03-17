@@ -467,17 +467,21 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         //   v_body = J(Ω)^{-1} · Δt
         let j_inv = left_jacobian_inverse(&omega).ok_or_else(|| {
             #[cfg(feature = "alloc")]
-            { CartanError::NumericalFailure {
-                operation: "log(SE(N))".to_string(),
-                message: "left Jacobian J(Ω) is singular — rotation may have angle at 2kπ \
+            {
+                CartanError::NumericalFailure {
+                    operation: "log(SE(N))".to_string(),
+                    message: "left Jacobian J(Ω) is singular — rotation may have angle at 2kπ \
                           where k ≥ 1, causing the Jacobian to degenerate."
-                    .to_string(),
-            } }
+                        .to_string(),
+                }
+            }
             #[cfg(not(feature = "alloc"))]
-            { CartanError::NumericalFailure {
-                operation: "log(SE(N))",
-                message: "left Jacobian J(Omega) is singular (rotation angle at 2k*pi)",
-            } }
+            {
+                CartanError::NumericalFailure {
+                    operation: "log(SE(N))",
+                    message: "left Jacobian J(Omega) is singular (rotation angle at 2k*pi)",
+                }
+            }
         })?;
         let v_body = j_inv * delta_t;
 
@@ -703,9 +707,9 @@ impl<const N: usize> Retraction for SpecialEuclidean<N> {
         let rhs = id + half_omega;
 
         // (I - Ω/2) is always invertible for skew Ω (eigenvalues have positive real part).
-        let lhs_inv = lhs.try_inverse().expect(
-            "SE(N) Cayley retraction: (I - Ω/2) is singular — should not occur for skew Ω",
-        );
+        let lhs_inv = lhs
+            .try_inverse()
+            .expect("SE(N) Cayley retraction: (I - Ω/2) is singular — should not occur for skew Ω");
         let cayley = lhs_inv * rhs;
 
         SEPoint {
@@ -738,23 +742,24 @@ impl<const N: usize> Retraction for SpecialEuclidean<N> {
         let m_plus_i = m + id;
         let m_minus_i = m - id;
 
-        let m_plus_i_inv =
-            m_plus_i
-                .try_inverse()
-                .ok_or_else(|| {
-                    #[cfg(feature = "alloc")]
-                    { CartanError::NumericalFailure {
-                        operation: "inverse_retract(SE(N))".to_string(),
-                        message: "matrix (M + I) is singular — R₁^T R₂ has eigenvalue -1 \
+        let m_plus_i_inv = m_plus_i.try_inverse().ok_or_else(|| {
+            #[cfg(feature = "alloc")]
+            {
+                CartanError::NumericalFailure {
+                    operation: "inverse_retract(SE(N))".to_string(),
+                    message: "matrix (M + I) is singular — R₁^T R₂ has eigenvalue -1 \
                               (Cayley cut locus). Consider using log instead."
-                            .to_string(),
-                    } }
-                    #[cfg(not(feature = "alloc"))]
-                    { CartanError::NumericalFailure {
-                        operation: "inverse_retract(SE(N))",
-                        message: "(M + I) singular (Cayley cut locus, eigenvalue -1)",
-                    } }
-                })?;
+                        .to_string(),
+                }
+            }
+            #[cfg(not(feature = "alloc"))]
+            {
+                CartanError::NumericalFailure {
+                    operation: "inverse_retract(SE(N))",
+                    message: "(M + I) singular (Cayley cut locus, eigenvalue -1)",
+                }
+            }
+        })?;
         let half_omega = m_plus_i_inv * m_minus_i;
         let omega = half_omega * 2.0;
 
@@ -819,9 +824,9 @@ impl<const N: usize> Connection for SpecialEuclidean<N> {
     /// SE(N) = SO(N) x R^N (product manifold). The HVP is computed block-wise:
     ///
     /// - Rotation block: SO(N) Weingarten correction (Absil-Mahony-Sepulchre §5.3):
-    ///     Hess_R[V_R] = R*skew(R^T*ehvp_R) - 0.5*R*sym(R^T*egrad_R)*R^T*V_R
+    ///   `Hess_R[V_R] = R*skew(R^T*ehvp_R) - 0.5*R*sym(R^T*egrad_R)*R^T*V_R`
     /// - Translation block: flat (Euclidean), no correction needed:
-    ///     Hess_t[V_t] = ehvp_t
+    ///   `Hess_t[V_t] = ehvp_t`
     fn riemannian_hessian_vector_product(
         &self,
         p: &Self::Point,
@@ -834,12 +839,12 @@ impl<const N: usize> Connection for SpecialEuclidean<N> {
         let ehvp_v = hess_ambient(v);
 
         // Rotation block: SO(N) Weingarten correction
-        let rt_ehvp_r = r.transpose() * &ehvp_v.rotation;
+        let rt_ehvp_r = r.transpose() * ehvp_v.rotation;
         let skew_rt_ehvp = (rt_ehvp_r - rt_ehvp_r.transpose()) * 0.5;
         let term1 = r * skew_rt_ehvp;
         let rt_egrad_r = r.transpose() * egrad_r;
         let sym_rt_egrad = (rt_egrad_r + rt_egrad_r.transpose()) * 0.5;
-        let term2 = r * sym_rt_egrad * r.transpose() * &v.rotation * 0.5;
+        let term2 = r * sym_rt_egrad * r.transpose() * v.rotation * 0.5;
         let hess_rotation = term1 - term2;
 
         // Translation block: flat
@@ -1038,9 +1043,7 @@ fn random_so_n<const N: usize, R: Rng>(rng: &mut R) -> SMatrix<Real, N, N> {
 ///
 /// Ref: Golub & Van Loan (2013), §5.2.1.
 #[allow(clippy::needless_range_loop)]
-fn householder_qr<const N: usize>(
-    g: &SMatrix<Real, N, N>,
-) -> (SMatrix<Real, N, N>, [Real; N]) {
+fn householder_qr<const N: usize>(g: &SMatrix<Real, N, N>) -> (SMatrix<Real, N, N>, [Real; N]) {
     let mut a = [[0.0f64; N]; N];
     for i in 0..N {
         for j in 0..N {
@@ -1066,11 +1069,7 @@ fn householder_qr<const N: usize>(
         let sign_xk = if a[k][k] >= 0.0 { 1.0 } else { -1.0 };
         let sigma = sign_xk * x_norm;
 
-        r_diag_signs[k] = if sigma.abs() < 1e-15 {
-            1.0
-        } else {
-            -sign_xk
-        };
+        r_diag_signs[k] = if sigma.abs() < 1e-15 { 1.0 } else { -sign_xk };
 
         // Householder vector v.
         let mut v = [0.0f64; N];
@@ -1128,8 +1127,8 @@ fn householder_qr<const N: usize>(
 mod tests {
     use super::*;
     use nalgebra::{SMatrix, SVector};
-    use rand::rngs::SmallRng;
     use rand::SeedableRng;
+    use rand::rngs::SmallRng;
 
     // Tolerances for different test categories.
     // TIGHT: for exact/identity cases.
@@ -1260,11 +1259,7 @@ mod tests {
         // Compare rotation and translation components.
         let rot_err = (&v_recovered.rotation - &v.rotation).norm();
         let trans_err = (&v_recovered.translation - &v.translation).norm();
-        assert!(
-            rot_err < MED,
-            "rotation roundtrip error: {:.2e}",
-            rot_err
-        );
+        assert!(rot_err < MED, "rotation roundtrip error: {:.2e}", rot_err);
         assert!(
             trans_err < MED,
             "translation roundtrip error: {:.2e}",
@@ -1317,7 +1312,11 @@ mod tests {
 
         let rot_err = (&v_recovered.rotation - &v.rotation).norm();
         let trans_err = (&v_recovered.translation - &v.translation).norm();
-        assert!(rot_err < MED, "SE(2) rotation roundtrip error: {:.2e}", rot_err);
+        assert!(
+            rot_err < MED,
+            "SE(2) rotation roundtrip error: {:.2e}",
+            rot_err
+        );
         assert!(
             trans_err < MED,
             "SE(2) translation roundtrip error: {:.2e}",
@@ -1436,7 +1435,11 @@ mod tests {
 
         let rot_err = (&v_recovered.rotation - &v.rotation).norm();
         let trans_err = (&v_recovered.translation - &v.translation).norm();
-        assert!(rot_err < MED, "inverse_retract rotation error: {:.2e}", rot_err);
+        assert!(
+            rot_err < MED,
+            "inverse_retract rotation error: {:.2e}",
+            rot_err
+        );
         assert!(
             trans_err < MED,
             "inverse_retract translation error: {:.2e}",
@@ -1663,9 +1666,15 @@ mod tests {
         // rotation block = -0.5 * A * V_R
         let expected_rotation = -(a * v.rotation) * 0.5;
         let diff_r = (hvp.rotation - expected_rotation).norm();
-        assert!(diff_r < 1e-10, "SE rotation Weingarten wrong: diff = {diff_r}");
+        assert!(
+            diff_r < 1e-10,
+            "SE rotation Weingarten wrong: diff = {diff_r}"
+        );
 
         // translation block = ehvp_t = 0
-        assert!(hvp.translation.norm() < 1e-10, "SE translation should be zero");
+        assert!(
+            hvp.translation.norm() < 1e-10,
+            "SE translation should be zero"
+        );
     }
 }

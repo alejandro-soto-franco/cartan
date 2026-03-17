@@ -80,8 +80,8 @@ use rand::Rng;
 use rand_distr::StandardNormal;
 
 use cartan_core::{
-    CartanError, Connection, Curvature, GeodesicInterpolation,
-    Manifold, ParallelTransport, Real, Retraction,
+    CartanError, Connection, Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real,
+    Retraction,
 };
 
 use crate::util::matrix_exp::matrix_exp_skew;
@@ -751,22 +751,24 @@ impl<const N: usize> Retraction for SpecialOrthogonal<N> {
         // (M + I) is singular iff M has eigenvalue -1, i.e., Q is the "antipode" of R.
         //
         // We use try_inverse() instead of lu().solve() for generic const N compatibility.
-        let m_plus_i_inv = m_plus_i
-            .try_inverse()
-            .ok_or_else(|| {
-                #[cfg(feature = "alloc")]
-                { CartanError::NumericalFailure {
+        let m_plus_i_inv = m_plus_i.try_inverse().ok_or_else(|| {
+            #[cfg(feature = "alloc")]
+            {
+                CartanError::NumericalFailure {
                     operation: "inverse_retract(SO(N))".to_string(),
                     message: "matrix (M + I) is singular — Q may be at the Cayley cut locus of R \
                               (R^T Q has eigenvalue -1). Consider using log instead."
                         .to_string(),
-                } }
-                #[cfg(not(feature = "alloc"))]
-                { CartanError::NumericalFailure {
+                }
+            }
+            #[cfg(not(feature = "alloc"))]
+            {
+                CartanError::NumericalFailure {
                     operation: "inverse_retract(SO(N))",
                     message: "(M + I) singular (Cayley cut locus, R^T Q has eigenvalue -1)",
-                } }
-            })?;
+                }
+            }
+        })?;
         let half_omega = m_plus_i_inv * m_minus_i;
         let omega = half_omega * 2.0; // Ω = 2 · (half Ω)
 
@@ -973,12 +975,7 @@ impl<const N: usize> Curvature for SpecialOrthogonal<N> {
     /// direct formula for efficiency.
     ///
     /// Ref: Milnor (1976), Theorem 1.12; Cheeger-Ebin (1975), §3.
-    fn sectional_curvature(
-        &self,
-        p: &Self::Point,
-        u: &Self::Tangent,
-        v: &Self::Tangent,
-    ) -> Real {
+    fn sectional_curvature(&self, p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
         // Pull back to Lie algebra.
         let r_t = p.transpose();
         let omega_u = r_t * u; // Ω_U
@@ -1080,12 +1077,7 @@ impl<const N: usize> Curvature for SpecialOrthogonal<N> {
     /// has trivial Lie bracket [Ω_U, Ω_V] = 0 for all Ω, so all curvatures vanish.
     ///
     /// Ref: Milnor (1976), Corollary 1.11; Cheeger-Ebin (1975), §3.19.
-    fn ricci_curvature(
-        &self,
-        p: &Self::Point,
-        u: &Self::Tangent,
-        v: &Self::Tangent,
-    ) -> Real {
+    fn ricci_curvature(&self, p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
         if N <= 2 {
             // SO(2) is abelian (1-dimensional), so all curvature vanishes.
             // Ric(U,V) = 0.
@@ -1277,9 +1269,7 @@ fn gauss_det_sign<const N: usize>(a: &SMatrix<Real, N, N>) -> Real {
 /// Ref: Golub & Van Loan (2013), §5.2.1 (Householder QR decomposition);
 ///      Mezzadri (2006), §2 (sign correction for Haar measure).
 #[allow(clippy::needless_range_loop)]
-fn householder_qr<const N: usize>(
-    g: &SMatrix<Real, N, N>,
-) -> (SMatrix<Real, N, N>, [Real; N]) {
+fn householder_qr<const N: usize>(g: &SMatrix<Real, N, N>) -> (SMatrix<Real, N, N>, [Real; N]) {
     // Working copy of G that we reduce to upper triangular form.
     let mut a = [[0.0f64; N]; N]; // will hold R_upper at the end
     for i in 0..N {
@@ -1477,7 +1467,8 @@ mod tests {
         for _ in 0..10 {
             let r = m.random_point(&mut rng);
             assert_in_so_n(&r, MED, "random_point SO(3)");
-            m.check_point(&r).expect("check_point should pass for random SO(3) point");
+            m.check_point(&r)
+                .expect("check_point should pass for random SO(3) point");
         }
     }
 
@@ -1490,7 +1481,8 @@ mod tests {
         for _ in 0..10 {
             let v = m.random_tangent(&r, &mut rng);
             assert_in_tangent_space(&r, &v, MED, "random_tangent SO(3)");
-            m.check_tangent(&r, &v).expect("check_tangent should pass for random tangent");
+            m.check_tangent(&r, &v)
+                .expect("check_tangent should pass for random tangent");
         }
     }
 
@@ -1616,11 +1608,7 @@ mod tests {
         let r = m.random_point(&mut rng);
         let v = m.random_tangent(&r, &mut rng);
         let inner = m.inner(&r, &v, &v);
-        assert!(
-            inner >= 0.0,
-            "inner(R, V, V) = {:.2e} < 0",
-            inner
-        );
+        assert!(inner >= 0.0, "inner(R, V, V) = {:.2e} < 0", inner);
     }
 
     /// Test bilinearity: inner(R, U+V, W) = inner(R, U, W) + inner(R, V, W).
@@ -1678,7 +1666,9 @@ mod tests {
         let q = m.retract(&r, &v);
 
         // Invert: find V' such that retract(R, V') = Q.
-        let v_back = m.inverse_retract(&r, &q).expect("inverse_retract should succeed");
+        let v_back = m
+            .inverse_retract(&r, &q)
+            .expect("inverse_retract should succeed");
         let q_back = m.retract(&r, &v_back);
 
         let err = (&q_back - &q).norm();
@@ -1795,22 +1785,18 @@ mod tests {
         let q = m.exp(&r, &v);
 
         // t = 0 → R
-        let p0 = m.geodesic(&r, &q, 0.0).expect("geodesic at t=0 should succeed");
+        let p0 = m
+            .geodesic(&r, &q, 0.0)
+            .expect("geodesic at t=0 should succeed");
         let err0 = (&p0 - &r).norm();
-        assert!(
-            err0 < TIGHT,
-            "geodesic(R, Q, 0) ≠ R: error = {:.2e}",
-            err0
-        );
+        assert!(err0 < TIGHT, "geodesic(R, Q, 0) ≠ R: error = {:.2e}", err0);
 
         // t = 1 → Q
-        let p1 = m.geodesic(&r, &q, 1.0).expect("geodesic at t=1 should succeed");
+        let p1 = m
+            .geodesic(&r, &q, 1.0)
+            .expect("geodesic at t=1 should succeed");
         let err1 = (&p1 - &q).norm();
-        assert!(
-            err1 < TIGHT,
-            "geodesic(R, Q, 1) ≠ Q: error = {:.2e}",
-            err1
-        );
+        assert!(err1 < TIGHT, "geodesic(R, Q, 1) ≠ Q: error = {:.2e}", err1);
     }
 
     /// Test that geodesic midpoint t=0.5 is equidistant from R and Q.
@@ -1822,7 +1808,9 @@ mod tests {
         let v = m.random_tangent(&r, &mut rng) * 0.5;
         let q = m.exp(&r, &v);
 
-        let mid = m.geodesic(&r, &q, 0.5).expect("midpoint geodesic should succeed");
+        let mid = m
+            .geodesic(&r, &q, 0.5)
+            .expect("midpoint geodesic should succeed");
 
         let d_r_mid = m.dist(&r, &mid).expect("dist(R, mid) should succeed");
         let d_mid_q = m.dist(&mid, &q).expect("dist(mid, Q) should succeed");
@@ -1872,7 +1860,9 @@ mod tests {
         let v = &v_big * (0.5 / v_norm);
 
         let q = m.exp(&r, &v);
-        let v_back = m.log(&r, &q).expect("log should succeed for small V in SO(4)");
+        let v_back = m
+            .log(&r, &q)
+            .expect("log should succeed for small V in SO(4)");
         let err = (&v_back - &v).norm();
 
         // Use MED tolerance (1e-8) for SO(4): the Padé+Mercator pipeline accumulates
@@ -1882,7 +1872,8 @@ mod tests {
         assert!(
             err < MED,
             "exp-log roundtrip SO(4): error = {:.2e} (expected < {:.2e})",
-            err, MED
+            err,
+            MED
         );
     }
 
@@ -1931,20 +1922,24 @@ mod tests {
             .riemannian_hessian_vector_product(&r, &egrad, &v, &ehvp)
             .unwrap();
         let diff = (hvp - v).norm();
-        assert!(diff < 1e-10, "SO(3) HVP at identity with zero egrad: diff = {diff}");
+        assert!(
+            diff < 1e-10,
+            "SO(3) HVP at identity with zero egrad: diff = {diff}"
+        );
 
         // Nonzero symmetric egrad: A = diag(1, 2, 3)
         // Cost f(R) = tr(A^T R), egrad = A, ehvp = 0 (linear)
         // At R=I: Hess[V] = I*skew(0) - 0.5*I*sym(A)*I^T*V = -0.5*A*V
-        let a = SMatrix::<Real, 3, 3>::from_diagonal(
-            &nalgebra::SVector::from([1.0_f64, 2.0, 3.0]),
-        );
+        let a = SMatrix::<Real, 3, 3>::from_diagonal(&nalgebra::SVector::from([1.0_f64, 2.0, 3.0]));
         let ehvp_zero = |_: &SMatrix<Real, 3, 3>| SMatrix::<Real, 3, 3>::zeros();
         let hvp2 = so3
             .riemannian_hessian_vector_product(&r, &a, &v, &ehvp_zero)
             .unwrap();
         let expected = -(a * v) * 0.5;
         let diff2 = (hvp2 - expected).norm();
-        assert!(diff2 < 1e-10, "SO(3) Weingarten correction wrong: diff = {diff2}");
+        assert!(
+            diff2 < 1e-10,
+            "SO(3) Weingarten correction wrong: diff = {diff2}"
+        );
     }
 }

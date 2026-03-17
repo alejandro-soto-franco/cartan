@@ -4,11 +4,11 @@
 
 mod common;
 
-use cartan_manifolds::Sphere;
 use cartan_core::{CartanError, Curvature, Manifold, ParallelTransport, Real};
+use cartan_manifolds::Sphere;
 use nalgebra::SVector;
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 
 // -- Harness tests --
 
@@ -116,7 +116,11 @@ fn sphere_bianchi_identity() {
         let r_wuv = manifold.riemann_curvature(&p, &w, &u, &v);
 
         let sum = r_uvw + r_vwu + r_wuv;
-        assert!(sum.norm() < 1e-10, "Bianchi identity violated: ||sum|| = {:.2e}", sum.norm());
+        assert!(
+            sum.norm() < 1e-10,
+            "Bianchi identity violated: ||sum|| = {:.2e}",
+            sum.norm()
+        );
     }
 }
 
@@ -136,7 +140,11 @@ fn sphere_curvature_skew_symmetry() {
         let r_vuw = manifold.riemann_curvature(&p, &v, &u, &w);
 
         let sum = r_uvw + r_vuw;
-        assert!(sum.norm() < 1e-10, "skew-symmetry violated: ||R(u,v)w + R(v,u)w|| = {:.2e}", sum.norm());
+        assert!(
+            sum.norm() < 1e-10,
+            "skew-symmetry violated: ||R(u,v)w + R(v,u)w|| = {:.2e}",
+            sum.norm()
+        );
     }
 }
 

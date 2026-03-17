@@ -37,8 +37,8 @@ use rand::Rng;
 use rand_distr::StandardNormal;
 
 use cartan_core::{
-    CartanError, Connection, Curvature, GeodesicInterpolation,
-    Manifold, ParallelTransport, Real, Retraction,
+    CartanError, Connection, Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real,
+    Retraction,
 };
 
 /// The unit sphere S^{N-1} embedded in R^N.
@@ -204,10 +204,12 @@ impl<const N: usize> Manifold for Sphere<N> {
             Ok(())
         } else {
             #[cfg(feature = "alloc")]
-            { return Err(CartanError::NotOnManifold {
-                constraint: alloc::format!("||p|| = 1 (S^{})", N - 1),
-                violation,
-            }); }
+            {
+                Err(CartanError::NotOnManifold {
+                    constraint: alloc::format!("||p|| = 1 (S^{})", N - 1),
+                    violation,
+                })
+            }
             #[cfg(not(feature = "alloc"))]
             Err(CartanError::NotOnManifold {
                 constraint: "||p|| = 1 (unit sphere S^(N-1))",
@@ -223,10 +225,12 @@ impl<const N: usize> Manifold for Sphere<N> {
             Ok(())
         } else {
             #[cfg(feature = "alloc")]
-            { return Err(CartanError::NotInTangentSpace {
-                constraint: alloc::format!("p^T v = 0 (T_p S^{})", N - 1),
-                violation,
-            }); }
+            {
+                Err(CartanError::NotInTangentSpace {
+                    constraint: alloc::format!("p^T v = 0 (T_p S^{})", N - 1),
+                    violation,
+                })
+            }
             #[cfg(not(feature = "alloc"))]
             Err(CartanError::NotInTangentSpace {
                 constraint: "p^T v = 0 (tangent space of S^(N-1))",
@@ -325,7 +329,7 @@ impl<const N: usize> Connection for Sphere<N> {
     ///
     /// Full formula (Absil et al., Example 5.3.2):
     ///
-    ///   Hess f(p)[v] = proj_p(D^2f(p)[v]) - <egrad, p> * v
+    ///   Hess f(p)\[v\] = proj_p(D^2f(p)\[v\]) - <egrad, p> * v
     ///
     /// where `grad_f` is the **Euclidean** gradient `egrad` (not the projected
     /// Riemannian gradient), matching the Pymanopt/Manopt convention.
@@ -378,12 +382,7 @@ impl<const N: usize> Curvature for Sphere<N> {
     ///   Ric(u, v) = (N-2) * K * <u, v>
     ///
     /// For S^{N-1} with K = 1: Ric(u, v) = (N-2) * <u, v>.
-    fn ricci_curvature(
-        &self,
-        _p: &Self::Point,
-        u: &Self::Tangent,
-        v: &Self::Tangent,
-    ) -> Real {
+    fn ricci_curvature(&self, _p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
         // Ricci = (dim - 1) * K * <u, v> where dim = N-1, K = 1.
         // Wait: Ric(u,v) = sum_{i} <R(e_i, u)v, e_i> over an ONB of T_pM.
         // For constant curvature K: Ric(u,v) = (n-1)*K*<u,v> where n = dim(M).

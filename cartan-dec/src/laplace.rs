@@ -103,7 +103,6 @@ impl Operators<Euclidean<2>> {
 }
 
 impl<M: Manifold> Operators<M> {
-
     /// Apply the scalar Laplace-Beltrami operator to a 0-form (vertex field).
     ///
     /// Returns Δf at each vertex. For an interior vertex, this is:
@@ -214,7 +213,10 @@ mod tests {
         let result_none = ops.apply_bochner_laplacian(&u, None);
         let result_zero = ops.apply_bochner_laplacian(&u, Some(&|_| [[0.0, 0.0], [0.0, 0.0]]));
         let diff = (&result_none - &result_zero).norm();
-        assert!(diff < 1e-12, "zero callback should equal None: diff = {diff}");
+        assert!(
+            diff < 1e-12,
+            "zero callback should equal None: diff = {diff}"
+        );
     }
 
     #[test]
@@ -239,7 +241,10 @@ mod tests {
         expected.rows_mut(nv, nv).copy_from(&luy);
 
         let diff = (&result_tensor - &expected).norm();
-        assert!(diff < 1e-10, "Einstein tensor != scalar path: diff = {diff}");
+        assert!(
+            diff < 1e-10,
+            "Einstein tensor != scalar path: diff = {diff}"
+        );
     }
 
     #[test]
@@ -251,10 +256,12 @@ mod tests {
         let q = DVector::from_element(3 * nv, 0.3);
 
         let result_none = ops.apply_lichnerowicz_laplacian(&q, None);
-        let result_zero =
-            ops.apply_lichnerowicz_laplacian(&q, Some(&|_| [[0.0_f64; 3]; 3]));
+        let result_zero = ops.apply_lichnerowicz_laplacian(&q, Some(&|_| [[0.0_f64; 3]; 3]));
         let diff = (&result_none - &result_zero).norm();
-        assert!(diff < 1e-12, "zero callback should match None: diff = {diff}");
+        assert!(
+            diff < 1e-12,
+            "zero callback should match None: diff = {diff}"
+        );
     }
 
     #[test]
@@ -266,7 +273,11 @@ mod tests {
         let kappa = 1.0;
         let q = DVector::from_fn(3 * nv, |i, _| (i + 1) as f64 * 0.01);
 
-        let c = [[2.0 * kappa, 0., 0.], [0., 2.0 * kappa, 0.], [0., 0., 2.0 * kappa]];
+        let c = [
+            [2.0 * kappa, 0., 0.],
+            [0., 2.0 * kappa, 0.],
+            [0., 0., 2.0 * kappa],
+        ];
         let result_tensor = ops.apply_lichnerowicz_laplacian(&q, Some(&|_| c));
 
         // Manual: Delta*q_xx + 2*kappa*q_xx, etc.
@@ -282,6 +293,9 @@ mod tests {
         expected.rows_mut(2 * nv, nv).copy_from(&lyy);
 
         let diff = (&result_tensor - &expected).norm();
-        assert!(diff < 1e-10, "diagonal tensor != scalar path: diff = {diff}");
+        assert!(
+            diff < 1e-10,
+            "diagonal tensor != scalar path: diff = {diff}"
+        );
     }
 }
