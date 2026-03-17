@@ -11,8 +11,16 @@ categories = ["mathematics", "science", "algorithms"]
 documentation = "https://docs.rs/cartan-core"
 homepage = "https://cartan.sotofranco.dev"
 
+[features]
+default = ["std"]
+std = ["alloc", "rand/std"]
+alloc = ["rand/alloc"]
+
 [dependencies]
-rand = { workspace = true }
+rand = { workspace = true, default-features = false }
+# libm provides `sqrt` and other float math in no_std environments.
+# Always present; only used when `std` feature is disabled.
+libm = { version = "0.2", default-features = false }
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--cfg", "docsrs"]

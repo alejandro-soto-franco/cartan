@@ -30,8 +30,8 @@
 //!   Princeton, 2008. Chapter 3 (Manifold structure).
 //! - do Carmo. "Riemannian Geometry." Birkhauser, 1992. Chapter 3 (exp/log maps).
 
-use std::fmt::Debug;
-use std::ops::{Add, Mul, Neg, Sub};
+use core::fmt::Debug;
+use core::ops::{Add, Mul, Neg, Sub};
 
 use rand::Rng;
 
@@ -110,7 +110,11 @@ pub trait Manifold {
 
     /// Induced norm: ||v||_p = sqrt(<v, v>_p).
     fn norm(&self, p: &Self::Point, v: &Self::Tangent) -> Real {
-        self.inner(p, v, v).sqrt()
+        let sq = self.inner(p, v, v);
+        #[cfg(feature = "std")]
+        return sq.sqrt();
+        #[cfg(not(feature = "std"))]
+        return libm::sqrt(sq);
     }
 
     /// Geodesic distance: d(p, q) = ||Log_p(q)||_p.
