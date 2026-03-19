@@ -25,7 +25,10 @@ extern crate alloc;
 pub mod corr;
 pub mod euclidean;
 #[cfg(feature = "alloc")]
+pub mod frame_field;
+#[cfg(feature = "alloc")]
 pub mod grassmann;
+pub mod qtensor;
 pub mod se;
 pub mod so;
 #[cfg(feature = "alloc")]
@@ -37,7 +40,10 @@ pub mod util;
 pub use corr::Corr;
 pub use euclidean::Euclidean;
 #[cfg(feature = "alloc")]
+pub use frame_field::{FrameField3D, d2_gauge_fix};
+#[cfg(feature = "alloc")]
 pub use grassmann::Grassmann;
+pub use qtensor::QTensor3;
 pub use se::{SEPoint, SETangent, SpecialEuclidean};
 pub use so::SpecialOrthogonal;
 #[cfg(feature = "alloc")]
