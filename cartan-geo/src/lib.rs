@@ -28,9 +28,16 @@ extern crate alloc;
 
 pub mod curvature;
 pub mod geodesic;
+#[cfg(feature = "alloc")]
+pub mod holonomy;
 pub mod jacobi;
 
 pub use curvature::{CurvatureQuery, scalar_at, sectional_at};
 pub use geodesic::Geodesic;
+#[cfg(feature = "alloc")]
+pub use holonomy::{
+    Disclination, edge_transition, holonomy_deviation, is_half_disclination,
+    loop_holonomy, rotation_angle, scan_disclinations,
+};
 #[cfg(feature = "alloc")]
 pub use jacobi::{JacobiResult, integrate_jacobi};

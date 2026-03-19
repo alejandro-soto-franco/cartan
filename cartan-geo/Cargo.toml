@@ -19,9 +19,9 @@ alloc = ["cartan-core/alloc", "cartan-manifolds/alloc"]
 [dependencies]
 cartan-core = { path = "../cartan-core", version = "0.1", default-features = false }
 cartan-manifolds = { path = "../cartan-manifolds", version = "0.1", default-features = false }
+nalgebra = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
-nalgebra = { workspace = true }
 rand = { workspace = true }
 approx = { workspace = true }
 
