@@ -233,7 +233,12 @@ pub fn connect_disclination_lines(segs: &[DisclinationSegment], _dx: f64) -> Vec
             .copied()
             .unwrap_or(component_vertices[0]);
 
-        // Traverse the path greedily
+        // Traverse the path greedily.
+        // Note: this handles degree-≤2 chains correctly. At a junction vertex
+        // (degree ≥ 3, e.g. T- or Y-junction) the walk terminates at the junction
+        // and branches beyond the first are silently dropped. Such topologies are
+        // rare in equilibrium nematics and not expected in the current simulation
+        // regime, but callers should be aware that junction branches are omitted.
         let mut path: Vec<usize> = Vec::new();
         let mut path_visited: HashSet<usize> = HashSet::new();
         let mut current = path_start;

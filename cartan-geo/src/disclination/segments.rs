@@ -81,9 +81,16 @@ fn face_center_frame(q: &QField3D, vs: [usize; 4]) -> SMatrix<f64, 3, 3> {
 /// Scan a 3D Q-tensor field for disclination segments using the dual-loop holonomy method.
 ///
 /// For each edge in the x, y, and z directions, the four adjacent face-centers
-/// are visited in counter-clockwise order (as viewed from the positive axis
-/// direction). The holonomy of that 4-face loop is computed. If the rotation
-/// angle exceeds pi/2, a `DisclinationSegment` is recorded for that edge.
+/// are visited in a fixed cyclic order. The holonomy of that 4-face loop is
+/// computed. If the rotation angle exceeds pi/2, a `DisclinationSegment` is
+/// recorded for that edge.
+///
+/// **Winding note:** The face traversal order (fa→fb→fc→fd) is clockwise when
+/// viewed from the positive axis direction (not CCW). The `is_half_disclination`
+/// check is purely based on rotation angle and is sign-independent, so detection
+/// is unaffected. If sign discrimination (`Sign::Positive` vs `Sign::Negative`)
+/// is ever implemented from the holonomy winding, the traversal order must be
+/// corrected to CCW first.
 ///
 /// Returns a `Vec<DisclinationSegment>` with one entry per pierced edge.
 /// An empty vec indicates no disclinations were found.
@@ -114,7 +121,7 @@ pub fn scan_disclination_lines_3d(q: &QField3D) -> Vec<DisclinationSegment> {
                 let lm = lm_fn(l);
 
                 // ── x-directed edge at (i,j,l) → (ip,j,l) ─────────────────
-                // Dual loop in yz-plane (CCW viewed from +x)
+                // Dual loop in yz-plane (fa→fb→fc→fd is CW viewed from +x)
                 {
                     // fa: face with corners (i,j,l), (i,j,lp), (i,jp,lp), (i,jp,l)
                     let fa = face_center_frame(q, [
@@ -163,7 +170,7 @@ pub fn scan_disclination_lines_3d(q: &QField3D) -> Vec<DisclinationSegment> {
                 }
 
                 // ── y-directed edge at (i,j,l) → (i,jp,l) ─────────────────
-                // Dual loop in xz-plane (CCW viewed from +y)
+                // Dual loop in xz-plane (fa→fb→fc→fd is CW viewed from +y)
                 {
                     // fa: corners (i,j,l), (ip,j,l), (ip,j,lp), (i,j,lp)
                     let fa = face_center_frame(q, [
@@ -212,7 +219,7 @@ pub fn scan_disclination_lines_3d(q: &QField3D) -> Vec<DisclinationSegment> {
                 }
 
                 // ── z-directed edge at (i,j,l) → (i,j,lp) ─────────────────
-                // Dual loop in xy-plane (CCW viewed from +z)
+                // Dual loop in xy-plane (fa→fb→fc→fd is CW viewed from +z)
                 {
                     // fa: corners (i,j,l), (i,jp,l), (ip,jp,l), (ip,j,l)
                     let fa = face_center_frame(q, [
