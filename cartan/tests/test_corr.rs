@@ -15,7 +15,7 @@
 mod common;
 
 use cartan_core::{
-    Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction,
+    Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real,
 };
 use cartan_manifolds::Corr;
 use nalgebra::SMatrix;
@@ -171,7 +171,7 @@ fn corr3_geodesic_is_linear() {
 #[test]
 fn corr3_project_point_finds_valid_corr() {
     let m = Corr::<3>;
-    let mut rng = StdRng::seed_from_u64(203);
+    let rng = StdRng::seed_from_u64(203);
 
     for _ in 0..50 {
         // Construct a random symmetric matrix with off-diagonal entries in (-0.8, 0.8).
