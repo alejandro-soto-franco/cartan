@@ -39,7 +39,7 @@ pub use geodesic::Geodesic;
 #[cfg(feature = "alloc")]
 pub use disclination::{
     DisclinationCharge, DisclinationSegment, DisclinationLine, DisclinationEvent,
-    EventKind, Sign, scan_disclination_lines_3d, connect_disclination_lines,
+    EventKind, QTensorField3D, Sign, scan_disclination_lines_3d, connect_disclination_lines,
     track_disclination_events,
 };
 #[cfg(feature = "alloc")]
