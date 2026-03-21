@@ -20,7 +20,6 @@ alloc = ["cartan-core/alloc", "cartan-manifolds/alloc"]
 cartan-core = { path = "../cartan-core", version = "0.1", default-features = false }
 cartan-manifolds = { path = "../cartan-manifolds", version = "0.1", default-features = false }
 nalgebra = { workspace = true, features = ["std"] }
-volterra-fields = { path = "/home/alejandrosotofranco/volterra/volterra-fields" }
 
 [dev-dependencies]
 rand = { workspace = true }
