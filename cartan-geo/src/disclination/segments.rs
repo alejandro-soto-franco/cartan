@@ -22,9 +22,27 @@
 //! - Smalyukh, I. I. (2010). Phys. Rev. Lett. 104, 097801.
 
 use nalgebra::SMatrix;
-use volterra_fields::QField3D;
 
 use crate::holonomy::{loop_holonomy, is_half_disclination};
+
+/// Minimal interface required by disclination scanning algorithms.
+///
+/// Implement this trait on any 3D Q-tensor field type to make it usable with
+/// [`scan_disclination_lines_3d`]. Volterra's `QField3D` implements this trait.
+pub trait QTensorField3D {
+    /// Number of grid points along x.
+    fn nx(&self) -> usize;
+    /// Number of grid points along y.
+    fn ny(&self) -> usize;
+    /// Number of grid points along z.
+    fn nz(&self) -> usize;
+    /// Grid spacing (uniform, isotropic).
+    fn dx(&self) -> f64;
+    /// Linear index for vertex `(i, j, l)`.
+    fn idx(&self, i: usize, j: usize, l: usize) -> usize;
+    /// Q-tensor at linear vertex index `k` as a 3×3 traceless symmetric matrix.
+    fn embed_matrix3(&self, k: usize) -> SMatrix<f64, 3, 3>;
+}
 
 /// Z2 orientation sign for a half-integer disclination charge.
 #[derive(Debug, Clone, PartialEq)]
@@ -68,7 +86,7 @@ const HALF_DISC_THRESHOLD: f64 = std::f64::consts::FRAC_PI_2;
 /// The frame is the eigenvector matrix of the average Q (symmetric
 /// eigendecomposition). The columns form an orthonormal basis ordered by
 /// eigenvalue, suitable for holonomy computation.
-fn face_center_frame(q: &QField3D, vs: [usize; 4]) -> SMatrix<f64, 3, 3> {
+fn face_center_frame<F: QTensorField3D>(q: &F, vs: [usize; 4]) -> SMatrix<f64, 3, 3> {
     let mut avg = SMatrix::<f64, 3, 3>::zeros();
     for &v in &vs {
         avg += q.embed_matrix3(v);
@@ -85,6 +103,9 @@ fn face_center_frame(q: &QField3D, vs: [usize; 4]) -> SMatrix<f64, 3, 3> {
 /// computed. If the rotation angle exceeds pi/2, a `DisclinationSegment` is
 /// recorded for that edge.
 ///
+/// The field `q` must implement [`QTensorField3D`]. Volterra's `QField3D` and
+/// the test helper [`UniformQGrid`] both implement this trait.
+///
 /// **Winding note:** The face traversal order (fa→fb→fc→fd) is clockwise when
 /// viewed from the positive axis direction (not CCW). The `is_half_disclination`
 /// check is purely based on rotation angle and is sign-independent, so detection
@@ -94,11 +115,11 @@ fn face_center_frame(q: &QField3D, vs: [usize; 4]) -> SMatrix<f64, 3, 3> {
 ///
 /// Returns a `Vec<DisclinationSegment>` with one entry per pierced edge.
 /// An empty vec indicates no disclinations were found.
-pub fn scan_disclination_lines_3d(q: &QField3D) -> Vec<DisclinationSegment> {
-    let nx = q.nx;
-    let ny = q.ny;
-    let nz = q.nz;
-    let dx = q.dx;
+pub fn scan_disclination_lines_3d<F: QTensorField3D>(q: &F) -> Vec<DisclinationSegment> {
+    let nx = q.nx();
+    let ny = q.ny();
+    let nz = q.nz();
+    let dx = q.dx();
 
     // Helper: periodic neighbor indices
     let ip_fn = |i: usize| (i + 1) % nx;
@@ -277,14 +298,55 @@ pub fn scan_disclination_lines_3d(q: &QField3D) -> Vec<DisclinationSegment> {
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Test helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Minimal `QTensorField3D` implementation for unit testing.
+///
+/// Stores a single Q-tensor value that is returned for every grid site.
+/// Useful for verifying that a uniform field produces no disclinations.
+#[cfg(test)]
+pub struct UniformQGrid {
+    pub nx: usize,
+    pub ny: usize,
+    pub nz: usize,
+    pub dx: f64,
+    /// Fixed traceless symmetric Q tensor (3×3) returned for every vertex.
+    pub qtensor: SMatrix<f64, 3, 3>,
+}
+
+#[cfg(test)]
+impl QTensorField3D for UniformQGrid {
+    fn nx(&self) -> usize { self.nx }
+    fn ny(&self) -> usize { self.ny }
+    fn nz(&self) -> usize { self.nz }
+    fn dx(&self) -> f64 { self.dx }
+    fn idx(&self, i: usize, j: usize, l: usize) -> usize {
+        ((i % self.nx) * self.ny + (j % self.ny)) * self.nz + (l % self.nz)
+    }
+    fn embed_matrix3(&self, _k: usize) -> SMatrix<f64, 3, 3> { self.qtensor }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn uniform_q(nx: usize, ny: usize, nz: usize) -> UniformQGrid {
+        // Uniaxial Q tensor along x: Q = S(n⊗n − I/3), n = [1,0,0], S = 0.6
+        let s = 0.6_f64;
+        let qtensor = SMatrix::<f64, 3, 3>::new(
+            2.0 / 3.0 * s,  0.0, 0.0,
+            0.0, -1.0 / 3.0 * s, 0.0,
+            0.0, 0.0, -1.0 / 3.0 * s,
+        );
+        UniformQGrid { nx, ny, nz, dx: 1.0, qtensor }
+    }
+
     #[test]
     fn test_scan_no_defects_uniform() {
-        // A perfectly uniform Q field has no disclinations
-        let q = QField3D::uniform(8, 8, 8, 1.0, [0.2, 0.0, 0.0, -0.1, 0.0]);
+        // A perfectly uniform Q field has no disclinations.
+        let q = uniform_q(8, 8, 8);
         let segs = scan_disclination_lines_3d(&q);
         assert!(segs.is_empty(),
             "Uniform Q field should have no disclination segments, got {}", segs.len());

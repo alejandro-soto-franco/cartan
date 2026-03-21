@@ -5,6 +5,6 @@ pub mod segments;
 pub mod lines;
 pub mod events;
 
-pub use segments::{DisclinationCharge, DisclinationSegment, Sign, scan_disclination_lines_3d};
+pub use segments::{DisclinationCharge, DisclinationSegment, Sign, QTensorField3D, scan_disclination_lines_3d};
 pub use lines::{DisclinationLine, connect_disclination_lines};
 pub use events::{DisclinationEvent, EventKind, track_disclination_events};
