@@ -11,7 +11,7 @@ members = [
 exclude = ["experiments"]
 
 [workspace.package]
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
@@ -29,3 +29,8 @@ serde = { version = "1", features = ["derive"], default-features = false }
 serde_json = { version = "1", default-features = false }
 approx = { version = "0.5", default-features = false }
 hashbrown = { version = "0.15", default-features = false }
+
+[profile.release]
+opt-level = 3
+lto = "thin"     # fat LTO was causing OOM on 30 GB machine; thin cuts linker peak ~5-10x
+codegen-units = 4  # default is 16; lower = less parallel RAM, better optimization
