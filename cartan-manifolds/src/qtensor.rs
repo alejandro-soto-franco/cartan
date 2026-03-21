@@ -268,7 +268,7 @@ impl Manifold for QTensor3 {
         }
 
         // Eigenvalue bounds: only meaningful if the matrix is symmetric.
-        let eig = SymmetricEigen::new(p.clone());
+        let eig = SymmetricEigen::new(*p);
         for &lambda in eig.eigenvalues.iter() {
             if lambda < LAMBDA_MIN - EIG_TOL {
                 return Err(CartanError::NotOnManifold {
@@ -387,7 +387,7 @@ impl ParallelTransport for QTensor3 {
         _q: &Self::Point,
         u: &Self::Tangent,
     ) -> Result<Self::Tangent, CartanError> {
-        Ok(u.clone())
+        Ok(*u)
     }
 }
 
@@ -559,7 +559,7 @@ pub fn is_physical(q: &SMatrix<Real, 3, 3>) -> bool {
 /// inputs, but in practice (physical Q-tensors close to the nematic phase)
 /// this is negligible.
 fn clamp_eigenvalues(q: &SMatrix<Real, 3, 3>) -> SMatrix<Real, 3, 3> {
-    let eig = SymmetricEigen::new(q.clone());
+    let eig = SymmetricEigen::new(*q);
     let f = eig.eigenvectors;
     let mut lambdas = eig.eigenvalues;
 

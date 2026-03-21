@@ -113,7 +113,7 @@ pub fn loop_holonomy(frames: &[SMatrix<Real, 3, 3>]) -> SMatrix<Real, 3, 3> {
     let mut hol = SMatrix::<Real, 3, 3>::identity();
     for i in 0..n {
         let j = (i + 1) % n;
-        hol = hol * edge_transition(&frames[i], &frames[j]);
+        hol *= edge_transition(&frames[i], &frames[j]);
     }
     hol
 }
