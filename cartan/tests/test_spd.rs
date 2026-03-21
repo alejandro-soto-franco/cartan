@@ -15,7 +15,7 @@
 mod common;
 
 use cartan_core::{
-    Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction,
+    Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real,
 };
 use cartan_manifolds::Spd;
 use nalgebra::SMatrix;
