@@ -21,13 +21,16 @@
 //! ## Usage pattern
 //!
 //! ```rust,no_run
+//! use nalgebra::SVector;
+//! use cartan_core::manifold::Manifold;
 //! use cartan_manifolds::Sphere;
 //! use cartan_optim::{minimize_rgd, RGDConfig};
 //!
 //! let s2 = Sphere::<3>;
 //! let config = RGDConfig::default();
+//! let p0 = SVector::<f64, 3>::from([0.0, 1.0, 0.0]); // start on equator
 //!
-//! // Minimize f(p) = -p[0] (find the "north pole") on S²
+//! // Minimize f(p) = -p[0] (drives p toward [1, 0, 0]) on S²
 //! let result = minimize_rgd(
 //!     &s2,
 //!     |p| -p[0],
