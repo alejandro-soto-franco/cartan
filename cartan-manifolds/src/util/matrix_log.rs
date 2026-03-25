@@ -41,7 +41,7 @@
 //! - do Carmo, M. P. (1992). *Riemannian Geometry*, §3.2 (cut locus).
 
 use cartan_core::{CartanError, Real};
-use nalgebra::SMatrix;
+use nalgebra::{ComplexField, RealField, SMatrix};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
