@@ -7,6 +7,7 @@ Riemannian geometry, manifold optimization, and geodesic computation in Rust.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
 [![Tests](https://github.com/alejandro-soto-franco/cartan/actions/workflows/ci.yml/badge.svg)](https://github.com/alejandro-soto-franco/cartan/actions)
 [![MSRV](https://img.shields.io/badge/MSRV-1.85-blue.svg)](Cargo.toml)
+[![no_std](https://img.shields.io/badge/no__std-compatible-brightgreen.svg)](#embedded-and-nostd-targets)
 
 **cartan** is a general-purpose Rust library for Riemannian geometry. It provides a backend-agnostic trait system with const-generic manifolds, correct numerics, and clean composability: from basic exp/log maps through second-order optimization to discrete exterior calculus for covariant PDE solvers.
 
@@ -77,6 +78,69 @@ cartan-dec          discrete exterior calculus for PDE solvers
 ```
 
 All manifolds use `nalgebra` `SVector`/`SMatrix` types directly; no intermediate backend crate is needed.
+
+## Embedded and no_std Targets
+
+cartan is designed to run on embedded and no_std targets. The geometry core (manifolds, geodesics, optimization) compiles without the standard library. The discrete exterior calculus layer (`cartan-dec`) requires std because it depends on rayon for parallelism and operates on heap-allocated mesh structures — it is not designed for embedded use.
+
+### What is available without std
+
+The following manifolds compile on any target with an allocator (`alloc`), with all float arithmetic implemented via `libm`:
+
+| Crate | `--no-default-features --features alloc` |
+|-------|------------------------------------------|
+| `cartan-core` | All traits, `CartanError`, `Real` |
+| `cartan-manifolds` | `Euclidean<N>`, `Sphere<N>`, `SpecialOrthogonal<N>`, `SpecialEuclidean<N>`, `Grassmann<N,K>` |
+| `cartan-geo` | `Geodesic`, `CurvatureQuery`, `integrate_jacobi` |
+| `cartan-optim` | All four optimizers (RGD, RCG, RTR, Fréchet mean) |
+
+The following require `std` because their algorithms depend on iterative eigendecomposition (`symmetric_eigen`) or `std::collections`:
+
+| Crate | Requires `std` |
+|-------|----------------|
+| `cartan-manifolds` | `Spd<N>`, `Corr<N>`, `QTensor3`, `FrameField3D` |
+| `cartan-geo` | `Disclination`, holonomy scanning |
+| `cartan-dec` | entire crate (rayon, mesh allocation) |
+
+For robotics and embedded work the key manifolds — SO(3) for attitude, SE(3) for pose, S² for bearing vectors, Grassmann for subspace tracking — are all available without std.
+
+### How to depend on cartan without std
+
+**Do not depend on the `cartan` facade crate in no_std builds.** The facade unconditionally re-exports `cartan-dec`, which requires std. Instead, depend on the sub-crates you need directly:
+
+```toml
+[dependencies]
+cartan-core      = { version = "0.1", default-features = false }
+cartan-manifolds = { version = "0.1", default-features = false, features = ["alloc"] }
+cartan-geo       = { version = "0.1", default-features = false, features = ["alloc"] }
+cartan-optim     = { version = "0.1", default-features = false, features = ["alloc"] }
+```
+
+If you have a global allocator (RTOS heap, `embedded-alloc`, etc.) this is all you need. If you are on a fully bare-metal target with no allocator at all, depend only on `cartan-core` and implement your own manifold types against its traits.
+
+### Example: attitude control on a microcontroller
+
+```rust
+#![no_std]
+extern crate alloc;
+
+use cartan_manifolds::SpecialOrthogonal;
+use cartan_core::Manifold;
+
+// SO(3): 3x3 rotation matrices with bi-invariant metric
+let so3 = SpecialOrthogonal::<3>;
+
+// Riemannian log: tangent vector from R_current to R_target (in so(3))
+let error_tangent = so3.log(&r_current, &r_target).unwrap();
+
+// Scale by gain and retract back to SO(3)
+let r_next = so3.exp(&r_current, &(error_tangent * gain));
+
+// Geodesic interpolation for trajectory following
+let r_interp = so3.geodesic_interpolate(&r_start, &r_end, 0.3).unwrap();
+```
+
+SE(3) pose estimation, Riemannian optimization over attitude, and geodesic path planning on S² all follow the same pattern.
 
 ## cartan-optim
 

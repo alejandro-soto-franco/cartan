@@ -4,6 +4,32 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.1.4] - 2026-03-25
+
+### Added
+
+- **no_std + alloc support** for `cartan-manifolds`, `cartan-geo`, and `cartan-optim`. All four sub-crates (cartan-core, cartan-manifolds, cartan-geo, cartan-optim) now compile with `default-features = false, features = ["alloc"]` on any target with a global allocator. Float arithmetic uses `libm` when `std` is absent.
+- Available without `std`: `Euclidean<N>`, `Sphere<N>`, `SpecialOrthogonal<N>`, `SpecialEuclidean<N>`, `Grassmann<N,K>`, all cartan-optim algorithms, `Geodesic`, `CurvatureQuery`, `integrate_jacobi`.
+- `nalgebra/libm` feature enabled unconditionally in cartan-manifolds and cartan-geo so that `f64: RealField` is satisfied in no_std mode without a separate simba dependency.
+- `ComplexField` and `RealField` trait imports in source files gated behind `#[cfg(not(feature = "std"))]` so they do not produce unused-import warnings in std builds.
+- CI: `no-std-check` job added, building cartan-core (bare no_std), cartan-manifolds, and cartan-geo under `--no-default-features --features alloc` on each PR, pinned to Rust 1.85.
+- README: dedicated **Embedded and no_std Targets** section with feature tier tables, correct `Cargo.toml` snippets for embedded users, and an SO(3) attitude control example.
+
+### Changed
+
+- `cartan-manifolds`: `qtensor`, `frame_field`, `corr`, `spd` modules reclassified from `alloc`-gated to `std`-gated. These modules require `symmetric_eigen()` (Jacobi iteration) which depends on std float behavior. `grassmann` remains `alloc`-gated since it uses `DMatrix`/SVD but not eigendecomposition.
+- `cartan-manifolds/util`: `sym` module reclassified from `alloc`-gated to `std`-gated for the same reason.
+- `cartan-geo`: `disclination` and `holonomy` modules reclassified from `alloc`-gated to `std`-gated. Both depend on `std::collections` (HashMap, HashSet, VecDeque) and `frame_field::d2_gauge_fix` which is itself std-gated.
+- `cartan-manifolds/Cargo.toml`, `cartan-geo/Cargo.toml`: `nalgebra/std` and `nalgebra/alloc` are now threaded through the respective crate-level feature flags rather than being hardcoded on the dependency line.
+- CI: `test` job toolchain pinned to `dtolnay/rust-toolchain@1.85` for consistency with the new `no-std-check` job.
+
+### Not changed
+
+- `cartan-dec` has no no_std support and is not expected to gain it. It depends on rayon, thiserror, and serde and operates on heap-allocated mesh structures. Embedded users should not depend on `cartan-dec`.
+- The `cartan` facade crate unconditionally re-exports `cartan-dec` and therefore requires std. **Embedded and no_std users must depend on the sub-crates directly** (see README).
+
+---
+
 ## [0.1.2] - 2026-03-17
 
 ### Added
