@@ -82,7 +82,7 @@ use core::ops::{Add, Mul, Neg, Sub};
 #[cfg(feature = "alloc")]
 use alloc::string::ToString;
 
-use nalgebra::{SMatrix, SVector};
+use nalgebra::{ComplexField, SMatrix, SVector};
 use rand::Rng;
 use rand_distr::StandardNormal;
 
