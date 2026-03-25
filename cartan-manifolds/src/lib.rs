@@ -20,32 +20,35 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-// corr, grassmann, and spd use DMatrix/DVector (dynamic nalgebra) and Vec; requires alloc.
-#[cfg(feature = "alloc")]
+// corr, frame_field, qtensor, spd use symmetric_eigen() from nalgebra (Jacobi); requires std.
+// grassmann uses DMatrix/SVD but NOT symmetric_eigen; requires alloc.
+#[cfg(feature = "std")]
 pub mod corr;
 pub mod euclidean;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 pub mod frame_field;
 #[cfg(feature = "alloc")]
 pub mod grassmann;
+#[cfg(feature = "std")]
 pub mod qtensor;
 pub mod se;
 pub mod so;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 pub mod spd;
 pub mod sphere;
 pub mod util;
 
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 pub use corr::Corr;
 pub use euclidean::Euclidean;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 pub use frame_field::{FrameField3D, d2_gauge_fix};
 #[cfg(feature = "alloc")]
 pub use grassmann::Grassmann;
+#[cfg(feature = "std")]
 pub use qtensor::QTensor3;
 pub use se::{SEPoint, SETangent, SpecialEuclidean};
 pub use so::SpecialOrthogonal;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "std")]
 pub use spd::Spd;
 pub use sphere::Sphere;
