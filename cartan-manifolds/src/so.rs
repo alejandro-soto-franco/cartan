@@ -75,7 +75,9 @@ use core::f64::consts::PI;
 #[cfg(feature = "alloc")]
 use alloc::string::ToString;
 
-use nalgebra::{ComplexField, SMatrix};
+use nalgebra::SMatrix;
+#[cfg(not(feature = "std"))]
+use nalgebra::ComplexField;
 use rand::Rng;
 use rand_distr::StandardNormal;
 
