@@ -13,16 +13,14 @@ homepage = "https://cartan.sotofranco.dev"
 
 [features]
 default = ["std"]
-std = ["alloc", "cartan-core/std", "rand/std", "rand_distr/std"]
-# nalgebra/std is declared unconditionally in [dependencies] (float ops require it).
-# Alloc-dependent manifolds (Grassmann, SPD, Corr) are gated behind #[cfg(feature="alloc")].
-alloc = ["cartan-core/alloc", "rand/alloc", "rand_distr/alloc"]
+std = ["alloc", "cartan-core/std", "rand/std", "rand_distr/std", "nalgebra/std"]
+alloc = ["cartan-core/alloc", "rand/alloc", "rand_distr/alloc", "nalgebra/alloc"]
 
 [dependencies]
 cartan-core = { path = "../cartan-core", version = "0.1", default-features = false }
-# nalgebra/std is required unconditionally: float ops (norm, SVD, trig) need RealField
-# which nalgebra only provides via its `std` feature. Bare no_std is a known limitation.
-nalgebra = { workspace = true, features = ["std"] }
+# libm satisfies f64: RealField in no_std mode (unconditional — no harm in std mode).
+# nalgebra/std and nalgebra/alloc are threaded through the feature flags above.
+nalgebra = { workspace = true, features = ["libm"] }
 rand = { workspace = true, default-features = false }
 rand_distr = { workspace = true, default-features = false }
 
