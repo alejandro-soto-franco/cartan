@@ -39,7 +39,9 @@ use core::f64::consts::PI;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use nalgebra::{ComplexField, DMatrix, DVector, SMatrix};
+use nalgebra::{DMatrix, DVector, SMatrix};
+#[cfg(not(feature = "std"))]
+use nalgebra::ComplexField;
 use rand::Rng;
 use rand_distr::StandardNormal;
 
