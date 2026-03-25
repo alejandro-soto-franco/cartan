@@ -33,7 +33,9 @@
 //!   Algorithm 10.2.4 (Scaling and Squaring).
 
 use cartan_core::Real;
-use nalgebra::{ComplexField, SMatrix};
+use nalgebra::SMatrix;
+#[cfg(not(feature = "std"))]
+use nalgebra::ComplexField;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public API
