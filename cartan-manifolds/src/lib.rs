@@ -14,6 +14,21 @@
 //! - [`Corr<N>`] -- Corr(N) correlation matrices with Frobenius metric (flat)
 //! - [`Spd<N>`] -- SPD(N) with affine-invariant metric (Cartan-Hadamard)
 //! - [`Grassmann<N, K>`] -- Gr(N, K) with canonical metric
+//!
+//! ## no_std support
+//!
+//! `cartan-manifolds` is `no_std`-compatible when the `std` feature is disabled:
+//!
+//! ```toml
+//! cartan-manifolds = { version = "0.1", default-features = false, features = ["alloc"] }
+//! ```
+//!
+//! Available without `std` (requires `alloc`):
+//! [`Euclidean<N>`], [`Sphere<N>`], [`SpecialOrthogonal<N>`], [`SpecialEuclidean<N>`],
+//! [`Grassmann<N, K>`]
+//!
+//! Requires `std` (eigendecomposition or imports from qtensor):
+//! [`QTensor3`], [`Corr<N>`], [`Spd<N>`], [`FrameField3D`]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

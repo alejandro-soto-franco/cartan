@@ -17,6 +17,12 @@
 //! | [`curvature`] | `CurvatureQuery<M>` -- sectional, Ricci, scalar curvature at a point |
 //! | [`jacobi`] | `integrate_jacobi` -- RK4 Jacobi field ODE integration |
 //!
+//! ## no_std support
+//!
+//! `cartan-geo` is `no_std`-compatible with `default-features = false, features = ["alloc"]`.
+//! [`Geodesic`], [`CurvatureQuery`], and [`integrate_jacobi`] are available unconditionally.
+//! [`Disclination`], disclination scanning, and holonomy require `std`.
+//!
 //! ## References
 //!
 //! - do Carmo. "Riemannian Geometry." Birkhauser, 1992. Chapters 3-5.
