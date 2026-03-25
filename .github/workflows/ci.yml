@@ -20,3 +20,16 @@ jobs:
           components: clippy
       - run: cargo test --all
       - run: cargo clippy --all -- -D warnings
+
+  no-std-check:
+    name: no_std + alloc build check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85
+      - name: Build cartan-core (bare no_std)
+        run: cargo build -p cartan-core --no-default-features
+      - name: Build cartan-manifolds (no_std + alloc)
+        run: cargo build -p cartan-manifolds --no-default-features --features alloc
+      - name: Build cartan-geo (no_std + alloc)
+        run: cargo build -p cartan-geo --no-default-features --features alloc
