@@ -81,7 +81,7 @@ All manifolds use `nalgebra` `SVector`/`SMatrix` types directly; no intermediate
 
 ## Embedded and no_std Targets
 
-cartan is designed to run on embedded and no_std targets. The geometry core (manifolds, geodesics, optimization) compiles without the standard library. The discrete exterior calculus layer (`cartan-dec`) requires std because it depends on rayon for parallelism and operates on heap-allocated mesh structures — it is not designed for embedded use.
+cartan is designed to run on embedded and no_std targets. The geometry core (manifolds, geodesics, optimization) compiles without the standard library. The discrete exterior calculus layer (`cartan-dec`) requires std because it depends on rayon for parallelism and operates on heap-allocated mesh structures; it is not designed for embedded use.
 
 ### What is available without std
 
@@ -102,21 +102,30 @@ The following require `std` because their algorithms depend on iterative eigende
 | `cartan-geo` | `Disclination`, holonomy scanning |
 | `cartan-dec` | entire crate (rayon, mesh allocation) |
 
-For robotics and embedded work the key manifolds — SO(3) for attitude, SE(3) for pose, S² for bearing vectors, Grassmann for subspace tracking — are all available without std.
+For robotics and embedded work the key manifolds (SO(3) for attitude, SE(3) for pose, S² for bearing vectors, Grassmann for subspace tracking) are all available without std.
 
 ### How to depend on cartan without std
 
-**Do not depend on the `cartan` facade crate in no_std builds.** The facade unconditionally re-exports `cartan-dec`, which requires std. Instead, depend on the sub-crates you need directly:
+The `cartan` facade crate supports no_std targets. The default `full` feature includes `cartan-dec`; disable it to drop the std requirement:
 
 ```toml
 [dependencies]
-cartan-core      = { version = "0.1", default-features = false }
+# no_std with allocator (recommended for most embedded targets, e.g. RTIC, Embassy)
+cartan = { version = "0.1", default-features = false, features = ["alloc"] }
+
+# std, but without the cartan-dec mesh/PDE layer
+cartan = { version = "0.1", default-features = false, features = ["std"] }
+```
+
+Alternatively, depend on sub-crates directly if you want finer control over which geometry modules are included:
+
+```toml
+[dependencies]
 cartan-manifolds = { version = "0.1", default-features = false, features = ["alloc"] }
-cartan-geo       = { version = "0.1", default-features = false, features = ["alloc"] }
 cartan-optim     = { version = "0.1", default-features = false, features = ["alloc"] }
 ```
 
-If you have a global allocator (RTOS heap, `embedded-alloc`, etc.) this is all you need. If you are on a fully bare-metal target with no allocator at all, depend only on `cartan-core` and implement your own manifold types against its traits.
+If you are on a fully bare-metal target with no allocator, depend only on `cartan-core` and implement your own manifold types against its traits.
 
 ### Example: attitude control on a microcontroller
 

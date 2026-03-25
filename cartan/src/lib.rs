@@ -13,7 +13,23 @@
 //! - `cartan-optim` -- optimization algorithms (RGD, RCG, trust region)
 //! - `cartan-geo` -- geodesic and curvature tools
 //! - `cartan-dec` -- discrete exterior calculus: simplicial complexes, Hodge
-//!   operators, and covariant differential operators for PDE solvers
+//!   operators, and covariant differential operators for PDE solvers (requires std)
+//!
+//! ## no_std / embedded usage
+//!
+//! The default `full` feature includes `cartan-dec`, which requires std.
+//! For embedded and no_std targets, disable default features and select a tier:
+//!
+//! ```toml
+//! # no_std with allocator (recommended for most embedded targets)
+//! cartan = { version = "0.1", default-features = false, features = ["alloc"] }
+//!
+//! # std without cartan-dec (no mesh/PDE layer)
+//! cartan = { version = "0.1", default-features = false, features = ["std"] }
+//! ```
+//!
+//! See the [README](https://github.com/alejandro-soto-franco/cartan#embedded-and-nostd-targets)
+//! for the full feature tier table.
 //!
 //! ## Prelude
 //!
@@ -27,6 +43,7 @@
 // Aliasing as `core` would shadow `std::core` and break macro hygiene
 // in downstream crates that use standard library macros.
 pub use cartan_core as traits;
+#[cfg(feature = "full")]
 pub use cartan_dec as dec;
 pub use cartan_geo as geo;
 pub use cartan_manifolds as manifolds;

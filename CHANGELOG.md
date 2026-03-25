@@ -4,6 +4,20 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.1.5] - 2026-03-25
+
+### Added
+
+- `cartan` facade: `full` feature (default) makes `cartan-dec` optional. Disabling it (`default-features = false, features = ["alloc"]`) gives a no_std-compatible facade that excludes the mesh/PDE layer. `full` implies `std`; `std` implies `alloc`.
+- `cartan` facade: `std` and `alloc` feature flags that propagate to all sub-crates, so embedded users no longer need to list sub-crates individually.
+
+### Fixed
+
+- README: removed em dashes (style consistency).
+- `cartan` facade: `full = ["dep:cartan-dec"]` now also implies `std`, fixing unused-import warnings in `cartan-geo/src/jacobi.rs` that appeared when the facade was built without explicit std propagation.
+
+---
+
 ## [0.1.4] - 2026-03-25
 
 ### Added
