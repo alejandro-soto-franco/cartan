@@ -328,3 +328,93 @@ fn lichnerowicz_laplacian_flat_kills_constant_tensor() {
         "Lichnerowicz(const tensor): max err = {max_err:.2e}"
     );
 }
+
+// -------------------------------------------------------------------------
+// Adjacency map tests
+// -------------------------------------------------------------------------
+
+#[test]
+fn adjacency_handshaking_lemma() {
+    // Handshaking lemma: sum of vertex degrees (in boundaries) = 2 * n_boundaries.
+    // Each boundary has exactly B=2 vertices, so each boundary contributes 2 to the total degree.
+    let mesh = FlatMesh::unit_square_grid(4);
+    let total_degree: usize = mesh.vertex_boundaries.iter().map(|vb| vb.len()).sum();
+    assert_eq!(
+        total_degree,
+        2 * mesh.n_boundaries(),
+        "handshaking lemma: sum(deg) = {} != 2*E = {}",
+        total_degree,
+        2 * mesh.n_boundaries()
+    );
+}
+
+#[test]
+fn adjacency_interior_edges_have_two_cofaces() {
+    // On a unit_square_grid(4), interior edges have exactly 2 adjacent triangles.
+    // Boundary edges have exactly 1.
+    let mesh = FlatMesh::unit_square_grid(4);
+    for (e, cofaces) in mesh.boundary_simplices.iter().enumerate() {
+        let [i, j] = mesh.boundaries[e];
+        let pi = mesh.vertex(i);
+        let pj = mesh.vertex(j);
+        let on_boundary = (pi.x < 1e-10 && pj.x < 1e-10)
+            || (pi.x > 1.0 - 1e-10 && pj.x > 1.0 - 1e-10)
+            || (pi.y < 1e-10 && pj.y < 1e-10)
+            || (pi.y > 1.0 - 1e-10 && pj.y > 1.0 - 1e-10);
+        if on_boundary {
+            assert_eq!(
+                cofaces.len(),
+                1,
+                "boundary edge {e} has {} cofaces, expected 1",
+                cofaces.len()
+            );
+        } else {
+            assert_eq!(
+                cofaces.len(),
+                2,
+                "interior edge {e} has {} cofaces, expected 2",
+                cofaces.len()
+            );
+        }
+    }
+}
+
+#[test]
+fn adjacency_vertex_simplices_consistent() {
+    // Every simplex that contains vertex v must appear in vertex_simplices[v].
+    let mesh = FlatMesh::unit_square_grid(3);
+    for (t, simplex) in mesh.simplices.iter().enumerate() {
+        for &v in simplex {
+            assert!(
+                mesh.vertex_simplices[v].contains(&t),
+                "simplex {t} contains vertex {v} but vertex_simplices[{v}] = {:?}",
+                mesh.vertex_simplices[v]
+            );
+        }
+    }
+}
+
+#[test]
+fn adjacency_edge_faces_convenience() {
+    // edge_faces returns (face_a, Some(face_b)) for interior edges, (face_a, None) for boundary.
+    let mesh = FlatMesh::unit_square_grid(3);
+    for e in 0..mesh.n_boundaries() {
+        let (fa, fb) = mesh.edge_faces(e);
+        assert!(fa < mesh.n_simplices());
+        if let Some(fb_val) = fb {
+            assert!(fb_val < mesh.n_simplices());
+            assert_ne!(fa, fb_val);
+        }
+    }
+}
+
+#[test]
+fn adjacency_rebuild_matches_initial() {
+    // rebuild_adjacency() must produce the same maps as from_simplices.
+    let mesh_orig = FlatMesh::unit_square_grid(3);
+    let mut mesh_rebuilt = mesh_orig.clone();
+    mesh_rebuilt.rebuild_adjacency();
+    assert_eq!(mesh_orig.vertex_boundaries, mesh_rebuilt.vertex_boundaries);
+    assert_eq!(mesh_orig.vertex_simplices, mesh_rebuilt.vertex_simplices);
+    assert_eq!(mesh_orig.boundary_simplices, mesh_rebuilt.boundary_simplices);
+}
