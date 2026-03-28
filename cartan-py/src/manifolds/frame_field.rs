@@ -23,7 +23,14 @@ use crate::convert::{arr_to_smatrix, smatrix_to_pyarray};
 /// Supports D2 gauge fixing along a 1D chain to produce a smooth frame field.
 #[pyclass(name = "FrameField3D")]
 pub struct PyFrameField3D {
+    // FrameField3D does not derive Clone/Debug, so we skip those derives here.
     pub(crate) inner: FrameField3D,
+}
+
+impl std::fmt::Debug for PyFrameField3D {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PyFrameField3D(len={})", self.inner.len())
+    }
 }
 
 #[pymethods]

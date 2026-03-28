@@ -11,7 +11,6 @@
 
 use pyo3::prelude::*;
 use numpy::PyReadonlyArrayDyn;
-use rand::SeedableRng;
 
 use cartan_core::{
     Manifold, Retraction, ParallelTransport, Curvature, GeodesicInterpolation, Real,
@@ -189,6 +188,7 @@ impl PyQTensor3 {
         seed: Option<u64>,
     ) -> PyResult<PyObject> {
         let mf = QTensor3;
+        use rand::SeedableRng;
         let result = match seed {
             Some(s) => {
                 let mut rng = rand::rngs::StdRng::seed_from_u64(s);
@@ -211,6 +211,7 @@ impl PyQTensor3 {
     ) -> PyResult<PyObject> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
+        use rand::SeedableRng;
         let result = match seed {
             Some(s) => {
                 let mut rng = rand::rngs::StdRng::seed_from_u64(s);
