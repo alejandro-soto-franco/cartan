@@ -1,0 +1,25 @@
+[package]
+name = "cartan-py"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+description = "Python bindings for the cartan Riemannian geometry library"
+repository = "https://github.com/alejandro-soto-franco/cartan"
+publish = false
+
+[lib]
+name = "cartan"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
+numpy = "0.23"
+nalgebra = { workspace = true, features = ["std"] }
+cartan-core = { path = "../cartan-core", features = ["std"] }
+cartan-manifolds = { path = "../cartan-manifolds", features = ["std"] }
+cartan-optim = { path = "../cartan-optim", features = ["std"] }
+cartan-geo = { path = "../cartan-geo", features = ["std"] }
+cartan-dec = { path = "../cartan-dec" }
+rand = { workspace = true, features = ["std_rng", "std"] }
+rand_distr = { workspace = true }
