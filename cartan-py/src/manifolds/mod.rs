@@ -15,6 +15,7 @@ pub mod spd;
 pub mod so;
 pub mod se;
 pub mod grassmann;
+pub mod corr;
 
 /// Register all manifold classes on the Python module.
 pub fn register(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()> {
@@ -25,5 +26,6 @@ pub fn register(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()
     m.add_class::<so::PySo>()?;
     m.add_class::<se::PySe>()?;
     m.add_class::<grassmann::PyGrassmann>()?;
+    m.add_class::<corr::PyCorr>()?;
     Ok(())
 }
