@@ -9,11 +9,11 @@
 #[macro_use]
 pub mod macros;
 
-// Will be extended with pub mod euclidean; etc. in later tasks.
+pub mod euclidean;
 
 /// Register all manifold classes on the Python module.
 pub fn register(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()> {
-    // Will add classes here as manifolds are added.
-    let _ = m;
+    use pyo3::types::PyModuleMethods;
+    m.add_class::<euclidean::PyEuclidean>()?;
     Ok(())
 }
