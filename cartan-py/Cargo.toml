@@ -13,7 +13,7 @@ name = "cartan"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39", "multiple-pymethods"] }
 numpy = "0.23"
 nalgebra = { workspace = true, features = ["std"] }
 cartan-core = { path = "../cartan-core", features = ["std"] }
@@ -21,5 +21,5 @@ cartan-manifolds = { path = "../cartan-manifolds", features = ["std"] }
 cartan-optim = { path = "../cartan-optim", features = ["std"] }
 cartan-geo = { path = "../cartan-geo", features = ["std"] }
 cartan-dec = { path = "../cartan-dec" }
-rand = { workspace = true, features = ["std_rng", "std"] }
+rand = { workspace = true, features = ["std_rng", "std", "os_rng", "thread_rng"] }
 rand_distr = { workspace = true }
