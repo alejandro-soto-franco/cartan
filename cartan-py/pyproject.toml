@@ -11,6 +11,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
+version = "0.1.0"
 description = "Python bindings for the cartan Riemannian geometry library"
 license = { text = "MIT" }
 
@@ -22,4 +23,3 @@ dev = ["pytest", "hypothesis", "scipy>=1.7"]
 features = []
 manifest-path = "Cargo.toml"
 module-name = "cartan"
-python-source = false
