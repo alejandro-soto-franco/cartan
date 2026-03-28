@@ -141,3 +141,83 @@ class TestMinimizeRGD:
     def test_opt_result_is_class(self):
         """OptResult is accessible as cartan.OptResult."""
         assert hasattr(cartan, "OptResult")
+
+
+class TestMinimizeRCG:
+    def test_rcg_on_sphere(self):
+        m = cartan.Sphere(2)  # S^2, ambient dim = 3
+        A = np.diag([1.0, 2.0, 3.0])
+        def cost(p): return float(p @ A @ p)
+        def grad(p):
+            eg = 2.0 * A @ p
+            return eg - np.dot(eg, p) * p
+        x0 = np.array([1.0, 1.0, 1.0]) / np.sqrt(3)
+        result = cartan.minimize_rcg(m, cost, grad, x0, grad_tol=1e-8, max_iters=5000)
+        assert result.converged
+        assert_allclose(abs(result.point[0]), 1.0, atol=1e-4)
+
+    def test_rcg_fletcher_reeves(self):
+        m = cartan.Euclidean(3)
+        target = np.array([1.0, 2.0, 3.0])
+        def cost(p): return float(np.sum((p - target) ** 2))
+        def grad(p): return 2.0 * (p - target)
+        x0 = np.zeros(3)
+        result = cartan.minimize_rcg(m, cost, grad, x0, variant="fletcher_reeves")
+        assert result.converged
+        assert_allclose(result.point, target, rtol=1e-5)
+
+
+class TestMinimizeRTR:
+    def test_rtr_on_euclidean(self):
+        m = cartan.Euclidean(3)
+        target = np.array([1.0, 2.0, 3.0])
+        def cost(p): return float(np.sum((p - target) ** 2))
+        def grad(p): return 2.0 * (p - target)
+        def hess(p, v): return 2.0 * v  # constant Hessian
+        x0 = np.zeros(3)
+        result = cartan.minimize_rtr(m, cost, grad, hess, x0)
+        assert result.converged
+        assert_allclose(result.point, target, rtol=1e-6)
+
+    def test_rtr_on_sphere(self):
+        m = cartan.Sphere(2)
+        A = np.diag([1.0, 2.0, 3.0])
+        def cost(p): return float(p @ A @ p)
+        def grad(p):
+            eg = 2.0 * A @ p
+            return eg - np.dot(eg, p) * p
+        def hess(p, v): return 2.0 * A @ v  # Euclidean HVP
+        x0 = np.array([1.0, 1.0, 1.0]) / np.sqrt(3)
+        result = cartan.minimize_rtr(m, cost, grad, hess, x0, grad_tol=1e-8)
+        assert result.converged
+        assert_allclose(abs(result.point[0]), 1.0, atol=1e-4)
+
+
+class TestFrechetMean:
+    def test_frechet_mean_sphere(self):
+        m = cartan.Sphere(2)
+        points = [
+            np.array([0.0, 0.0, 1.0]),
+            np.array([0.1, 0.0, np.sqrt(1 - 0.01)]),
+            np.array([-0.1, 0.0, np.sqrt(1 - 0.01)]),
+            np.array([0.0, 0.1, np.sqrt(1 - 0.01)]),
+            np.array([0.0, -0.1, np.sqrt(1 - 0.01)]),
+        ]
+        points = [p / np.linalg.norm(p) for p in points]
+        result = cartan.frechet_mean(m, points)
+        assert result.converged
+        assert result.point[2] > 0.99
+
+    def test_frechet_mean_spd(self):
+        m = cartan.SPD(2)
+        points = [np.eye(2) * (1.0 + 0.1 * i) for i in range(5)]
+        result = cartan.frechet_mean(m, points)
+        assert result.converged
+
+    def test_frechet_mean_euclidean(self):
+        m = cartan.Euclidean(3)
+        points = [np.array([1.0, 0.0, 0.0]), np.array([0.0, 1.0, 0.0]), np.array([0.0, 0.0, 1.0])]
+        result = cartan.frechet_mean(m, points)
+        assert result.converged
+        expected = np.array([1.0, 1.0, 1.0]) / 3.0
+        assert_allclose(result.point, expected, rtol=1e-6)
