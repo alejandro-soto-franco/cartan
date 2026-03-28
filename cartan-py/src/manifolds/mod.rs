@@ -16,6 +16,8 @@ pub mod so;
 pub mod se;
 pub mod grassmann;
 pub mod corr;
+pub mod qtensor;
+pub mod frame_field;
 
 /// Register all manifold classes on the Python module.
 pub fn register(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()> {
@@ -27,5 +29,7 @@ pub fn register(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()
     m.add_class::<se::PySe>()?;
     m.add_class::<grassmann::PyGrassmann>()?;
     m.add_class::<corr::PyCorr>()?;
+    m.add_class::<qtensor::PyQTensor3>()?;
+    m.add_class::<frame_field::PyFrameField3D>()?;
     Ok(())
 }
