@@ -10,10 +10,12 @@
 pub mod macros;
 
 pub mod euclidean;
+pub mod sphere;
 
 /// Register all manifold classes on the Python module.
 pub fn register(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()> {
     use pyo3::types::PyModuleMethods;
     m.add_class::<euclidean::PyEuclidean>()?;
+    m.add_class::<sphere::PySphere>()?;
     Ok(())
 }
