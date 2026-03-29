@@ -106,8 +106,12 @@ impl<const N: usize> Manifold for Sphere<N> {
     /// is well-defined even at the cut locus (antipodal points), where log
     /// is undefined but d(p, -p) = pi is exact.
     fn dist(&self, p: &Self::Point, q: &Self::Point) -> Result<Real, CartanError> {
-        let cos_theta = p.dot(q).clamp(-1.0, 1.0);
-        Ok(cos_theta.acos())
+        // Use the numerically stable formula 2*asin(||p - q|| / 2).
+        // Unlike arccos(p·q), this avoids catastrophic cancellation near
+        // p == q (distance ~ 0) while remaining accurate at the antipodal
+        // point (distance = pi).
+        let half_chord = (p - q).norm() / 2.0;
+        Ok(2.0 * half_chord.clamp(0.0, 1.0).asin())
     }
 
     /// Standard inner product, inherited from R^N.
