@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 
 pub(crate) mod convert;
+mod dec;
 mod error;
 mod manifolds;
 mod optim;
@@ -16,5 +17,6 @@ fn cartan(m: &Bound<'_, PyModule>) -> PyResult<()> {
     optim::register(m)?;
     geo::register(m)?;
     holonomy::register(m)?;
+    dec::register(m)?;
     Ok(())
 }
