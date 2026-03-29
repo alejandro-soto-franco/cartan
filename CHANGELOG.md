@@ -4,6 +4,47 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.1.7] - 2026-03-29
+
+### Added
+
+- **Python bindings** (`pip install cartan`): full PyO3 bindings exposing every manifold, optimizer, geodesic tool, and DEC operator to Python 3.9+ with zero-copy numpy interop. A single abi3 wheel covers all supported Python versions.
+  - Manifolds: `Euclidean(n)`, `Sphere(n)`, `SO(n)`, `SE(n)`, `SPD(n)`, `Grassmann(n,k)`, `Corr(n)`, `QTensor3`, `FrameField3D`
+  - Optimization: `RGD`, `RCG`, `RTR`, `FrechetMean`
+  - Geodesics: `Geodesic`, `CurvatureQuery`, Jacobi field integration
+  - DEC: `Mesh`, `Operators`, advection, divergence
+  - Holonomy: disclination scanning, winding number computation
+  - Batch operations: `dist_matrix`, `exp_batch`
+  - Hypothesis property-based tests for all manifold bindings
+- CI: Python bindings test workflow (pytest across Python 3.9-3.13, wheel smoke test)
+- CI: PyPI publish workflow via OIDC trusted publishing on `cartan-py-v*` tags
+- Published to PyPI as `cartan` (not `cartan-py`): https://pypi.org/project/cartan/
+
+### Fixed
+
+- `Sphere::dist`: replaced `arccos(p . q)` with the numerically stable half-chord formula `2 * asin(||p - q|| / 2)`. The old formula suffered catastrophic cancellation near p == q, returning ~1.5e-8 instead of 0.
+- `Sphere::dist` at antipodes: previous test tolerance was too tight for the haversine path; corrected.
+- `Grassmann`: subspace equality test used raw matrix comparison instead of principal-angle check.
+- `S^1` curvature test: expected value corrected.
+
+---
+
+## [0.1.6] - 2026-03-25
+
+### Added
+
+- **cartan-py** crate: PyO3 scaffold, maturin build system, numpy conversion helpers, dimension dispatch macros, Python exception hierarchy mapping `CartanError`/`DecError`.
+
+### Changed
+
+- `cartan-py` excluded from the Rust workspace (PyO3 cdylib with `extension-module` cannot link as a standalone test binary). Uses its own standalone `[workspace]` table.
+
+### Note
+
+v0.1.6 was partially uploaded to PyPI and superseded by v0.1.7. Use v0.1.7.
+
+---
+
 ## [0.1.5] - 2026-03-25
 
 ### Added
