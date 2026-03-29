@@ -11,7 +11,7 @@ mod holonomy;
 /// cartan: Riemannian geometry, manifold optimization, and geodesic computation.
 #[pymodule]
 fn cartan(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add("__version__", "0.1.0")?;
+    m.add("__version__", "0.1.6")?;
     error::register(m)?;
     manifolds::register(m)?;
     optim::register(m)?;
