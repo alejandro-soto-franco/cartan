@@ -7,9 +7,8 @@ members = [
     "cartan-optim",
     "cartan-geo",
     "cartan-dec",
-    "cartan-py",
 ]
-exclude = ["experiments"]
+exclude = ["experiments", "cartan-py"]
 
 [workspace.package]
 version = "0.1.6"

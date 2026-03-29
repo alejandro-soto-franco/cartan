@@ -17,8 +17,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.85
         with:
           components: clippy
-      - run: cargo test -p cartan-core -p cartan-manifolds -p cartan-optim -p cartan-geo -p cartan-dec -p cartan
-      - run: cargo clippy -p cartan-core -p cartan-manifolds -p cartan-optim -p cartan-geo -p cartan-dec -p cartan -- -D warnings
+      - run: cargo test --workspace
+      - run: cargo clippy --workspace -- -D warnings
 
   no-std-check:
     name: no_std + alloc build check
