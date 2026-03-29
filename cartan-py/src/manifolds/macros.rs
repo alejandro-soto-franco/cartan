@@ -1080,5 +1080,7 @@ macro_rules! impl_matrix_manifold_methods {
     };
 }
 
+#[allow(unused_imports)]
 pub(crate) use impl_matrix_manifold_methods;
+#[allow(unused_imports)]
 pub(crate) use impl_vector_manifold_methods;

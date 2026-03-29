@@ -89,6 +89,7 @@ fn identify_manifold(manifold: &Bound<'_, PyAny>) -> PyResult<ManifoldTag> {
 // ---------------------------------------------------------------------------
 
 /// Extract a raw Vec<f64> from a numpy array (contiguity check, no length check).
+#[allow(dead_code)]
 fn extract_raw(arr: PyReadonlyArrayDyn<'_, f64>) -> PyResult<Vec<f64>> {
     let slice = arr
         .as_slice()
