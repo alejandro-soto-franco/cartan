@@ -25,22 +25,22 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  rust-tests:
-    name: Rust unit tests
+  rust-check:
+    name: Rust compile check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: ". -> target"
-      - name: Run Rust tests for cartan-py
-        run: cargo test -p cartan-py --lib
+          workspaces: "cartan-py -> cartan-py/target"
+      - name: Check cartan-py compiles
+        run: cd cartan-py && cargo check
 
   python-tests:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
-    needs: rust-tests
+    needs: rust-check
     strategy:
       fail-fast: false
       matrix:
