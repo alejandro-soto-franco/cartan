@@ -3,7 +3,7 @@
 Riemannian geometry, manifold optimization, and geodesic computation in Rust.
 
 [![crates.io](https://img.shields.io/crates/v/cartan.svg)](https://crates.io/crates/cartan)
-[![PyPI](https://img.shields.io/pypi/v/cartan-py.svg)](https://pypi.org/project/cartan-py/)
+[![PyPI](https://img.shields.io/pypi/v/cartan.svg)](https://pypi.org/project/cartan/)
 [![docs.rs](https://docs.rs/cartan/badge.svg)](https://docs.rs/cartan)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
 [![Tests](https://github.com/alejandro-soto-franco/cartan/actions/workflows/ci.yml/badge.svg)](https://github.com/alejandro-soto-franco/cartan/actions)
@@ -78,7 +78,7 @@ cartan-manifolds    concrete manifold implementations (8 manifolds + FrameField3
 cartan-optim        Riemannian optimization: RGD, RCG, RTR, Frechet mean
 cartan-geo          geodesic curves, curvature queries, Jacobi fields
 cartan-dec          discrete exterior calculus for PDE solvers
-cartan-py           Python bindings via PyO3 (pip install cartan-py)
+cartan-py           Python bindings via PyO3 (pip install cartan)
 ```
 
 All manifolds use `nalgebra` `SVector`/`SMatrix` types directly; no intermediate backend crate is needed.
@@ -224,7 +224,7 @@ Also provided: `ExteriorDerivative` (d₀, d₁), `HodgeStar` (⋆₀, ⋆₁, �
 `cartan-py` exposes cartan's full geometry stack to Python with zero-copy numpy interop. A single abi3 wheel covers Python 3.9+.
 
 ```bash
-pip install cartan-py
+pip install cartan
 ```
 
 ```python
