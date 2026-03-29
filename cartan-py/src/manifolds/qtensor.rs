@@ -10,7 +10,7 @@
 //! identity, and geodesics are straight lines (exp = addition, log = subtraction).
 
 use pyo3::prelude::*;
-use numpy::PyReadonlyArrayDyn;
+use numpy::{self, PyReadonlyArrayDyn};
 
 use cartan_core::{
     Manifold, Retraction, ParallelTransport, Curvature, GeodesicInterpolation, Real,
@@ -330,6 +330,56 @@ impl PyQTensor3 {
         let result = GeodesicInterpolation::geodesic(&mf, &pp, &qq, t as Real)
             .map_err(cartan_err_to_py)?;
         Ok(smatrix_to_pyarray(py, &result).into_any().unbind())
+    }
+
+    /// Pairwise distance matrix D[i,j] = dist(points[i], points[j]).
+    fn dist_matrix<'py>(
+        &self,
+        py: Python<'py>,
+        points: Vec<PyReadonlyArrayDyn<'py, f64>>,
+    ) -> PyResult<PyObject> {
+        let mf = QTensor3;
+        let pts: Vec<_> = points.into_iter()
+            .enumerate()
+            .map(|(i, arr)| arr_to_smatrix::<3, 3>(arr, &format!("points[{i}]")))
+            .collect::<PyResult<_>>()?;
+        let n = pts.len();
+        let mut rows: Vec<Vec<f64>> = Vec::with_capacity(n);
+        for i in 0..n {
+            let mut row = vec![0.0f64; n];
+            for j in (i + 1)..n {
+                let d = Manifold::dist(&mf, &pts[i], &pts[j])
+                    .map_err(cartan_err_to_py)?;
+                row[j] = d;
+            }
+            rows.push(row);
+        }
+        for i in 0..n {
+            for j in 0..i {
+                rows[i][j] = rows[j][i];
+            }
+        }
+        let arr = numpy::PyArray2::from_vec2(py, &rows).expect("valid shape");
+        Ok(arr.into_any().unbind())
+    }
+
+    /// Apply exp_p to a batch of tangent vectors, returning a list of points.
+    fn exp_batch<'py>(
+        &self,
+        py: Python<'py>,
+        p: PyReadonlyArrayDyn<'py, f64>,
+        vs: Vec<PyReadonlyArrayDyn<'py, f64>>,
+    ) -> PyResult<Vec<PyObject>> {
+        let mf = QTensor3;
+        let pp = arr_to_smatrix::<3, 3>(p, "p")?;
+        vs.into_iter()
+            .enumerate()
+            .map(|(i, arr)| {
+                let vv = arr_to_smatrix::<3, 3>(arr, &format!("vs[{i}]"))?;
+                let result = Manifold::exp(&mf, &pp, &vv);
+                Ok(smatrix_to_pyarray(py, &result).into_any().unbind())
+            })
+            .collect()
     }
 
     fn __repr__(&self) -> String {
