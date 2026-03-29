@@ -397,7 +397,7 @@ macro_rules! dispatch_frechet_vector {
 
                 // Convert each Python array in the list to SVector
                 let mut pts: Vec<nalgebra::SVector<f64, $N>> = Vec::new();
-                for item in $points.iter()? {
+                for item in $points.try_iter()? {
                     let item = item?;
                     let arr: PyReadonlyArrayDyn<f64> = item.extract()?;
                     let pt = $crate::convert::arr_to_svector::<$N>(arr, "point")?;
@@ -442,7 +442,7 @@ macro_rules! dispatch_frechet_matrix {
 
                 // Convert each Python array in the list to SMatrix
                 let mut pts: Vec<nalgebra::SMatrix<f64, $N, $N>> = Vec::new();
-                for item in $points.iter()? {
+                for item in $points.try_iter()? {
                     let item = item?;
                     let arr: PyReadonlyArrayDyn<f64> = item.extract()?;
                     let pt = $crate::convert::arr_to_smatrix::<$N, $N>(arr, "point")?;
@@ -1104,7 +1104,7 @@ pub fn frechet_mean(
         let mf = QTensor3;
 
         let mut pts: Vec<nalgebra::SMatrix<f64, 3, 3>> = Vec::new();
-        for item in points.iter()? {
+        for item in points.try_iter()? {
             let item = item?;
             let arr: PyReadonlyArrayDyn<f64> = item.extract()?;
             let pt = crate::convert::arr_to_smatrix::<3, 3>(arr, "point")?;

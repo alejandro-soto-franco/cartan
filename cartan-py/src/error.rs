@@ -77,6 +77,7 @@ pub fn cartan_err_to_py(e: CartanError) -> PyErr {
 }
 
 /// Convert a DecError into a PyErr with the DecPyError Python type.
+#[allow(dead_code)]
 pub fn dec_err_to_py(e: DecError) -> PyErr {
     DecPyError::new_err(e.to_string())
 }
