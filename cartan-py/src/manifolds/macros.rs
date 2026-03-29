@@ -477,6 +477,71 @@ macro_rules! impl_vector_manifold_methods {
                     )),
                 }
             }
+
+            /// Pairwise distance matrix D[i,j] = dist(points[i], points[j]).
+            fn dist_matrix<'py>(
+                &self,
+                py: pyo3::Python<'py>,
+                points: Vec<numpy::PyReadonlyArrayDyn<'py, f64>>,
+            ) -> pyo3::PyResult<pyo3::PyObject> {
+                match self.$dim_field {
+                    $($N => {
+                        let mf = cartan_manifolds::$mtype::<$N>;
+                        let pts: Vec<_> = points.into_iter()
+                            .enumerate()
+                            .map(|(i, arr)| $crate::convert::arr_to_svector::<$N>(arr, &format!("points[{i}]")))
+                            .collect::<pyo3::PyResult<_>>()?;
+                        let n = pts.len();
+                        let mut rows: Vec<Vec<f64>> = Vec::with_capacity(n);
+                        for i in 0..n {
+                            let mut row = vec![0.0f64; n];
+                            for j in (i + 1)..n {
+                                let d = cartan_core::Manifold::dist(&mf, &pts[i], &pts[j])
+                                    .map_err($crate::error::cartan_err_to_py)?;
+                                row[j] = d;
+                            }
+                            rows.push(row);
+                        }
+                        // Fill lower triangle
+                        for i in 0..n {
+                            for j in 0..i {
+                                rows[i][j] = rows[j][i];
+                            }
+                        }
+                        let arr = numpy::PyArray2::from_vec2(py, &rows).expect("valid shape");
+                        Ok(arr.into_any().unbind())
+                    },)+
+                    _ => Err(pyo3::exceptions::PyValueError::new_err(
+                        format!("unsupported dimension: {}", self.$dim_field),
+                    )),
+                }
+            }
+
+            /// Apply exp_p to a batch of tangent vectors, returning a list of points.
+            fn exp_batch<'py>(
+                &self,
+                py: pyo3::Python<'py>,
+                p: numpy::PyReadonlyArrayDyn<'py, f64>,
+                vs: Vec<numpy::PyReadonlyArrayDyn<'py, f64>>,
+            ) -> pyo3::PyResult<Vec<pyo3::PyObject>> {
+                match self.$dim_field {
+                    $($N => {
+                        let mf = cartan_manifolds::$mtype::<$N>;
+                        let pp = $crate::convert::arr_to_svector::<$N>(p, "p")?;
+                        vs.into_iter()
+                            .enumerate()
+                            .map(|(i, arr)| {
+                                let vv = $crate::convert::arr_to_svector::<$N>(arr, &format!("vs[{i}]"))?;
+                                let result = cartan_core::Manifold::exp(&mf, &pp, &vv);
+                                Ok($crate::convert::svector_to_pyarray(py, &result).into_any().unbind())
+                            })
+                            .collect()
+                    },)+
+                    _ => Err(pyo3::exceptions::PyValueError::new_err(
+                        format!("unsupported dimension: {}", self.$dim_field),
+                    )),
+                }
+            }
         }
     };
 }
@@ -941,6 +1006,70 @@ macro_rules! impl_matrix_manifold_methods {
                         let result = cartan_core::GeodesicInterpolation::geodesic(&mf, &pp, &qq, t)
                             .map_err($crate::error::cartan_err_to_py)?;
                         Ok($crate::convert::smatrix_to_pyarray(py, &result).into_any().unbind())
+                    },)+
+                    _ => Err(pyo3::exceptions::PyValueError::new_err(
+                        format!("unsupported dimension: {}", self.$dim_field),
+                    )),
+                }
+            }
+
+            /// Pairwise distance matrix D[i,j] = dist(points[i], points[j]).
+            fn dist_matrix<'py>(
+                &self,
+                py: pyo3::Python<'py>,
+                points: Vec<numpy::PyReadonlyArrayDyn<'py, f64>>,
+            ) -> pyo3::PyResult<pyo3::PyObject> {
+                match self.$dim_field {
+                    $($N => {
+                        let mf = cartan_manifolds::$mtype::<$N>;
+                        let pts: Vec<_> = points.into_iter()
+                            .enumerate()
+                            .map(|(i, arr)| $crate::convert::arr_to_smatrix::<$N, $N>(arr, &format!("points[{i}]")))
+                            .collect::<pyo3::PyResult<_>>()?;
+                        let n = pts.len();
+                        let mut rows: Vec<Vec<f64>> = Vec::with_capacity(n);
+                        for i in 0..n {
+                            let mut row = vec![0.0f64; n];
+                            for j in (i + 1)..n {
+                                let d = cartan_core::Manifold::dist(&mf, &pts[i], &pts[j])
+                                    .map_err($crate::error::cartan_err_to_py)?;
+                                row[j] = d;
+                            }
+                            rows.push(row);
+                        }
+                        for i in 0..n {
+                            for j in 0..i {
+                                rows[i][j] = rows[j][i];
+                            }
+                        }
+                        let arr = numpy::PyArray2::from_vec2(py, &rows).expect("valid shape");
+                        Ok(arr.into_any().unbind())
+                    },)+
+                    _ => Err(pyo3::exceptions::PyValueError::new_err(
+                        format!("unsupported dimension: {}", self.$dim_field),
+                    )),
+                }
+            }
+
+            /// Apply exp_p to a batch of tangent vectors, returning a list of points.
+            fn exp_batch<'py>(
+                &self,
+                py: pyo3::Python<'py>,
+                p: numpy::PyReadonlyArrayDyn<'py, f64>,
+                vs: Vec<numpy::PyReadonlyArrayDyn<'py, f64>>,
+            ) -> pyo3::PyResult<Vec<pyo3::PyObject>> {
+                match self.$dim_field {
+                    $($N => {
+                        let mf = cartan_manifolds::$mtype::<$N>;
+                        let pp = $crate::convert::arr_to_smatrix::<$N, $N>(p, "p")?;
+                        vs.into_iter()
+                            .enumerate()
+                            .map(|(i, arr)| {
+                                let vv = $crate::convert::arr_to_smatrix::<$N, $N>(arr, &format!("vs[{i}]"))?;
+                                let result = cartan_core::Manifold::exp(&mf, &pp, &vv);
+                                Ok($crate::convert::smatrix_to_pyarray(py, &result).into_any().unbind())
+                            })
+                            .collect()
                     },)+
                     _ => Err(pyo3::exceptions::PyValueError::new_err(
                         format!("unsupported dimension: {}", self.$dim_field),
