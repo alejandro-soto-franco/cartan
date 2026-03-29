@@ -24,7 +24,7 @@ REPS = 20
 FRECHET_SAMPLE_SIZES = [10, 50, 100, 500]
 
 # Dimensions for optimisation benchmarks (smaller set, optimisation is slower).
-OPT_DIMS = [3, 5, 10, 25, 50]
+OPT_DIMS = [3, 5, 7, 9]
 
 
 # ── Test problems ───────────────────────────────────────────────────────────
