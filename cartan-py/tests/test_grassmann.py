@@ -26,7 +26,12 @@ class TestGrassmannBasic:
         p = m.random_point(seed=42)
         q = m.random_point(seed=43)
         result = m.exp(p, m.log(p, q))
-        assert_allclose(result, q, rtol=1e-5, atol=1e-7)
+        # Grassmann points are K-planes (subspaces), not individual matrices.
+        # exp/log round-trip recovers the same subspace, not necessarily the
+        # same orthonormal representative. Compare projection matrices P = Q Q^T.
+        proj_result = result @ result.T
+        proj_q = q @ q.T
+        assert_allclose(proj_result, proj_q, rtol=1e-5, atol=1e-6)
 
     def test_point_has_orthonormal_columns(self):
         m = cartan.Grassmann(4, 2)
@@ -73,8 +78,12 @@ class TestGrassmannGeodesic:
         m = cartan.Grassmann(4, 2)
         p = m.random_point(seed=42)
         q = m.random_point(seed=43)
-        assert_allclose(m.geodesic(p, q, 0.0), p, atol=1e-12)
-        assert_allclose(m.geodesic(p, q, 1.0), q, rtol=1e-5, atol=1e-7)
+        # t=0 endpoint: compare projection matrices (subspace equality)
+        geo0 = m.geodesic(p, q, 0.0)
+        assert_allclose(geo0 @ geo0.T, p @ p.T, atol=1e-12)
+        # t=1 endpoint: same subspace as q
+        geo1 = m.geodesic(p, q, 1.0)
+        assert_allclose(geo1 @ geo1.T, q @ q.T, rtol=1e-5, atol=1e-6)
 
 
 class TestGrassmannInvalid:

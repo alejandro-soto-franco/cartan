@@ -159,8 +159,10 @@ class TestSphereCurvature:
         v = np.array([0.0, 0.0, 1.0])
         assert_allclose(m.sectional_curvature(p, u, v), 1.0, rtol=RTOL_RELAXED, atol=ATOL_RELAXED)
 
-    @pytest.mark.parametrize("dim", [1, 2, 3])
+    @pytest.mark.parametrize("dim", [2, 3])
     def test_sectional_curvature_is_one_various_dims(self, dim):
+        # Sectional curvature requires a non-degenerate 2-plane (linearly independent u, v).
+        # S^1 is 1-dimensional so there is no 2-plane; skip dim=1.
         m = cartan.Sphere(dim)
         ambient = dim + 1
         p = np.zeros(ambient)
@@ -168,11 +170,7 @@ class TestSphereCurvature:
         u = np.zeros(ambient)
         u[1] = 1.0
         v = np.zeros(ambient)
-        if dim >= 2:
-            v[2] = 1.0
-        else:
-            # S^1 in R^2: u and v are both tangent to [1,0]; only one tangent direction
-            v[1] = 1.0
+        v[2] = 1.0
         assert_allclose(m.sectional_curvature(p, u, v), 1.0, rtol=RTOL_RELAXED, atol=ATOL_RELAXED)
 
 
