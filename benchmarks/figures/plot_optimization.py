@@ -85,14 +85,15 @@ def plot_rgd_comparison(rows, theme_name, theme):
 
 
 def plot_frechet_comparison(rows, theme_name, theme):
-    """Frechet mean wall-clock: cartan vs geomstats across sample sizes at dim=10."""
-    target_dim = 10
-    cartan_fm = [r for r in rows
-                 if r["library"] == "cartan" and r["optimiser"] == "frechet_mean"
-                 and r["dim"] == target_dim]
-    geomstats_fm = [r for r in rows
-                    if r["library"] == "geomstats" and r["optimiser"] == "frechet_mean"
-                    and r["dim"] == target_dim]
+    """Frechet mean wall-clock: cartan vs geomstats across sample sizes."""
+    fm_rows = [r for r in rows if r["optimiser"] == "frechet_mean"]
+    if not fm_rows:
+        return
+    target_dim = max(r["dim"] for r in fm_rows)
+    cartan_fm = [r for r in fm_rows
+                 if r["library"] == "cartan" and r["dim"] == target_dim]
+    geomstats_fm = [r for r in fm_rows
+                    if r["library"] == "geomstats" and r["dim"] == target_dim]
 
     with rc_context(theme):
         fig, ax = plt.subplots(figsize=(5, 3.5))
@@ -117,7 +118,7 @@ def plot_frechet_comparison(rows, theme_name, theme):
 
         ax.set_xlabel("Sample size $K$", fontsize=9)
         ax.set_ylabel("Wall-clock time (ms)", fontsize=9)
-        ax.set_title(r"Fr\'echet mean on $S^{10}$", fontsize=10, pad=8)
+        ax.set_title(rf"Fr\'echet mean on $S^{{{target_dim}}}$", fontsize=10, pad=8)
         ax.legend(fontsize=7.5, frameon=False)
         ax.set_xscale("log")
         ax.set_yscale("log")

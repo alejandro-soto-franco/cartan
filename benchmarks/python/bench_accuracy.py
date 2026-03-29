@@ -19,7 +19,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 SEED = 42
 N_PAIRS = 1000
-DIMS = [3, 10, 50]
+DIMS = [3, 5, 9]
 
 
 def sphere_dist_reference(p, q):
