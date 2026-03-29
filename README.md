@@ -3,6 +3,7 @@
 Riemannian geometry, manifold optimization, and geodesic computation in Rust.
 
 [![crates.io](https://img.shields.io/crates/v/cartan.svg)](https://crates.io/crates/cartan)
+[![PyPI](https://img.shields.io/pypi/v/cartan-py.svg)](https://pypi.org/project/cartan-py/)
 [![docs.rs](https://docs.rs/cartan/badge.svg)](https://docs.rs/cartan)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
 [![Tests](https://github.com/alejandro-soto-franco/cartan/actions/workflows/ci.yml/badge.svg)](https://github.com/alejandro-soto-franco/cartan/actions)
@@ -22,6 +23,7 @@ Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev)
 - **Optimization**: `cartan-optim` provides RGD, RCG, RTR, and Fréchet mean on any `Manifold`
 - **Geodesic tools**: `cartan-geo` provides parameterized geodesics, curvature queries, and Jacobi field integration
 - **DEC layer**: `cartan-dec` discretizes covariant differential operators on simplicial meshes for PDE solvers
+- **Python bindings**: `cartan-py` exposes the full library to Python via PyO3 with numpy interop
 
 ## Quick Start
 
@@ -65,16 +67,18 @@ Every manifold implements all seven traits in the hierarchy. Intrinsic dimension
 | Symmetric positive definite SPD(N) | `Spd<N>` | N(N+1)/2 | K ≤ 0 (Cartan-Hadamard) |
 | Grassmann Gr(N, K) | `Grassmann<N, K>` | K(N−K) | 0 ≤ K ≤ 2 |
 | Correlation Corr(N) | `Corr<N>` | N(N−1)/2 | flat, K = 0 |
+| Q-tensor Sym_0(R^3) | `QTensor3` | 5 | flat, Frobenius metric |
 
 ## Crate Structure
 
 ```
 cartan              facade crate (re-exports everything)
 cartan-core         trait definitions, CartanError, Real alias
-cartan-manifolds    concrete manifold implementations (7 manifolds)
-cartan-optim        Riemannian optimization: RGD, RCG, RTR, Fréchet mean
+cartan-manifolds    concrete manifold implementations (8 manifolds + FrameField3D)
+cartan-optim        Riemannian optimization: RGD, RCG, RTR, Frechet mean
 cartan-geo          geodesic curves, curvature queries, Jacobi fields
 cartan-dec          discrete exterior calculus for PDE solvers
+cartan-py           Python bindings via PyO3 (pip install cartan-py)
 ```
 
 All manifolds use `nalgebra` `SVector`/`SMatrix` types directly; no intermediate backend crate is needed.
@@ -214,6 +218,49 @@ let lq = ops.apply_lichnerowicz_laplacian(&q, curvature_correction);
 ```
 
 Also provided: `ExteriorDerivative` (d₀, d₁), `HodgeStar` (⋆₀, ⋆₁, ⋆₂), upwind `apply_scalar_advection` / `apply_vector_advection`, and `apply_divergence` / `apply_tensor_divergence`.
+
+## cartan-py (Python bindings)
+
+`cartan-py` exposes cartan's full geometry stack to Python with zero-copy numpy interop. A single abi3 wheel covers Python 3.9+.
+
+```bash
+pip install cartan-py
+```
+
+```python
+import cartan
+import numpy as np
+
+# Manifolds
+s2 = cartan.Sphere(2)
+p = s2.random_point(seed=42)
+q = s2.random_point(seed=43)
+v = s2.log(p, q)
+print(s2.dist(p, q))
+
+# Optimization
+result = cartan.minimize_rgd(s2, cost_fn, grad_fn, p0)
+
+# Geodesics
+geo = cartan.Geodesic(s2, p, q)
+points = geo.sample(20)
+
+# Curvature
+cq = cartan.CurvatureQuery(s2, p)
+print(cq.sectional(u, v))
+
+# DEC
+mesh = cartan.Mesh.unit_square_grid(32)
+ext = cartan.ExteriorDerivative(mesh)
+hodge = cartan.HodgeStar(mesh)
+ops = cartan.Operators(mesh)
+lf = ops.apply_laplace_beltrami(f)
+
+# Batch operations
+D = s2.dist_matrix([s2.random_point(seed=i) for i in range(100)])
+```
+
+All 8 manifolds (Euclidean, Sphere, SPD up to 8, SO, SE, Grassmann, Corr, QTensor3), all 4 optimizers, geodesic/Jacobi field integration, holonomy/disclination scanning, and the full DEC layer are exposed.
 
 ## License
 
