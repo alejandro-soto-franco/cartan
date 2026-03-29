@@ -100,6 +100,16 @@ impl<const N: usize> Manifold for Sphere<N> {
         PI
     }
 
+    /// Geodesic distance on the sphere: d(p, q) = arccos(p^T q).
+    ///
+    /// Overrides the default (log-based) implementation so that the distance
+    /// is well-defined even at the cut locus (antipodal points), where log
+    /// is undefined but d(p, -p) = pi is exact.
+    fn dist(&self, p: &Self::Point, q: &Self::Point) -> Result<Real, CartanError> {
+        let cos_theta = p.dot(q).clamp(-1.0, 1.0);
+        Ok(cos_theta.acos())
+    }
+
     /// Standard inner product, inherited from R^N.
     /// Independent of the base point p.
     fn inner(&self, _p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
