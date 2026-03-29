@@ -70,7 +70,7 @@ jobs:
           PYO3_CROSS_PYTHON_VERSION: '3.9'
 
       - name: Install wheel
-        run: pip install cartan-py/dist/cartan_py-*.whl
+        run: pip install cartan-py/dist/cartan-*.whl
 
       - name: Install test dependencies
         run: pip install pytest hypothesis scipy
@@ -101,7 +101,7 @@ jobs:
           pip install maturin
           cd cartan-py && maturin build --release --out dist
           python -m venv /tmp/smoke-venv
-          /tmp/smoke-venv/bin/pip install dist/cartan_py-*.whl numpy scipy
+          /tmp/smoke-venv/bin/pip install dist/cartan-*.whl numpy scipy
           /tmp/smoke-venv/bin/python -c "
           import cartan
           import numpy as np
