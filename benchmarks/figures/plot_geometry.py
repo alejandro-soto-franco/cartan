@@ -125,9 +125,9 @@ def plot_dimension_sweep(op, py_data, rust_data, theme_name, theme):
 
 
 def plot_speedup_heatmap(py_data, theme_name, theme):
-    """Generate a speedup heatmap (cartan-py / geomstats) at n=10."""
+    """Generate a speedup heatmap (cartan-py / geomstats) at n=3."""
     ops = ["exp", "log", "dist", "parallel_transport"]
-    target_dim = 10
+    target_dim = 3
 
     speedups = np.full((len(MANIFOLD_ORDER), len(ops)), np.nan)
     for i, mname in enumerate(MANIFOLD_ORDER):
@@ -175,7 +175,7 @@ def plot_speedup_heatmap(py_data, theme_name, theme):
         cbar.set_label("Speedup factor", fontsize=8)
         cbar.ax.tick_params(labelsize=7)
 
-        ax.set_title(r"Speedup: cartan (Python) vs geomstats at $n = 10$",
+        ax.set_title(r"Speedup: cartan (Python) vs geomstats at $n = 3$",
                      fontsize=9, pad=8)
         apply_theme(fig, [ax], theme)
         fig.tight_layout()
