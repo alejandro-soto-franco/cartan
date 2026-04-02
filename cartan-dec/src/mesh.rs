@@ -58,6 +58,18 @@ pub struct Mesh<M: Manifold, const K: usize = 3, const B: usize = 2> {
     /// For each simplex, the K signed contributions of its boundary faces (+/-1.0).
     pub boundary_signs: Vec<[f64; K]>,
 
+    /// Vertex -> incident boundary-face indices. `vertex_boundaries[v]` lists all
+    /// boundary faces that contain vertex v.
+    pub vertex_boundaries: Vec<Vec<usize>>,
+
+    /// Vertex -> incident simplex indices. `vertex_simplices[v]` lists all
+    /// simplices that contain vertex v.
+    pub vertex_simplices: Vec<Vec<usize>>,
+
+    /// Boundary-face -> adjacent simplex indices. `boundary_simplices[b]` lists all
+    /// simplices that have boundary face b in their boundary.
+    pub boundary_simplices: Vec<Vec<usize>>,
+
     _phantom: PhantomData<M>,
 }
 
@@ -89,6 +101,45 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
     /// Euler characteristic: V - E + F (for 2D: n_vertices - n_boundaries + n_simplices).
     pub fn euler_characteristic(&self) -> i32 {
         self.n_vertices() as i32 - self.n_boundaries() as i32 + self.n_simplices() as i32
+    }
+
+    /// Recompute all adjacency maps from the current `simplices`, `boundaries`,
+    /// and `simplex_boundary_ids` arrays.
+    ///
+    /// Call after any mutation that changes the mesh topology (edge split,
+    /// collapse, flip, etc.). This rebuilds `vertex_boundaries`,
+    /// `vertex_simplices`, and `boundary_simplices` from scratch.
+    pub fn rebuild_adjacency(&mut self) {
+        let nv = self.vertices.len();
+        let nb = self.boundaries.len();
+
+        // vertex_boundaries: for each vertex, which boundaries contain it
+        let mut vb: Vec<Vec<usize>> = vec![Vec::new(); nv];
+        for (b, boundary) in self.boundaries.iter().enumerate() {
+            for &v in boundary {
+                vb[v].push(b);
+            }
+        }
+
+        // vertex_simplices: for each vertex, which simplices contain it
+        let mut vs: Vec<Vec<usize>> = vec![Vec::new(); nv];
+        for (s, simplex) in self.simplices.iter().enumerate() {
+            for &v in simplex {
+                vs[v].push(s);
+            }
+        }
+
+        // boundary_simplices: for each boundary face, which simplices are adjacent
+        let mut bs: Vec<Vec<usize>> = vec![Vec::new(); nb];
+        for (s, sbi) in self.simplex_boundary_ids.iter().enumerate() {
+            for &b in sbi {
+                bs[b].push(s);
+            }
+        }
+
+        self.vertex_boundaries = vb;
+        self.vertex_simplices = vs;
+        self.boundary_simplices = bs;
     }
 }
 
@@ -150,13 +201,37 @@ impl<M: Manifold> Mesh<M, 3, 2> {
             boundary_signs.push(local_signs);
         }
 
-        Self {
+        let mut mesh = Self {
             vertices,
             simplices: triangles,
             boundaries: edges,
             simplex_boundary_ids,
             boundary_signs,
+            vertex_boundaries: Vec::new(),
+            vertex_simplices: Vec::new(),
+            boundary_simplices: Vec::new(),
             _phantom: PhantomData,
+        };
+        mesh.rebuild_adjacency();
+        mesh
+    }
+
+    /// For triangle meshes, return the adjacent faces of edge `e`.
+    ///
+    /// An interior edge has exactly 2 co-faces: returns `(face_a, Some(face_b))`.
+    /// A boundary edge has exactly 1 co-face: returns `(face_a, None)`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the edge is non-manifold (more than 2 co-faces) or has 0 co-faces.
+    pub fn edge_faces(&self, e: usize) -> (usize, Option<usize>) {
+        let cofaces = &self.boundary_simplices[e];
+        match cofaces.len() {
+            1 => (cofaces[0], None),
+            2 => (cofaces[0], Some(cofaces[1])),
+            n => panic!(
+                "non-manifold edge {e}: has {n} co-faces (expected 1 or 2)"
+            ),
         }
     }
 
