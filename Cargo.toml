@@ -7,12 +7,13 @@ members = [
     "cartan-optim",
     "cartan-geo",
     "cartan-dec",
+    "cartan-remesh",
     "benchmarks/rust",
 ]
 exclude = ["experiments", "cartan-py"]
 
 [workspace.package]
-version = "0.1.7"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
@@ -28,6 +29,7 @@ rayon = { version = "1" }
 thiserror = { version = "2", default-features = false }
 serde = { version = "1", features = ["derive"], default-features = false }
 serde_json = { version = "1", default-features = false }
+sprs = { version = "0.11", default-features = false }
 approx = { version = "0.5", default-features = false }
 hashbrown = { version = "0.15", default-features = false }
 
