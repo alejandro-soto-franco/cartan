@@ -51,25 +51,29 @@ use sprs::{CsMat, TriMat};
 use cartan_core::Manifold;
 use cartan_manifolds::euclidean::Euclidean;
 
+use crate::error::DecError;
 use crate::exterior::ExteriorDerivative;
 use crate::hodge::HodgeStar;
-use crate::mesh::FlatMesh;
+use crate::mesh::{FlatMesh, Mesh};
 
 /// Assembled discrete differential operators for a mesh.
 ///
-/// Generic over the manifold type `M`. All `apply_*` methods work for any M.
-/// `from_mesh` is currently only implemented for `Euclidean<2>` (flat meshes).
-pub struct Operators<M: Manifold = Euclidean<2>> {
+/// Generic over manifold `M` and simplex dimension K (with B = K-1).
+/// The scalar Laplace-Beltrami operator works for any K. The Bochner and
+/// Lichnerowicz operators are specialized to K=3 (2-manifold).
+pub struct Operators<M: Manifold = Euclidean<2>, const K: usize = 3, const B: usize = 2> {
     /// Scalar Laplace-Beltrami: n_vertices x n_vertices (sparse).
     pub laplace_beltrami: CsMat<f64>,
-    /// Diagonal entries of star0 (dual cell areas, for mass matrix).
-    pub mass0: DVector<f64>,
-    /// Diagonal entries of star1 (for 1-form computations).
-    pub mass1: DVector<f64>,
-    /// Exterior derivative chain (kept for advection/divergence).
+    /// Mass matrices: mass[k] = star[k] diagonal, k = 0..K-1.
+    pub mass: Vec<DVector<f64>>,
+    /// Exterior derivative chain.
     pub ext: ExteriorDerivative,
-    /// Hodge star diagonals (kept for user access).
+    /// Hodge star.
     pub hodge: HodgeStar,
+    /// Backward-compat alias for mass[0].
+    pub mass0: DVector<f64>,
+    /// Backward-compat alias for mass[1].
+    pub mass1: DVector<f64>,
     _phantom: PhantomData<M>,
 }
 
@@ -78,12 +82,13 @@ pub struct Operators<M: Manifold = Euclidean<2>> {
 /// All operations are sparse. The result is a sparse CSC matrix.
 fn assemble_scalar_laplacian(ext: &ExteriorDerivative, hodge: &HodgeStar) -> CsMat<f64> {
     let d0 = ext.d0();
-    let ne = hodge.star1.len();
+    let s1 = hodge.star1();
+    let ne = s1.len();
 
     // Build diag(star1) as a sparse diagonal matrix.
     let mut star1_tri = TriMat::new((ne, ne));
     for e in 0..ne {
-        let w = hodge.star1[e];
+        let w = s1[e];
         if w.abs() > 1e-30 {
             star1_tri.add_triplet(e, e, w);
         }
@@ -98,7 +103,7 @@ fn assemble_scalar_laplacian(ext: &ExteriorDerivative, hodge: &HodgeStar) -> CsM
     let d0t_star1_d0 = &d0t * &star1_d0;
 
     // star0_inv * (d0^T * star1 * d0)
-    let nv = hodge.star0.len();
+    let nv = hodge.star0().len();
     let star0_inv = hodge.star0_inv();
     let mut star0_inv_tri = TriMat::new((nv, nv));
     for v in 0..nv {
@@ -112,18 +117,18 @@ fn assemble_scalar_laplacian(ext: &ExteriorDerivative, hodge: &HodgeStar) -> CsM
     &star0_inv_diag * &d0t_star1_d0
 }
 
-impl Operators<Euclidean<2>> {
-    /// Assemble all discrete operators from a flat mesh.
+impl Operators<Euclidean<2>, 3, 2> {
+    /// Assemble all discrete operators from a flat mesh (fast path).
     pub fn from_mesh(mesh: &FlatMesh, manifold: &Euclidean<2>) -> Self {
         let ext = ExteriorDerivative::from_mesh(mesh);
         let hodge = HodgeStar::from_mesh(mesh, manifold);
-
         let laplace_beltrami = assemble_scalar_laplacian(&ext, &hodge);
 
         Self {
             laplace_beltrami,
-            mass0: hodge.star0.clone(),
-            mass1: hodge.star1.clone(),
+            mass0: hodge.star0().clone(),
+            mass1: hodge.star1().clone(),
+            mass: hodge.star.iter().cloned().collect(),
             ext,
             hodge,
             _phantom: PhantomData,
@@ -131,7 +136,28 @@ impl Operators<Euclidean<2>> {
     }
 }
 
-impl<M: Manifold> Operators<M> {
+impl<M: Manifold, const K: usize, const B: usize> Operators<M, K, B> {
+    /// K-generic constructor: assembles exterior derivative, Hodge star, and
+    /// scalar Laplace-Beltrami from any mesh.
+    pub fn from_mesh_generic(
+        mesh: &Mesh<M, K, B>,
+        manifold: &M,
+    ) -> Result<Self, DecError> {
+        let ext = ExteriorDerivative::from_mesh_sparse_generic(mesh);
+        let hodge = HodgeStar::from_mesh_generic(mesh, manifold)?;
+        let laplace_beltrami = assemble_scalar_laplacian(&ext, &hodge);
+
+        Ok(Self {
+            laplace_beltrami,
+            mass0: hodge.star0().clone(),
+            mass1: hodge.star1().clone(),
+            mass: hodge.star.iter().cloned().collect(),
+            ext,
+            hodge,
+            _phantom: PhantomData,
+        })
+    }
+
     /// Apply the scalar Laplace-Beltrami operator to a 0-form (vertex field).
     ///
     /// Uses sparse matrix-vector product. The Laplacian is stored in CSC format,
@@ -148,16 +174,19 @@ impl<M: Manifold> Operators<M> {
         }
         result
     }
+}
 
+/// Bochner and Lichnerowicz Laplacians are specialized to K=3 (2-manifolds).
+impl<M: Manifold> Operators<M, 3, 2> {
     /// Apply the Bochner (connection) Laplacian to a vector field.
     ///
     /// Input `u` is a 2*n_v vector with [u_x[0..n_v], u_y[0..n_v]] layout
     /// (structure-of-arrays: x-components first, then y-components).
     ///
     /// `ricci_correction`: optional per-vertex Ricci tensor callback.
-    /// Returns the 2×2 Ricci tensor at vertex v as `[[r00, r01], [r10, r11]]`.
-    /// For flat R²: `None`. For Einstein manifolds (Ric = κ·g):
-    /// `Some(&|_| [[κ, 0.0], [0.0, κ]])`.
+    /// Returns the 2x2 Ricci tensor at vertex v as `[[r00, r01], [r10, r11]]`.
+    /// For flat R²: `None`. For Einstein manifolds (Ric = kappa*g):
+    /// `Some(&|_| [[kappa, 0.0], [0.0, kappa]])`.
     pub fn apply_bochner_laplacian(
         &self,
         u: &DVector<f64>,
@@ -175,7 +204,7 @@ impl<M: Manifold> Operators<M> {
         // Weitzenboeck correction: (nabla*nabla + Ric)(u)_v = Delta*u_v + Ric_v * u_v
         if let Some(ric) = ricci_correction {
             for v in 0..nv {
-                let r = ric(v); // [[r00, r01], [r10, r11]]
+                let r = ric(v);
                 let ux_v = ux[v];
                 let uy_v = uy[v];
                 lux[v] += r[0][0] * ux_v + r[0][1] * uy_v;
@@ -192,12 +221,12 @@ impl<M: Manifold> Operators<M> {
     /// Apply the Lichnerowicz Laplacian to a symmetric 2-tensor field Q.
     ///
     /// Input `q` is a 3*n_v vector with [Q_xx, Q_xy, Q_yy] layout
-    /// (three independent components of a symmetric 2×2 tensor per vertex).
+    /// (three independent components of a symmetric 2x2 tensor per vertex).
     ///
     /// `curvature_correction`: optional per-vertex curvature endomorphism callback.
-    /// Returns a 3×3 matrix acting on the [Qxx, Qxy, Qyy] components at vertex v.
-    /// For flat R²: `None`. For a space form with sectional curvature K=κ:
-    /// `Some(&|_| [[2.*κ,0.,0.],[0.,2.*κ,0.],[0.,0.,2.*κ]])`.
+    /// Returns a 3x3 matrix acting on the [Qxx, Qxy, Qyy] components at vertex v.
+    /// For flat R²: `None`. For a space form with sectional curvature K=kappa:
+    /// `Some(&|_| [[2.*kappa,0.,0.],[0.,2.*kappa,0.],[0.,0.,2.*kappa]])`.
     pub fn apply_lichnerowicz_laplacian(
         &self,
         q: &DVector<f64>,
@@ -216,7 +245,7 @@ impl<M: Manifold> Operators<M> {
 
         if let Some(curv) = curvature_correction {
             for v in 0..nv {
-                let c = curv(v); // 3x3 acting on [qxx, qxy, qyy]
+                let c = curv(v);
                 let qx = qxx[v];
                 let qm = qxy[v];
                 let qy = qyy[v];
@@ -241,7 +270,6 @@ mod tests {
 
     #[test]
     fn test_bochner_tensor_ricci_zero() {
-        // Zero callback must match None
         let mesh = FlatMesh::unit_square_grid(4);
         let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
         let nv = mesh.n_vertices();
@@ -258,7 +286,6 @@ mod tests {
 
     #[test]
     fn test_bochner_tensor_ricci_einstein() {
-        // Einstein manifold Ric = kappa*I: tensor result must match manual scalar computation
         let mesh = FlatMesh::unit_square_grid(4);
         let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
         let nv = mesh.n_vertices();
@@ -268,7 +295,6 @@ mod tests {
         let result_tensor =
             ops.apply_bochner_laplacian(&u, Some(&|_| [[kappa, 0.0], [0.0, kappa]]));
 
-        // Manual: Delta*u_x + kappa*u_x, Delta*u_y + kappa*u_y
         let ux = u.rows(0, nv).into_owned();
         let uy = u.rows(nv, nv).into_owned();
         let lux = ops.apply_laplace_beltrami(&ux) + &ux * kappa;
@@ -286,7 +312,6 @@ mod tests {
 
     #[test]
     fn test_lichnerowicz_tensor_callback_zero() {
-        // Zero callback must match None
         let mesh = FlatMesh::unit_square_grid(4);
         let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
         let nv = mesh.n_vertices();
@@ -303,7 +328,6 @@ mod tests {
 
     #[test]
     fn test_lichnerowicz_tensor_callback_diagonal() {
-        // Diagonal callback with kappa matches manual computation
         let mesh = FlatMesh::unit_square_grid(4);
         let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
         let nv = mesh.n_vertices();
@@ -317,7 +341,6 @@ mod tests {
         ];
         let result_tensor = ops.apply_lichnerowicz_laplacian(&q, Some(&|_| c));
 
-        // Manual: Delta*q_xx + 2*kappa*q_xx, etc.
         let qxx = q.rows(0, nv).into_owned();
         let qxy = q.rows(nv, nv).into_owned();
         let qyy = q.rows(2 * nv, nv).into_owned();

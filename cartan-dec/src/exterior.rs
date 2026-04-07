@@ -52,7 +52,7 @@ impl ExteriorDerivative {
     ///
     /// d[1]: n_simplices x n_boundaries. d1[t, b] = boundary_signs[t][k] for
     /// the k-th boundary face of simplex t.
-    fn from_mesh_sparse_generic<M: Manifold, const K: usize, const B: usize>(
+    pub fn from_mesh_sparse_generic<M: Manifold, const K: usize, const B: usize>(
         mesh: &Mesh<M, K, B>,
     ) -> Self {
         let nv = mesh.n_vertices();

@@ -99,7 +99,7 @@ fn d1_dimensions() {
 fn hodge_star0_positive() {
     let mesh = FlatMesh::unit_square_grid(4);
     let hodge = HodgeStar::from_mesh(&mesh, &Euclidean::<2>);
-    for (v, &w) in hodge.star0.iter().enumerate() {
+    for (v, &w) in hodge.star0().iter().enumerate() {
         assert!(w > 0.0, "star0[{v}] = {w}, expected positive");
     }
 }
@@ -111,7 +111,7 @@ fn hodge_star1_nonnegative() {
     // Assert non-negative (no negative weights).
     let mesh = FlatMesh::unit_square_grid(4);
     let hodge = HodgeStar::from_mesh(&mesh, &Euclidean::<2>);
-    for (e, &w) in hodge.star1.iter().enumerate() {
+    for (e, &w) in hodge.star1().iter().enumerate() {
         assert!(w >= 0.0, "star1[{e}] = {w}, expected non-negative");
     }
 }
@@ -120,7 +120,7 @@ fn hodge_star1_nonnegative() {
 fn hodge_star2_positive() {
     let mesh = FlatMesh::unit_square_grid(4);
     let hodge = HodgeStar::from_mesh(&mesh, &Euclidean::<2>);
-    for (t, &w) in hodge.star2.iter().enumerate() {
+    for (t, &w) in hodge.star2().iter().enumerate() {
         assert!(w > 0.0, "star2[{t}] = {w}, expected positive");
     }
 }
@@ -130,7 +130,7 @@ fn hodge_star0_total_area_is_one() {
     // sum star0[v] = total area of the domain (sum of dual cell areas = domain area).
     let mesh = FlatMesh::unit_square_grid(4);
     let hodge = HodgeStar::from_mesh(&mesh, &Euclidean::<2>);
-    let total: f64 = hodge.star0.iter().sum();
+    let total: f64 = hodge.star0().iter().sum();
     assert!(
         (total - 1.0).abs() < 1e-14,
         "sum of star0 = {total}, expected 1.0"
@@ -415,6 +415,136 @@ fn sparse_exterior_k_generic_dimensions() {
     assert_eq!(ext.d0().cols(), mesh.n_vertices());
     assert_eq!(ext.d1().rows(), mesh.n_simplices());
     assert_eq!(ext.d1().cols(), mesh.n_boundaries());
+}
+
+// -------------------------------------------------------------------------
+// K-generic Operators
+// -------------------------------------------------------------------------
+
+#[test]
+fn operators_generic_laplace_kills_constants() {
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    let ops = Operators::from_mesh_generic(&mesh, &manifold).unwrap();
+    let nv = mesh.n_vertices();
+
+    let f = DVector::from_element(nv, 3.14);
+    let lf = ops.apply_laplace_beltrami(&f);
+
+    let max_err = lf.abs().max();
+    assert!(
+        max_err < 1e-12,
+        "generic Delta(const) != 0: max = {max_err:.2e}"
+    );
+}
+
+#[test]
+fn operators_generic_laplace_positive_semidefinite() {
+    let mesh = FlatMesh::unit_square_grid(8);
+    let manifold = Euclidean::<2>;
+    let ops = Operators::from_mesh_generic(&mesh, &manifold).unwrap();
+    let nv = mesh.n_vertices();
+
+    let f: DVector<f64> = DVector::from_fn(nv, |v, _| {
+        let p = mesh.vertex(v);
+        (std::f64::consts::PI * p.x).sin() * (std::f64::consts::PI * p.y).sin()
+    });
+
+    let lf = ops.apply_laplace_beltrami(&f);
+    let f_dot_lf: f64 = f
+        .iter()
+        .zip(lf.iter())
+        .zip(ops.mass[0].iter())
+        .map(|((fi, lfi), mi)| fi * lfi * mi)
+        .sum();
+
+    assert!(
+        f_dot_lf >= -1e-10,
+        "<f, Lf>_{{star0}} = {f_dot_lf:.6e}, expected >= 0"
+    );
+}
+
+#[test]
+fn operators_backward_compat_default_type() {
+    let mesh = FlatMesh::unit_square_grid(3);
+    let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
+    let nv = mesh.n_vertices();
+    let f = DVector::from_element(nv, 1.0);
+    let lf = ops.apply_laplace_beltrami(&f);
+    assert!(lf.abs().max() < 1e-12);
+}
+
+// -------------------------------------------------------------------------
+// K-generic Hodge star
+// -------------------------------------------------------------------------
+
+#[test]
+fn hodge_star_generic_matches_flat() {
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    let hodge_flat = HodgeStar::from_mesh(&mesh, &manifold);
+    let hodge_generic = HodgeStar::from_mesh_generic(&mesh, &manifold).unwrap();
+
+    let diff0 = (hodge_flat.star0() - hodge_generic.star_k(0)).norm();
+    assert!(diff0 < 1e-12, "star0 diff = {diff0}");
+
+    let diff1 = (hodge_flat.star1() - hodge_generic.star_k(1)).norm();
+    assert!(diff1 < 1e-12, "star1 diff = {diff1}");
+
+    let diff2 = (hodge_flat.star2() - hodge_generic.star_k(2)).norm();
+    assert!(diff2 < 1e-12, "star2 diff = {diff2}");
+}
+
+#[test]
+fn hodge_star_k_inv_roundtrip() {
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    let hodge = HodgeStar::from_mesh_generic(&mesh, &manifold).unwrap();
+
+    for k in 0..3 {
+        let s = hodge.star_k(k);
+        let sinv = hodge.star_k_inv(k);
+        for i in 0..s.len() {
+            if s[i].abs() > 1e-30 {
+                let product = s[i] * sinv[i];
+                assert!(
+                    (product - 1.0).abs() < 1e-12,
+                    "star[{k}][{i}] * star_inv[{k}][{i}] = {product}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn hodge_star_generic_sphere_positive() {
+    use cartan_manifolds::sphere::Sphere;
+    use nalgebra::SVector;
+
+    let manifold = Sphere::<3>;
+    let verts: Vec<SVector<f64, 3>> = vec![
+        SVector::<f64, 3>::new(1.0, 0.0, 0.0),
+        SVector::<f64, 3>::new(-1.0, 0.0, 0.0),
+        SVector::<f64, 3>::new(0.0, 1.0, 0.0),
+        SVector::<f64, 3>::new(0.0, -1.0, 0.0),
+        SVector::<f64, 3>::new(0.0, 0.0, 1.0),
+        SVector::<f64, 3>::new(0.0, 0.0, -1.0),
+    ];
+    let tris = vec![
+        [0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4],
+        [0, 5, 2], [2, 5, 1], [1, 5, 3], [3, 5, 0],
+    ];
+    let mesh = Mesh::from_simplices(&manifold, verts, tris);
+    let hodge = HodgeStar::from_mesh_generic(&mesh, &manifold).unwrap();
+
+    for k in 0..3 {
+        for (i, &val) in hodge.star_k(k).iter().enumerate() {
+            assert!(
+                val > 0.0,
+                "star[{k}][{i}] = {val}, expected positive on S^2 octahedron"
+            );
+        }
+    }
 }
 
 // -------------------------------------------------------------------------

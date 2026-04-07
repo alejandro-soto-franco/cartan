@@ -301,6 +301,67 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
         manifold.exp(v0, &tangent)
     }
 
+    /// Circumcenter of boundary face b.
+    ///
+    /// For B=2 (edges): geodesic midpoint. For B=3 (triangular faces): circumcenter
+    /// via tangent-space equidistance system.
+    pub fn boundary_circumcenter(&self, manifold: &M, b: usize) -> M::Point {
+        let boundary = &self.boundaries[b];
+        let v0 = &self.vertices[boundary[0]];
+
+        let n = B - 1;
+        if n == 0 {
+            return v0.clone();
+        }
+        if n == 1 {
+            // Edge midpoint via geodesic.
+            let v1 = &self.vertices[boundary[1]];
+            let half_log = manifold
+                .log(v0, v1)
+                .map(|u| u * 0.5)
+                .unwrap_or_else(|_| manifold.zero_tangent(v0));
+            return manifold.exp(v0, &half_log);
+        }
+
+        let mut logs: Vec<M::Tangent> = Vec::with_capacity(n);
+        for i in 1..B {
+            let vi = &self.vertices[boundary[i]];
+            let u = manifold
+                .log(v0, vi)
+                .unwrap_or_else(|_| manifold.zero_tangent(v0));
+            logs.push(u);
+        }
+
+        let mut gram = vec![0.0f64; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                gram[i * n + j] = manifold.inner(v0, &logs[i], &logs[j]);
+            }
+        }
+
+        let mut rhs = vec![0.0f64; n];
+        for i in 0..n {
+            rhs[i] = 0.5 * gram[i * n + i];
+        }
+
+        let t_coeff = match dense_solve(&gram, &rhs, n) {
+            Some(sol) => sol,
+            None => {
+                let mut tangent = manifold.zero_tangent(v0);
+                for log in &logs {
+                    tangent = tangent + log.clone() * (1.0 / B as f64);
+                }
+                return manifold.exp(v0, &tangent);
+            }
+        };
+
+        let mut tangent = manifold.zero_tangent(v0);
+        for (i, ti) in t_coeff.iter().enumerate() {
+            tangent = tangent + logs[i].clone() * *ti;
+        }
+        manifold.exp(v0, &tangent)
+    }
+
     /// Recompute all adjacency maps from the current `simplices`, `boundaries`,
     /// and `simplex_boundary_ids` arrays.
     ///
