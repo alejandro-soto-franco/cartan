@@ -12,9 +12,9 @@ documentation = "https://docs.rs/cartan-remesh"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core      = { path = "../cartan-core", version = "0.1" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.1" }
-cartan-dec       = { path = "../cartan-dec", version = "0.1" }
+cartan-core      = { path = "../cartan-core", version = "0.2" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.2" }
+cartan-dec       = { path = "../cartan-dec", version = "0.2" }
 nalgebra         = { workspace = true }
 thiserror        = { workspace = true }
 
