@@ -23,6 +23,7 @@ Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev)
 - **Optimization**: `cartan-optim` provides RGD, RCG, RTR, and Fréchet mean on any `Manifold`
 - **Geodesic tools**: `cartan-geo` provides parameterized geodesics, curvature queries, and Jacobi field integration
 - **DEC layer**: `cartan-dec` discretizes covariant differential operators on simplicial meshes for PDE solvers
+- **Adaptive remeshing**: `cartan-remesh` provides split, collapse, flip, shift, and curvature-CFL-driven adaptive refinement
 - **Python bindings**: `cartan-py` exposes the full library to Python via PyO3 with numpy interop
 
 ## Quick Start
@@ -78,6 +79,7 @@ cartan-manifolds    concrete manifold implementations (8 manifolds + FrameField3
 cartan-optim        Riemannian optimization: RGD, RCG, RTR, Frechet mean
 cartan-geo          geodesic curves, curvature queries, Jacobi fields
 cartan-dec          discrete exterior calculus for PDE solvers
+cartan-remesh       adaptive remeshing: split, collapse, flip, shift, curvature-CFL driver
 cartan-py           Python bindings via PyO3 (pip install cartan)
 ```
 
@@ -217,7 +219,22 @@ let lu = ops.apply_bochner_laplacian(&u, ricci_correction);
 let lq = ops.apply_lichnerowicz_laplacian(&q, curvature_correction);
 ```
 
-Also provided: `ExteriorDerivative` (d₀, d₁), `HodgeStar` (⋆₀, ⋆₁, ⋆₂), upwind `apply_scalar_advection` / `apply_vector_advection`, and `apply_divergence` / `apply_tensor_divergence`.
+Also provided: sparse `ExteriorDerivative` (d₀, d₁ via `sprs`), K-generic `HodgeStar`, upwind `apply_scalar_advection_generic` / `apply_divergence_generic` (tangent-vector API for any manifold), and backward-compatible flat-mesh wrappers.
+
+### cartan-remesh
+
+`cartan-remesh` provides adaptive remeshing primitives for triangle meshes on Riemannian manifolds. All operations are generic over `M: Manifold` and record mutations in a `RemeshLog` for downstream field interpolation.
+
+```rust,no_run
+use cartan_remesh::{split_edge, collapse_edge, flip_edge, adaptive_remesh, RemeshConfig};
+
+// Split an edge, inserting a vertex at the geodesic midpoint
+let log = split_edge(&mut mesh, &manifold, edge_idx);
+
+// Adaptive pipeline: split long edges, collapse short edges
+let config = RemeshConfig { max_edge_length: 0.5, min_edge_length: 0.05, ..Default::default() };
+let log = adaptive_remesh(&mut mesh, &manifold, &mean_h, &gauss_k, &config);
+```
 
 ## cartan-py (Python bindings)
 
