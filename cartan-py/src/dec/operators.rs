@@ -10,6 +10,8 @@ use numpy::{PyArray1, PyArray2, PyReadonlyArray1};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+use nalgebra::DMatrix;
+
 use cartan_dec::{
     apply_divergence as dec_apply_divergence,
     apply_scalar_advection as dec_apply_scalar_advection,
@@ -20,6 +22,18 @@ use cartan_dec::{
 use cartan_manifolds::euclidean::Euclidean;
 
 use crate::convert::{dmatrix_to_pyarray, dvector_to_pyarray};
+
+/// Convert a sparse CSC matrix to a dense DMatrix for numpy export.
+fn csmat_to_dmatrix(m: &sprs::CsMat<f64>) -> DMatrix<f64> {
+    let (rows, cols) = (m.rows(), m.cols());
+    let mut dense = DMatrix::<f64>::zeros(rows, cols);
+    for (col_idx, col) in m.outer_iterator().enumerate() {
+        for (row_idx, &val) in col.iter() {
+            dense[(row_idx, col_idx)] = val;
+        }
+    }
+    dense
+}
 use crate::dec::mesh::PyMesh;
 
 // ---------------------------------------------------------------------------
@@ -79,13 +93,13 @@ impl PyExteriorDerivative {
     /// d0 matrix as a (n_boundaries, n_vertices) float64 numpy array.
     #[getter]
     pub fn d0<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f64>> {
-        dmatrix_to_pyarray(py, &self.inner.d0)
+        dmatrix_to_pyarray(py, &csmat_to_dmatrix(self.inner.d0()))
     }
 
     /// d1 matrix as a (n_simplices, n_boundaries) float64 numpy array.
     #[getter]
     pub fn d1<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f64>> {
-        dmatrix_to_pyarray(py, &self.inner.d1)
+        dmatrix_to_pyarray(py, &csmat_to_dmatrix(self.inner.d1()))
     }
 
     /// Check exactness: return max |d1 @ d0|.
@@ -96,10 +110,11 @@ impl PyExteriorDerivative {
     }
 
     pub fn __repr__(&self) -> String {
+        let d0 = self.inner.d0();
+        let d1 = self.inner.d1();
         format!(
-            "ExteriorDerivative(d0={:?}, d1={:?})",
-            self.inner.d0.shape(),
-            self.inner.d1.shape()
+            "ExteriorDerivative(d0=({}, {}), d1=({}, {}))",
+            d0.rows(), d0.cols(), d1.rows(), d1.cols()
         )
     }
 }
@@ -152,19 +167,19 @@ impl PyHodgeStar {
     /// Diagonal of ⋆0 as a (n_vertices,) float64 array.
     #[getter]
     pub fn star0<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
-        dvector_to_pyarray(py, &self.inner.star0)
+        dvector_to_pyarray(py, self.inner.star0())
     }
 
     /// Diagonal of ⋆1 as a (n_boundaries,) float64 array.
     #[getter]
     pub fn star1<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
-        dvector_to_pyarray(py, &self.inner.star1)
+        dvector_to_pyarray(py, self.inner.star1())
     }
 
     /// Diagonal of ⋆2 as a (n_simplices,) float64 array.
     #[getter]
     pub fn star2<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray1<f64>> {
-        dvector_to_pyarray(py, &self.inner.star2)
+        dvector_to_pyarray(py, self.inner.star2())
     }
 
     /// Inverse Hodge star ⋆0⁻¹ as a (n_vertices,) float64 array.
@@ -188,9 +203,9 @@ impl PyHodgeStar {
     pub fn __repr__(&self) -> String {
         format!(
             "HodgeStar(star0.len={}, star1.len={}, star2.len={})",
-            self.inner.star0.len(),
-            self.inner.star1.len(),
-            self.inner.star2.len()
+            self.inner.star0().len(),
+            self.inner.star1().len(),
+            self.inner.star2().len()
         )
     }
 }
@@ -240,7 +255,7 @@ impl PyOperators {
     /// Scalar Laplace-Beltrami matrix as a (n_vertices, n_vertices) float64 array.
     #[getter]
     pub fn laplace_beltrami<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray2<f64>> {
-        dmatrix_to_pyarray(py, &self.inner.laplace_beltrami)
+        dmatrix_to_pyarray(py, &csmat_to_dmatrix(&self.inner.laplace_beltrami))
     }
 
     /// Apply the scalar Laplace-Beltrami operator to a 0-form.
@@ -311,7 +326,7 @@ impl PyOperators {
     }
 
     pub fn __repr__(&self) -> String {
-        let n = self.inner.laplace_beltrami.nrows();
+        let n = self.inner.laplace_beltrami.rows();
         format!("Operators(n_vertices={})", n)
     }
 }
