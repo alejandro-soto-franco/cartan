@@ -15,6 +15,7 @@ homepage = "https://cartan.sotofranco.dev"
 cartan-core      = { path = "../cartan-core", version = "0.1" }
 cartan-manifolds = { path = "../cartan-manifolds", version = "0.1" }
 nalgebra         = { workspace = true }
+sprs             = { workspace = true }
 rayon            = { workspace = true }
 thiserror        = { workspace = true }
 serde            = { workspace = true }

@@ -11,13 +11,6 @@
 //! This is the standard cotangent-weight Laplacian. For a uniform Cartesian
 //! grid it reduces to the standard 5-point finite difference stencil.
 //!
-//! The assembled matrix L is:
-//!   L[i, i] = Σ_j w_ij       (sum of cotangent weights, positive)
-//!   L[i, j] = -w_ij           (negative weight, off-diagonal)
-//!
-//! where w_ij = ⋆₁\[e_ij\] / primal_len^... — actually the full formula comes
-//! from the matrix product above.
-//!
 //! ## Bochner Laplacian (connection Laplacian on vector fields)
 //!
 //! The Bochner (or rough/connection) Laplacian on vector fields u is:
@@ -52,7 +45,8 @@
 
 use core::marker::PhantomData;
 
-use nalgebra::{DMatrix, DVector};
+use nalgebra::DVector;
+use sprs::{CsMat, TriMat};
 
 use cartan_core::Manifold;
 use cartan_manifolds::euclidean::Euclidean;
@@ -66,17 +60,56 @@ use crate::mesh::FlatMesh;
 /// Generic over the manifold type `M`. All `apply_*` methods work for any M.
 /// `from_mesh` is currently only implemented for `Euclidean<2>` (flat meshes).
 pub struct Operators<M: Manifold = Euclidean<2>> {
-    /// Scalar Laplace-Beltrami: n_vertices x n_vertices.
-    pub laplace_beltrami: DMatrix<f64>,
+    /// Scalar Laplace-Beltrami: n_vertices x n_vertices (sparse).
+    pub laplace_beltrami: CsMat<f64>,
     /// Diagonal entries of star0 (dual cell areas, for mass matrix).
     pub mass0: DVector<f64>,
     /// Diagonal entries of star1 (for 1-form computations).
     pub mass1: DVector<f64>,
-    /// Exterior derivative d0 and d1 (kept for advection/divergence).
+    /// Exterior derivative chain (kept for advection/divergence).
     pub ext: ExteriorDerivative,
     /// Hodge star diagonals (kept for user access).
     pub hodge: HodgeStar,
     _phantom: PhantomData<M>,
+}
+
+/// Assemble the scalar Laplace-Beltrami: star0_inv * d0^T * diag(star1) * d0.
+///
+/// All operations are sparse. The result is a sparse CSC matrix.
+fn assemble_scalar_laplacian(ext: &ExteriorDerivative, hodge: &HodgeStar) -> CsMat<f64> {
+    let d0 = ext.d0();
+    let ne = hodge.star1.len();
+
+    // Build diag(star1) as a sparse diagonal matrix.
+    let mut star1_tri = TriMat::new((ne, ne));
+    for e in 0..ne {
+        let w = hodge.star1[e];
+        if w.abs() > 1e-30 {
+            star1_tri.add_triplet(e, e, w);
+        }
+    }
+    let star1_diag = star1_tri.to_csc();
+
+    // star1 * d0
+    let star1_d0 = &star1_diag * d0;
+
+    // d0^T * (star1 * d0)
+    let d0t = d0.transpose_view();
+    let d0t_star1_d0 = &d0t * &star1_d0;
+
+    // star0_inv * (d0^T * star1 * d0)
+    let nv = hodge.star0.len();
+    let star0_inv = hodge.star0_inv();
+    let mut star0_inv_tri = TriMat::new((nv, nv));
+    for v in 0..nv {
+        let w = star0_inv[v];
+        if w.abs() > 1e-30 {
+            star0_inv_tri.add_triplet(v, v, w);
+        }
+    }
+    let star0_inv_diag = star0_inv_tri.to_csc();
+
+    &star0_inv_diag * &d0t_star1_d0
 }
 
 impl Operators<Euclidean<2>> {
@@ -85,11 +118,7 @@ impl Operators<Euclidean<2>> {
         let ext = ExteriorDerivative::from_mesh(mesh);
         let hodge = HodgeStar::from_mesh(mesh, manifold);
 
-        // L = star0_inv * d0^T * diag(star1) * d0
-        let star1_d0 = DMatrix::from_diagonal(&hodge.star1) * &ext.d0;
-        let d0t_star1_d0 = ext.d0.transpose() * star1_d0;
-        let star0_inv = hodge.star0_inv();
-        let laplace_beltrami = DMatrix::from_diagonal(&star0_inv) * d0t_star1_d0;
+        let laplace_beltrami = assemble_scalar_laplacian(&ext, &hodge);
 
         Self {
             laplace_beltrami,
@@ -105,11 +134,19 @@ impl Operators<Euclidean<2>> {
 impl<M: Manifold> Operators<M> {
     /// Apply the scalar Laplace-Beltrami operator to a 0-form (vertex field).
     ///
-    /// Returns Δf at each vertex. For an interior vertex, this is:
-    ///   (Δf)\[v\] = (1/A_v) Σ_{e ∋ v} w_e (f\[w\] - f\[v\])
-    /// where A_v is the dual cell area and w_e is the Hodge weight of edge e.
+    /// Uses sparse matrix-vector product. The Laplacian is stored in CSC format,
+    /// so `outer_iterator()` iterates over columns: y += A[:,j] * x[j].
     pub fn apply_laplace_beltrami(&self, f: &DVector<f64>) -> DVector<f64> {
-        &self.laplace_beltrami * f
+        let n = f.len();
+        let mut result = DVector::<f64>::zeros(n);
+        // CSC outer_iterator: (col_idx, column_slice)
+        for (col_idx, col) in self.laplace_beltrami.outer_iterator().enumerate() {
+            let x_j = f[col_idx];
+            for (row_idx, &val) in col.iter() {
+                result[row_idx] += val * x_j;
+            }
+        }
+        result
     }
 
     /// Apply the Bochner (connection) Laplacian to a vector field.
@@ -126,14 +163,14 @@ impl<M: Manifold> Operators<M> {
         u: &DVector<f64>,
         ricci_correction: Option<&dyn Fn(usize) -> [[f64; 2]; 2]>,
     ) -> DVector<f64> {
-        let nv = self.laplace_beltrami.nrows();
+        let nv = self.laplace_beltrami.rows();
         assert_eq!(u.len(), 2 * nv, "Bochner: u must have 2*n_v entries");
 
-        let ux = u.rows(0, nv);
-        let uy = u.rows(nv, nv);
+        let ux = u.rows(0, nv).into_owned();
+        let uy = u.rows(nv, nv).into_owned();
 
-        let mut lux = &self.laplace_beltrami * ux;
-        let mut luy = &self.laplace_beltrami * uy;
+        let mut lux = self.apply_laplace_beltrami(&ux);
+        let mut luy = self.apply_laplace_beltrami(&uy);
 
         // Weitzenboeck correction: (nabla*nabla + Ric)(u)_v = Delta*u_v + Ric_v * u_v
         if let Some(ric) = ricci_correction {
@@ -166,16 +203,16 @@ impl<M: Manifold> Operators<M> {
         q: &DVector<f64>,
         curvature_correction: Option<&dyn Fn(usize) -> [[f64; 3]; 3]>,
     ) -> DVector<f64> {
-        let nv = self.laplace_beltrami.nrows();
+        let nv = self.laplace_beltrami.rows();
         assert_eq!(q.len(), 3 * nv, "Lichnerowicz: q must have 3*n_v entries");
 
-        let qxx = q.rows(0, nv);
-        let qxy = q.rows(nv, nv);
-        let qyy = q.rows(2 * nv, nv);
+        let qxx = q.rows(0, nv).into_owned();
+        let qxy = q.rows(nv, nv).into_owned();
+        let qyy = q.rows(2 * nv, nv).into_owned();
 
-        let mut lxx = &self.laplace_beltrami * qxx;
-        let mut lxy = &self.laplace_beltrami * qxy;
-        let mut lyy = &self.laplace_beltrami * qyy;
+        let mut lxx = self.apply_laplace_beltrami(&qxx);
+        let mut lxy = self.apply_laplace_beltrami(&qxy);
+        let mut lyy = self.apply_laplace_beltrami(&qyy);
 
         if let Some(curv) = curvature_correction {
             for v in 0..nv {
@@ -234,8 +271,8 @@ mod tests {
         // Manual: Delta*u_x + kappa*u_x, Delta*u_y + kappa*u_y
         let ux = u.rows(0, nv).into_owned();
         let uy = u.rows(nv, nv).into_owned();
-        let lux = &ops.laplace_beltrami * &ux + &ux * kappa;
-        let luy = &ops.laplace_beltrami * &uy + &uy * kappa;
+        let lux = ops.apply_laplace_beltrami(&ux) + &ux * kappa;
+        let luy = ops.apply_laplace_beltrami(&uy) + &uy * kappa;
         let mut expected = DVector::zeros(2 * nv);
         expected.rows_mut(0, nv).copy_from(&lux);
         expected.rows_mut(nv, nv).copy_from(&luy);
@@ -284,9 +321,9 @@ mod tests {
         let qxx = q.rows(0, nv).into_owned();
         let qxy = q.rows(nv, nv).into_owned();
         let qyy = q.rows(2 * nv, nv).into_owned();
-        let lxx = &ops.laplace_beltrami * &qxx + &qxx * (2.0 * kappa);
-        let lxy = &ops.laplace_beltrami * &qxy + &qxy * (2.0 * kappa);
-        let lyy = &ops.laplace_beltrami * &qyy + &qyy * (2.0 * kappa);
+        let lxx = ops.apply_laplace_beltrami(&qxx) + &qxx * (2.0 * kappa);
+        let lxy = ops.apply_laplace_beltrami(&qxy) + &qxy * (2.0 * kappa);
+        let lyy = ops.apply_laplace_beltrami(&qyy) + &qyy * (2.0 * kappa);
         let mut expected = DVector::zeros(3 * nv);
         expected.rows_mut(0, nv).copy_from(&lxx);
         expected.rows_mut(nv, nv).copy_from(&lxy);

@@ -79,8 +79,16 @@ pub fn apply_divergence(
     // Step 2: Apply ⋆₁ to the 1-form.
     let star1_u1form = u1form.component_mul(&hodge.star1);
 
-    // Step 3: Apply d₀ᵀ: n_vertices × n_boundaries.
-    let d0t_star1_u = ext.d0.transpose() * star1_u1form;
+    // Step 3: Apply d₀ᵀ: sparse transpose-multiply.
+    let d0t = ext.d0().transpose_view();
+    let mut d0t_star1_u = DVector::<f64>::zeros(nv);
+    for (row_idx, row) in d0t.outer_iterator().enumerate() {
+        let mut sum = 0.0;
+        for (col_idx, &val) in row.iter() {
+            sum += val * star1_u1form[col_idx];
+        }
+        d0t_star1_u[row_idx] = sum;
+    }
 
     // Step 4: Apply ⋆₀⁻¹.
     let star0_inv = hodge.star0_inv();

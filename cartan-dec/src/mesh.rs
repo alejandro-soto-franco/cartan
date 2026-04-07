@@ -103,6 +103,204 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
         self.n_vertices() as i32 - self.n_boundaries() as i32 + self.n_simplices() as i32
     }
 
+    /// K-generic constructor. For K=3, prefer `from_simplices` on `Mesh<M, 3, 2>`.
+    ///
+    /// Boundary faces are B-tuples of vertices, deduplicated and canonically
+    /// oriented (sorted vertex indices). The boundary operator signs are computed
+    /// from the relative orientation of each boundary face within its parent simplex.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any simplex vertex index is out of bounds, or if B != K-1.
+    pub fn from_simplices_generic(
+        _manifold: &M,
+        vertices: Vec<M::Point>,
+        simplices: Vec<[usize; K]>,
+    ) -> Self {
+        assert_eq!(B, K - 1, "B must equal K-1");
+        let n_v = vertices.len();
+
+        let mut boundary_map: HashMap<[usize; B], usize> = HashMap::new();
+        let mut boundaries: Vec<[usize; B]> = Vec::new();
+        let mut simplex_boundary_ids = Vec::with_capacity(simplices.len());
+        let mut boundary_signs_vec = Vec::with_capacity(simplices.len());
+
+        for simplex in &simplices {
+            for &v in simplex {
+                assert!(v < n_v, "simplex vertex index {v} out of bounds (n_v={n_v})");
+            }
+
+            let mut local_boundary_ids = [0usize; K];
+            let mut local_signs = [0.0f64; K];
+
+            // The k-th boundary face of simplex [v0, v1, ..., v_{K-1}] is obtained
+            // by omitting vertex k. The sign is (-1)^k (from the boundary operator).
+            for omit in 0..K {
+                let sign = if omit % 2 == 0 { 1.0 } else { -1.0 };
+
+                // Build the boundary face by collecting all vertices except the omitted one.
+                let mut face = [0usize; B];
+                let mut idx = 0;
+                for (pos, &v) in simplex.iter().enumerate() {
+                    if pos != omit {
+                        face[idx] = v;
+                        idx += 1;
+                    }
+                }
+
+                // Canonical orientation: sort the face vertices.
+                let mut sorted_face = face;
+                sorted_face.sort();
+
+                // Determine the parity of the permutation from face to sorted_face.
+                let parity = permutation_sign(&face, &sorted_face);
+                let effective_sign = sign * parity;
+
+                let boundary_idx = *boundary_map.entry(sorted_face).or_insert_with(|| {
+                    let b = boundaries.len();
+                    boundaries.push(sorted_face);
+                    b
+                });
+
+                local_boundary_ids[omit] = boundary_idx;
+                local_signs[omit] = effective_sign;
+            }
+
+            simplex_boundary_ids.push(local_boundary_ids);
+            boundary_signs_vec.push(local_signs);
+        }
+
+        let mut mesh = Self {
+            vertices,
+            simplices,
+            boundaries,
+            simplex_boundary_ids,
+            boundary_signs: boundary_signs_vec,
+            vertex_boundaries: Vec::new(),
+            vertex_simplices: Vec::new(),
+            boundary_simplices: Vec::new(),
+            _phantom: PhantomData,
+        };
+        mesh.rebuild_adjacency();
+        mesh
+    }
+
+    /// Volume of simplex s via the Gram determinant in the tangent space at vertex 0.
+    ///
+    /// For K=3 (triangle): area. For K=4 (tet): volume.
+    /// The formula is: vol = (1 / (K-1)!) * sqrt(|det(G)|) where G is the
+    /// (K-1) x (K-1) Gram matrix G_{ij} = <log(v0, v_i), log(v0, v_j)>.
+    pub fn simplex_volume(&self, manifold: &M, s: usize) -> f64 {
+        let simplex = &self.simplices[s];
+        let v0 = &self.vertices[simplex[0]];
+
+        let n = K - 1;
+        let mut logs: Vec<M::Tangent> = Vec::with_capacity(n);
+        for i in 1..K {
+            let vi = &self.vertices[simplex[i]];
+            let u = manifold
+                .log(v0, vi)
+                .unwrap_or_else(|_| manifold.zero_tangent(v0));
+            logs.push(u);
+        }
+
+        let mut gram = vec![0.0f64; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                gram[i * n + j] = manifold.inner(v0, &logs[i], &logs[j]);
+            }
+        }
+
+        let det = dense_determinant(&gram, n);
+        let factorial = (1..K).product::<usize>() as f64;
+        det.abs().sqrt() / factorial
+    }
+
+    /// Volume of boundary face b via the Gram determinant in the tangent space at vertex 0.
+    ///
+    /// For K=3 (edge): length. For K=4 (face): area of the triangular face.
+    pub fn boundary_volume(&self, manifold: &M, b: usize) -> f64 {
+        let boundary = &self.boundaries[b];
+        let v0 = &self.vertices[boundary[0]];
+
+        let n = B - 1;
+        if n == 0 {
+            // B=1 means boundary faces are single vertices, volume = 1.
+            return 1.0;
+        }
+
+        let mut logs: Vec<M::Tangent> = Vec::with_capacity(n);
+        for i in 1..B {
+            let vi = &self.vertices[boundary[i]];
+            let u = manifold
+                .log(v0, vi)
+                .unwrap_or_else(|_| manifold.zero_tangent(v0));
+            logs.push(u);
+        }
+
+        let mut gram = vec![0.0f64; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                gram[i * n + j] = manifold.inner(v0, &logs[i], &logs[j]);
+            }
+        }
+
+        let det = dense_determinant(&gram, n);
+        let factorial = (1..B).product::<usize>().max(1) as f64;
+        det.abs().sqrt() / factorial
+    }
+
+    /// Circumcenter of simplex s via the equidistance system in tangent space.
+    ///
+    /// Solves the system: for each edge vector e_i from v0, find barycentric
+    /// coordinates t such that |c - v_i|^2 = |c - v0|^2 for all i, where
+    /// c = v0 + sum_i t_i * e_i. This reduces to G * t = 0.5 * diag(G)
+    /// where G is the Gram matrix. Falls back to the centroid for degenerate simplices.
+    pub fn simplex_circumcenter(&self, manifold: &M, s: usize) -> M::Point {
+        let simplex = &self.simplices[s];
+        let v0 = &self.vertices[simplex[0]];
+
+        let n = K - 1;
+        let mut logs: Vec<M::Tangent> = Vec::with_capacity(n);
+        for i in 1..K {
+            let vi = &self.vertices[simplex[i]];
+            let u = manifold
+                .log(v0, vi)
+                .unwrap_or_else(|_| manifold.zero_tangent(v0));
+            logs.push(u);
+        }
+
+        let mut gram = vec![0.0f64; n * n];
+        for i in 0..n {
+            for j in 0..n {
+                gram[i * n + j] = manifold.inner(v0, &logs[i], &logs[j]);
+            }
+        }
+
+        let mut rhs = vec![0.0f64; n];
+        for i in 0..n {
+            rhs[i] = 0.5 * gram[i * n + i];
+        }
+
+        let t = match dense_solve(&gram, &rhs, n) {
+            Some(sol) => sol,
+            None => {
+                // Degenerate: return centroid.
+                let mut tangent = manifold.zero_tangent(v0);
+                for log in &logs {
+                    tangent = tangent + log.clone() * (1.0 / K as f64);
+                }
+                return manifold.exp(v0, &tangent);
+            }
+        };
+
+        let mut tangent = manifold.zero_tangent(v0);
+        for (i, ti) in t.iter().enumerate() {
+            tangent = tangent + logs[i].clone() * *ti;
+        }
+        manifold.exp(v0, &tangent)
+    }
+
     /// Recompute all adjacency maps from the current `simplices`, `boundaries`,
     /// and `simplex_boundary_ids` arrays.
     ///
@@ -438,4 +636,136 @@ impl Mesh<Euclidean<2>, 3, 2> {
     pub fn n_triangles(&self) -> usize {
         self.n_simplices()
     }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dense linear algebra helpers (module-private)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Compute the determinant of an n x n matrix stored row-major in a flat slice.
+///
+/// Uses LU decomposition with partial pivoting. For n <= 3, uses direct formulas.
+fn dense_determinant(a: &[f64], n: usize) -> f64 {
+    match n {
+        0 => 1.0,
+        1 => a[0],
+        2 => a[0] * a[3] - a[1] * a[2],
+        3 => {
+            a[0] * (a[4] * a[8] - a[5] * a[7])
+                - a[1] * (a[3] * a[8] - a[5] * a[6])
+                + a[2] * (a[3] * a[7] - a[4] * a[6])
+        }
+        _ => {
+            let mut lu: Vec<f64> = a.to_vec();
+            let mut sign = 1.0f64;
+            for col in 0..n {
+                let mut max_val = lu[col * n + col].abs();
+                let mut max_row = col;
+                for row in (col + 1)..n {
+                    let v = lu[row * n + col].abs();
+                    if v > max_val {
+                        max_val = v;
+                        max_row = row;
+                    }
+                }
+                if max_val < 1e-30 {
+                    return 0.0;
+                }
+                if max_row != col {
+                    for k in 0..n {
+                        lu.swap(col * n + k, max_row * n + k);
+                    }
+                    sign = -sign;
+                }
+                let pivot = lu[col * n + col];
+                for row in (col + 1)..n {
+                    let factor = lu[row * n + col] / pivot;
+                    lu[row * n + col] = factor;
+                    for k in (col + 1)..n {
+                        lu[row * n + k] -= factor * lu[col * n + k];
+                    }
+                }
+            }
+            let mut det = sign;
+            for i in 0..n {
+                det *= lu[i * n + i];
+            }
+            det
+        }
+    }
+}
+
+/// Solve A * x = b for an n x n system via Gaussian elimination with partial pivoting.
+///
+/// Returns `None` if the matrix is singular (pivot < 1e-30).
+fn dense_solve(a: &[f64], b: &[f64], n: usize) -> Option<Vec<f64>> {
+    let mut aug = vec![0.0f64; n * (n + 1)];
+    for i in 0..n {
+        for j in 0..n {
+            aug[i * (n + 1) + j] = a[i * n + j];
+        }
+        aug[i * (n + 1) + n] = b[i];
+    }
+
+    for col in 0..n {
+        let mut max_val = aug[col * (n + 1) + col].abs();
+        let mut max_row = col;
+        for row in (col + 1)..n {
+            let v = aug[row * (n + 1) + col].abs();
+            if v > max_val {
+                max_val = v;
+                max_row = row;
+            }
+        }
+        if max_val < 1e-30 {
+            return None;
+        }
+        if max_row != col {
+            for k in 0..(n + 1) {
+                aug.swap(col * (n + 1) + k, max_row * (n + 1) + k);
+            }
+        }
+        let pivot = aug[col * (n + 1) + col];
+        for row in (col + 1)..n {
+            let factor = aug[row * (n + 1) + col] / pivot;
+            for k in col..(n + 1) {
+                aug[row * (n + 1) + k] -= factor * aug[col * (n + 1) + k];
+            }
+        }
+    }
+
+    let mut x = vec![0.0f64; n];
+    for i in (0..n).rev() {
+        let mut sum = aug[i * (n + 1) + n];
+        for j in (i + 1)..n {
+            sum -= aug[i * (n + 1) + j] * x[j];
+        }
+        x[i] = sum / aug[i * (n + 1) + i];
+    }
+    Some(x)
+}
+
+/// Compute the sign of the permutation that maps `from` to `to`.
+///
+/// Both slices must contain the same elements. Returns +1.0 for even
+/// permutations and -1.0 for odd permutations.
+fn permutation_sign<const N: usize>(from: &[usize; N], to: &[usize; N]) -> f64 {
+    let mut perm = [0usize; N];
+    for (i, &val) in from.iter().enumerate() {
+        for (j, &tval) in to.iter().enumerate() {
+            if val == tval {
+                perm[i] = j;
+                break;
+            }
+        }
+    }
+    let mut inversions = 0usize;
+    for i in 0..N {
+        for j in (i + 1)..N {
+            if perm[i] > perm[j] {
+                inversions += 1;
+            }
+        }
+    }
+    if inversions % 2 == 0 { 1.0 } else { -1.0 }
 }
