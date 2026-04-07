@@ -2,31 +2,11 @@
 
 //! Discrete covariant divergence of a vector field.
 //!
-//! The divergence of a vector field u on a 2D domain is computed via DEC as:
+//! The DEC divergence formula is: div(u) = star_0_inv * d0^T * star_1 * u_1form
 //!
-//!   div(u) = ⋆₀⁻¹ d₀ᵀ ⋆₁ û
-//!
-//! where û is the 1-form dual to u (obtained by applying the metric to u),
-//! and the discrete codifferential δ₁ = ⋆₀⁻¹ d₀ᵀ ⋆₁ is the adjoint of d₀.
-//!
-//! ## Discrete 1-form from a vector field
-//!
-//! Given a vertex-based vector field u, we build the 1-form û by
-//! integrating u along each edge:
-//!
-//!   û\[e\] = (u\[i\] + u\[j\]) / 2 · (v_j - v_i)
-//!
-//! (trapezoidal approximation of the line integral of u · dl along edge e = \[i,j\]).
-//!
-//! ## Codifferential
-//!
-//! The codifferential δ = ⋆ d ⋆ is the formal adjoint of d with respect to
-//! the L² inner product weighted by the Hodge star. For 1-forms on surfaces:
-//!
-//!   δ₁ = -⋆₀⁻¹ d₀ᵀ ⋆₁
-//!
-//! The sign depends on convention; we use the convention where
-//! Δ = dδ + δd (positive semi-definite Laplacian).
+//! This formula is K-agnostic: it only uses the 0-form and 1-form operators
+//! (d0, star0, star1). The velocity-to-1-form conversion uses trapezoidal
+//! integration along boundary faces (edges for K=3).
 //!
 //! ## References
 //!
@@ -35,51 +15,62 @@
 
 use nalgebra::DVector;
 
+use cartan_core::Manifold;
+
 use crate::exterior::ExteriorDerivative;
 use crate::hodge::HodgeStar;
-use crate::mesh::FlatMesh;
+use crate::mesh::{FlatMesh, Mesh};
 
-/// Compute the discrete divergence of a vertex-based vector field.
+/// K-generic discrete divergence of a vertex-based vector field.
 ///
 /// # Arguments
 ///
 /// - `mesh`: the simplicial mesh.
+/// - `manifold`: the Riemannian manifold.
 /// - `ext`: precomputed exterior derivative operators.
 /// - `hodge`: precomputed Hodge star operators.
-/// - `u`: vector field at vertices, stored as [u_x[0..n_v], u_y[0..n_v]] (2*n_v vector).
+/// - `u`: velocity field as one tangent vector per vertex.
 ///
 /// # Returns
 ///
 /// div(u) at each vertex as an n_v vector.
-pub fn apply_divergence(
-    mesh: &FlatMesh,
+pub fn apply_divergence_generic<M: Manifold, const K: usize, const B: usize>(
+    mesh: &Mesh<M, K, B>,
+    manifold: &M,
     ext: &ExteriorDerivative,
     hodge: &HodgeStar,
-    u: &DVector<f64>,
+    u: &[M::Tangent],
 ) -> DVector<f64> {
     let nv = mesh.n_vertices();
-    let ne = mesh.n_boundaries();
-    assert_eq!(u.len(), 2 * nv, "divergence: u must have 2*n_v entries");
+    let nb = mesh.n_boundaries();
+    assert_eq!(u.len(), nv, "divergence: u must have n_v tangent vectors");
 
-    // Step 1: Build the 1-form û from u.
-    // û[e] = avg(u[i], u[j]) · (v_j - v_i)  for edge e = [i, j].
-    let mut u1form = DVector::<f64>::zeros(ne);
-    for (e, &[i, j]) in mesh.boundaries.iter().enumerate() {
-        let vi = mesh.vertex(i);
-        let vj = mesh.vertex(j);
-        let edge_vec = vj - vi;
-
-        // Average velocity at the edge midpoint.
-        let ux_avg = 0.5 * (u[i] + u[j]);
-        let uy_avg = 0.5 * (u[nv + i] + u[nv + j]);
-
-        u1form[e] = ux_avg * edge_vec.x + uy_avg * edge_vec.y;
+    // Step 1: Build the 1-form from the vector field.
+    // For each boundary face (edge for K=3) with B=2 vertices [i, j]:
+    //   u_1form[b] = 0.5 * (u[i] + u[j]) . edge_vector
+    let mut u1form = DVector::<f64>::zeros(nb);
+    for (b, boundary) in mesh.boundaries.iter().enumerate() {
+        if B == 2 {
+            let i = boundary[0];
+            let j = boundary[1];
+            let pi = &mesh.vertices[i];
+            let pj = &mesh.vertices[j];
+            let edge_vec = match manifold.log(pi, pj) {
+                Ok(t) => t,
+                Err(_) => continue,
+            };
+            let ui_dot = manifold.inner(pi, &u[i], &edge_vec);
+            let uj_dot = manifold.inner(pi, &u[j], &edge_vec);
+            u1form[b] = 0.5 * (ui_dot + uj_dot);
+        }
     }
 
-    // Step 2: Apply ⋆₁ to the 1-form.
+    // Step 2: Apply star1 to the 1-form.
     let star1_u1form = u1form.component_mul(hodge.star1());
 
-    // Step 3: Apply d₀ᵀ: sparse transpose-multiply.
+    // Step 3: Apply d0^T (sparse transpose multiply).
+    // d0 is CSC, so transpose_view gives CSR. For CSR, outer_iterator
+    // iterates over rows of d0^T.
     let d0t = ext.d0().transpose_view();
     let mut d0t_star1_u = DVector::<f64>::zeros(nv);
     for (row_idx, row) in d0t.outer_iterator().enumerate() {
@@ -90,29 +81,35 @@ pub fn apply_divergence(
         d0t_star1_u[row_idx] = sum;
     }
 
-    // Step 4: Apply ⋆₀⁻¹.
+    // Step 4: Apply star0_inv.
     let star0_inv = hodge.star0_inv();
     d0t_star1_u.component_mul(&star0_inv)
 }
 
-/// Compute the discrete divergence of a symmetric 2-tensor field.
+/// Backward-compatible discrete divergence (flat mesh, DVector velocity layout).
+pub fn apply_divergence(
+    mesh: &FlatMesh,
+    ext: &ExteriorDerivative,
+    hodge: &HodgeStar,
+    u: &DVector<f64>,
+) -> DVector<f64> {
+    let nv = mesh.n_vertices();
+    assert_eq!(u.len(), 2 * nv, "divergence: u must have 2*n_v entries");
+
+    let u_tangent: Vec<nalgebra::SVector<f64, 2>> = (0..nv)
+        .map(|v| nalgebra::SVector::<f64, 2>::new(u[v], u[nv + v]))
+        .collect();
+
+    let manifold = cartan_manifolds::euclidean::Euclidean::<2>;
+    apply_divergence_generic(mesh, &manifold, ext, hodge, &u_tangent)
+}
+
+/// Compute the discrete divergence of a symmetric 2-tensor field (K=3 only).
 ///
 /// For a symmetric 2-tensor field T with components [T_xx, T_xy, T_yy] at
 /// each vertex, the divergence is a vector field:
-///
-///   (div T)_x = ∂T_xx/∂x + ∂T_xy/∂y
-///   (div T)_y = ∂T_xy/∂x + ∂T_yy/∂y
-///
-/// We compute this by treating each column of T as a separate vector field
-/// and taking the divergence of each.
-///
-/// # Arguments
-///
-/// - `t`: symmetric 2-tensor at vertices, stored as [T_xx, T_xy, T_yy] (3*n_v vector).
-///
-/// # Returns
-///
-/// div(T) at each vertex as a 2*n_v vector [div_x, div_y].
+///   (div T)_x = div of first column  (T_xx, T_xy)
+///   (div T)_y = div of second column (T_xy, T_yy)
 pub fn apply_tensor_divergence(
     mesh: &FlatMesh,
     ext: &ExteriorDerivative,
@@ -130,7 +127,7 @@ pub fn apply_tensor_divergence(
     let txy = t.rows(nv, nv).into_owned();
     let tyy = t.rows(2 * nv, nv).into_owned();
 
-    // First column of T: (T_xx, T_xy) — treated as a vector field.
+    // First column of T: (T_xx, T_xy).
     let mut col1 = DVector::<f64>::zeros(2 * nv);
     col1.rows_mut(0, nv).copy_from(&txx);
     col1.rows_mut(nv, nv).copy_from(&txy);
@@ -140,7 +137,6 @@ pub fn apply_tensor_divergence(
     col2.rows_mut(0, nv).copy_from(&txy);
     col2.rows_mut(nv, nv).copy_from(&tyy);
 
-    // div_x = div of first column, div_y = div of second column.
     let div_x = apply_divergence(mesh, ext, hodge, &col1);
     let div_y = apply_divergence(mesh, ext, hodge, &col2);
 

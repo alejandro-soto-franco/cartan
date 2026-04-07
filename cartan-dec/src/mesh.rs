@@ -196,8 +196,8 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
 
         let n = K - 1;
         let mut logs: Vec<M::Tangent> = Vec::with_capacity(n);
-        for i in 1..K {
-            let vi = &self.vertices[simplex[i]];
+        for &vi_idx in &simplex[1..] {
+            let vi = &self.vertices[vi_idx];
             let u = manifold
                 .log(v0, vi)
                 .unwrap_or_else(|_| manifold.zero_tangent(v0));
@@ -230,8 +230,8 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
         }
 
         let mut logs: Vec<M::Tangent> = Vec::with_capacity(n);
-        for i in 1..B {
-            let vi = &self.vertices[boundary[i]];
+        for &vi_idx in &boundary[1..] {
+            let vi = &self.vertices[vi_idx];
             let u = manifold
                 .log(v0, vi)
                 .unwrap_or_else(|_| manifold.zero_tangent(v0));
@@ -262,8 +262,8 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
 
         let n = K - 1;
         let mut logs: Vec<M::Tangent> = Vec::with_capacity(n);
-        for i in 1..K {
-            let vi = &self.vertices[simplex[i]];
+        for &vi_idx in &simplex[1..] {
+            let vi = &self.vertices[vi_idx];
             let u = manifold
                 .log(v0, vi)
                 .unwrap_or_else(|_| manifold.zero_tangent(v0));
@@ -324,8 +324,8 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
         }
 
         let mut logs: Vec<M::Tangent> = Vec::with_capacity(n);
-        for i in 1..B {
-            let vi = &self.vertices[boundary[i]];
+        for &vi_idx in &boundary[1..] {
+            let vi = &self.vertices[vi_idx];
             let u = manifold
                 .log(v0, vi)
                 .unwrap_or_else(|_| manifold.zero_tangent(v0));
