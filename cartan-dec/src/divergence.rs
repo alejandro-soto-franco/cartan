@@ -77,7 +77,7 @@ pub fn apply_divergence(
     }
 
     // Step 2: Apply ⋆₁ to the 1-form.
-    let star1_u1form = u1form.component_mul(&hodge.star1);
+    let star1_u1form = u1form.component_mul(hodge.star1());
 
     // Step 3: Apply d₀ᵀ: sparse transpose-multiply.
     let d0t = ext.d0().transpose_view();
