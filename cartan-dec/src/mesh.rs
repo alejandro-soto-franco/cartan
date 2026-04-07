@@ -362,6 +362,73 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
         manifold.exp(v0, &tangent)
     }
 
+    /// Rebuild all derived mesh data (boundaries, signs, adjacency) from the
+    /// current `vertices` and `simplices` arrays.
+    ///
+    /// Call after mutations that change the simplex list (split, collapse, flip).
+    /// This is equivalent to constructing a new mesh from the same vertices
+    /// and simplices, but modifies in place.
+    ///
+    /// Only implemented for K=3, B=2 (triangle meshes).
+    pub fn rebuild_topology(&mut self)
+    where
+        M: Manifold,
+    {
+        // Delegate to from_simplices logic: rebuild edges, signs, adjacency.
+        // We take ownership of vertices and simplices, rebuild, and put them back.
+        let vertices = std::mem::take(&mut self.vertices);
+        let simplices = std::mem::take(&mut self.simplices);
+
+        // Rebuild boundaries and signs from simplices (K=3, B=2 specialization).
+        let mut edge_map: HashMap<[usize; B], usize> = HashMap::new();
+        let mut boundaries: Vec<[usize; B]> = Vec::new();
+        let mut simplex_boundary_ids = Vec::with_capacity(simplices.len());
+        let mut boundary_signs_vec = Vec::with_capacity(simplices.len());
+
+        for simplex in &simplices {
+            let mut local_boundary_ids = [0usize; K];
+            let mut local_signs = [0.0f64; K];
+
+            for omit in 0..K {
+                let sign = if omit % 2 == 0 { 1.0 } else { -1.0 };
+
+                let mut face = [0usize; B];
+                let mut idx = 0;
+                for (pos, &v) in simplex.iter().enumerate() {
+                    if pos != omit {
+                        face[idx] = v;
+                        idx += 1;
+                    }
+                }
+
+                let mut sorted_face = face;
+                sorted_face.sort();
+
+                let parity = permutation_sign(&face, &sorted_face);
+                let effective_sign = sign * parity;
+
+                let boundary_idx = *edge_map.entry(sorted_face).or_insert_with(|| {
+                    let b = boundaries.len();
+                    boundaries.push(sorted_face);
+                    b
+                });
+
+                local_boundary_ids[omit] = boundary_idx;
+                local_signs[omit] = effective_sign;
+            }
+
+            simplex_boundary_ids.push(local_boundary_ids);
+            boundary_signs_vec.push(local_signs);
+        }
+
+        self.vertices = vertices;
+        self.simplices = simplices;
+        self.boundaries = boundaries;
+        self.simplex_boundary_ids = simplex_boundary_ids;
+        self.boundary_signs = boundary_signs_vec;
+        self.rebuild_adjacency();
+    }
+
     /// Recompute all adjacency maps from the current `simplices`, `boundaries`,
     /// and `simplex_boundary_ids` arrays.
     ///
