@@ -11,7 +11,7 @@ use cartan_dec::Mesh;
 use cartan_manifolds::euclidean::Euclidean;
 
 use crate::error::RemeshError;
-use crate::log::{EdgeCollapse, EdgeSplit, RemeshLog};
+use crate::log::{EdgeCollapse, EdgeFlip, EdgeSplit, RemeshLog, VertexShift};
 
 /// Split an edge by inserting a vertex at the geodesic midpoint.
 ///
@@ -204,19 +204,203 @@ fn signed_area_flat(mesh: &Mesh<Euclidean<2>, 3, 2>, tri: &[usize; 3]) -> f64 {
 }
 
 /// Flip the diagonal of the quad formed by two adjacent triangles.
+///
+/// Given an interior edge shared by exactly two triangles, this operation
+/// replaces the shared diagonal with the opposite diagonal of the quad.
+/// The flip proceeds only if the Delaunay criterion is violated (sum of
+/// opposite angles exceeds pi). After flipping, topology is rebuilt from
+/// scratch via `mesh.rebuild_topology()`.
+///
+/// # Errors
+///
+/// - [`RemeshError::BoundaryEdge`] if the edge has exactly 1 adjacent face.
+/// - [`RemeshError::NotInteriorEdge`] if the edge has 0 or more than 2 adjacent faces.
+/// - [`RemeshError::AlreadyDelaunay`] if the sum of opposite angles is at most pi.
+///
+/// # Panics
+///
+/// Panics if `edge >= mesh.n_boundaries()`.
 pub fn flip_edge<M: Manifold>(
-    _mesh: &mut Mesh<M, 3, 2>,
-    _manifold: &M,
-    _edge: usize,
+    mesh: &mut Mesh<M, 3, 2>,
+    manifold: &M,
+    edge: usize,
 ) -> Result<RemeshLog, RemeshError> {
-    todo!("Task 11")
+    assert!(edge < mesh.n_boundaries(), "edge index out of bounds");
+
+    let adj = &mesh.boundary_simplices[edge];
+    let adj_count = adj.len();
+    if adj_count == 1 {
+        return Err(RemeshError::BoundaryEdge { edge });
+    }
+    if adj_count != 2 {
+        return Err(RemeshError::NotInteriorEdge {
+            edge,
+            count: adj_count,
+        });
+    }
+
+    let [v_a, v_b] = mesh.boundaries[edge];
+    let face_0 = adj[0];
+    let face_1 = adj[1];
+
+    // Find the opposite vertex in each triangle (the vertex not on the shared edge).
+    let opp_0 = mesh.simplices[face_0]
+        .iter()
+        .copied()
+        .find(|&v| v != v_a && v != v_b)
+        .expect("triangle must have a vertex not on the edge");
+    let opp_1 = mesh.simplices[face_1]
+        .iter()
+        .copied()
+        .find(|&v| v != v_a && v != v_b)
+        .expect("triangle must have a vertex not on the edge");
+
+    // Compute opposite angles using the manifold's log map and inner product.
+    let angle_0 = opposite_angle(manifold, &mesh.vertices, opp_0, v_a, v_b);
+    let angle_1 = opposite_angle(manifold, &mesh.vertices, opp_1, v_a, v_b);
+    let angle_sum = angle_0 + angle_1;
+
+    if angle_sum <= std::f64::consts::PI {
+        return Err(RemeshError::AlreadyDelaunay { edge, angle_sum });
+    }
+
+    // Replace the two old triangles with two new ones using the opposite-vertex diagonal.
+    // Old: [v_a, v_b, opp_0] and [v_a, v_b, opp_1] (in some winding).
+    // New: [opp_0, opp_1, v_a] and [opp_1, opp_0, v_b].
+    //
+    // Preserve consistent CCW orientation by reading the winding of each original
+    // triangle and placing the new diagonal accordingly.
+    let tri_0 = mesh.simplices[face_0];
+    let pos_a_in_0 = tri_0.iter().position(|&v| v == v_a).unwrap();
+    let next_in_0 = tri_0[(pos_a_in_0 + 1) % 3];
+
+    // In triangle 0, the winding order around the quad determines which vertex
+    // follows v_a. If v_b follows v_a, then opp_0 precedes v_a. The new
+    // triangle on the v_a side should be [opp_0, opp_1, v_a] with CCW winding
+    // matching the original.
+    if next_in_0 == v_b {
+        // Original winding: tri_0 goes ...v_a -> v_b -> opp_0...
+        // New triangles: [opp_0, opp_1, v_a] and [opp_1, opp_0, v_b]
+        mesh.simplices[face_0] = [opp_0, opp_1, v_a];
+        mesh.simplices[face_1] = [opp_1, opp_0, v_b];
+    } else {
+        // Original winding: tri_0 goes ...v_a -> opp_0 -> v_b...
+        // New triangles: [opp_0, v_a, opp_1] and [opp_0, v_b, opp_1] won't work;
+        // mirror: [opp_1, opp_0, v_a] and [opp_0, opp_1, v_b]
+        mesh.simplices[face_0] = [opp_1, opp_0, v_a];
+        mesh.simplices[face_1] = [opp_0, opp_1, v_b];
+    }
+
+    mesh.rebuild_topology();
+
+    let mut log = RemeshLog::new();
+    log.flips.push(EdgeFlip {
+        old_edge: edge,
+        new_edge: [opp_0, opp_1],
+        affected_faces: [face_0, face_1],
+    });
+    Ok(log)
+}
+
+/// Compute the angle at vertex `apex` in the triangle (apex, p, q) using
+/// the manifold's logarithmic map and inner product.
+fn opposite_angle<M: Manifold>(
+    manifold: &M,
+    vertices: &[M::Point],
+    apex: usize,
+    p: usize,
+    q: usize,
+) -> f64 {
+    let v_ap = manifold
+        .log(&vertices[apex], &vertices[p])
+        .expect("log map failed for angle computation");
+    let v_aq = manifold
+        .log(&vertices[apex], &vertices[q])
+        .expect("log map failed for angle computation");
+    let dot = manifold.inner(&vertices[apex], &v_ap, &v_aq);
+    let norm_ap = manifold.norm(&vertices[apex], &v_ap);
+    let norm_aq = manifold.norm(&vertices[apex], &v_aq);
+    let denom = norm_ap * norm_aq;
+    if denom < 1e-30 {
+        return 0.0;
+    }
+    let cos_val = (dot / denom).clamp(-1.0, 1.0);
+    cos_val.acos()
 }
 
 /// Tangential Laplacian smoothing of a single vertex.
+///
+/// Computes the average of `log(vertex, neighbor)` over all 1-ring neighbors,
+/// producing a tangential displacement. The vertex is then moved via `exp`.
+/// For 2D flat meshes, the tangent plane coincides with the embedding plane,
+/// so no normal projection is needed.
+///
+/// Neighbors are discovered from `mesh.vertex_boundaries`: each incident edge
+/// contributes the other endpoint as a neighbor.
+///
+/// The `old_pos_tangent` field in the returned log is currently empty because
+/// the generic `Manifold::Point` type does not expose raw coordinate access.
+/// Callers that need the old coordinates should snapshot them before calling.
+///
+/// # Panics
+///
+/// Panics if `vertex >= mesh.n_vertices()`.
 pub fn shift_vertex<M: Manifold>(
-    _mesh: &mut Mesh<M, 3, 2>,
-    _manifold: &M,
-    _vertex: usize,
+    mesh: &mut Mesh<M, 3, 2>,
+    manifold: &M,
+    vertex: usize,
 ) -> RemeshLog {
-    todo!("Task 11")
+    assert!(
+        vertex < mesh.n_vertices(),
+        "vertex index out of bounds"
+    );
+
+    // Collect 1-ring neighbors from incident edges.
+    let mut neighbors: Vec<usize> = Vec::new();
+    for &b in &mesh.vertex_boundaries[vertex] {
+        let [e0, e1] = mesh.boundaries[b];
+        let other = if e0 == vertex { e1 } else { e0 };
+        if !neighbors.contains(&other) {
+            neighbors.push(other);
+        }
+    }
+
+    if neighbors.is_empty() {
+        let mut log = RemeshLog::new();
+        log.shifts.push(VertexShift {
+            vertex,
+            old_pos_tangent: Vec::new(),
+        });
+        return log;
+    }
+
+    // Compute tangential Laplacian: average of log(vertex, neighbor_i).
+    // Tangent vectors support Add and Mul<Real>, so accumulate via those ops.
+    let n = neighbors.len() as f64;
+    let base = mesh.vertices[vertex].clone();
+    let first_log = manifold
+        .log(&base, &mesh.vertices[neighbors[0]])
+        .expect("log map failed in shift_vertex");
+
+    let mut displacement = first_log;
+    for &nb in &neighbors[1..] {
+        let v_log = manifold
+            .log(&base, &mesh.vertices[nb])
+            .expect("log map failed in shift_vertex");
+        displacement = displacement + v_log;
+    }
+
+    // Average: displacement = sum / n.
+    displacement = displacement * (1.0 / n);
+
+    // Apply displacement via exponential map.
+    let new_pos = manifold.exp(&base, &displacement);
+    mesh.vertices[vertex] = new_pos;
+
+    let mut log = RemeshLog::new();
+    log.shifts.push(VertexShift {
+        vertex,
+        old_pos_tangent: Vec::new(),
+    });
+    log
 }
