@@ -17,8 +17,8 @@ std = ["alloc", "cartan-core/std", "cartan-manifolds/std", "nalgebra/std"]
 alloc = ["cartan-core/alloc", "cartan-manifolds/alloc", "nalgebra/alloc"]
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.1", default-features = false }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.1", default-features = false }
+cartan-core = { path = "../cartan-core", version = "0.2", default-features = false }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.2", default-features = false }
 nalgebra = { workspace = true, features = ["libm"] }
 
 [dev-dependencies]
