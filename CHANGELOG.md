@@ -4,6 +4,31 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.2.0] - 2026-04-08
+
+### Added
+
+- **cartan-remesh** (new crate): adaptive remeshing primitives for triangle meshes on Riemannian manifolds. Five primitive operations (`split_edge`, `collapse_edge`, `flip_edge`, `shift_vertex`), all generic over `M: Manifold`. `collapse_edge` includes a foldover guard via signed-area orientation check. Length-cross-ratio (LCR) conformal regularization with reference snapshot, spring energy, and gradient placeholder. `adaptive_remesh` driver with curvature-CFL split criterion and foldover-guarded collapse pass. `needs_remesh` predicate. `RemeshLog` records all mutations for downstream field interpolation. `RemeshConfig` with curvature scale, edge length bounds, area bounds, and smoothing parameters.
+- **cartan-dec**: sparse `ExteriorDerivative` via `sprs::CsMat<f64>` (replaces dense `nalgebra::DMatrix`). K-generic const-generic operators: `ExteriorDerivative`, `HodgeStar`, and `Operators` are now parameterised over `<M: Manifold, const K: usize, const B: usize>`. New `from_mesh_generic` constructors on `HodgeStar` and `Operators` for any manifold (not just flat `Euclidean<2>`).
+- **cartan-dec**: K-generic geometric primitives on `Mesh<M, K, B>`: `simplex_volume`, `boundary_volume`, `simplex_circumcenter`, `boundary_circumcenter` via Gram determinant and tangent-space equidistance system. `from_simplices_generic` constructor for arbitrary K. Dense linear algebra helpers (`dense_determinant`, `dense_solve`, `permutation_sign`).
+- **cartan-dec**: K-generic `apply_scalar_advection_generic` and `apply_divergence_generic` using tangent-vector velocity fields and adjacency-map traversal (O(V * avg_degree)).
+- **cartan-dec**: `rebuild_topology` on `Mesh<M, K, B>` for full boundary/sign/adjacency reconstruction after topology-changing mutations (split, collapse, flip).
+- **cartan-dec**: K=4 tetrahedral mesh support via `from_simplices_generic` (adjacency, volume, circumcenter verified; exactness requires full chain complex).
+
+### Changed
+
+- **cartan-dec**: `HodgeStar` storage changed from three separate `pub star0/star1/star2: DVector<f64>` fields to `pub star: Vec<DVector<f64>>` indexed by degree. Backward-compatible accessors `star0()`, `star1()`, `star2()` and `star_k(k)` / `star_k_inv(k)` provided.
+- **cartan-dec**: `Operators` struct now has const generics `<M, K, B>` (default `<Euclidean<2>, 3, 2>` for backward compatibility). `mass` field is `Vec<DVector<f64>>` (replaces `mass0`/`mass1`; backward aliases retained).
+- **cartan-dec**: `apply_scalar_advection` and `apply_divergence` are now thin wrappers around their generic counterparts. The old DVector-layout APIs are preserved.
+- **cartan-dec**: `ExteriorDerivative::from_mesh_sparse_generic` is now `pub` (was private).
+
+### Fixed
+
+- **cartan-dec**: CSC sparse matrix-vector product in `apply_laplace_beltrami` was iterating `outer_iterator()` as rows instead of columns (CSC format). Fixed to correct column-major traversal.
+- **cartan-dec**: CSR transpose-view matvec in divergence was swapping row/column indices. Fixed to standard CSR row iteration.
+
+---
+
 ## [0.1.7] - 2026-03-29
 
 ### Added
