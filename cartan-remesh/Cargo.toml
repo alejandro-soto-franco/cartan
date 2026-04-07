@@ -1,0 +1,27 @@
+[package]
+name = "cartan-remesh"
+description = "Adaptive remeshing primitives for triangle meshes on Riemannian manifolds"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["remesh", "riemannian", "triangle", "mesh", "adaptive"]
+categories = ["mathematics", "science", "algorithms"]
+documentation = "https://docs.rs/cartan-remesh"
+homepage = "https://cartan.sotofranco.dev"
+
+[dependencies]
+cartan-core      = { path = "../cartan-core", version = "0.1" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.1" }
+cartan-dec       = { path = "../cartan-dec", version = "0.1" }
+nalgebra         = { workspace = true }
+thiserror        = { workspace = true }
+
+[dev-dependencies]
+approx   = { workspace = true }
+nalgebra = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
