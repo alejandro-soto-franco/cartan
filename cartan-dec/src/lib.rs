@@ -13,8 +13,8 @@
 //! | Module | Contents |
 //! |--------|----------|
 //! | [`mesh`] | `Mesh<M,K,B>` generic simplicial complex; `FlatMesh` = flat 2D triangular mesh |
-//! | [`exterior`] | `ExteriorDerivative` — d₀ (0-forms to 1-forms) and d₁ (1-forms to 2-forms) |
-//! | [`hodge`] | `HodgeStar` — diagonal ⋆₀, ⋆₁, ⋆₂ from primal/dual volumes |
+//! | [`exterior`] | `ExteriorDerivative` — sparse d₀ (0-forms to 1-forms) and d₁ (1-forms to 2-forms) |
+//! | [`hodge`] | `HodgeStar` — diagonal ⋆ operators indexed by degree |
 //! | [`laplace`] | `Operators` — Laplace-Beltrami, Bochner, and Lichnerowicz Laplacians |
 //! | [`advection`] | Upwind covariant advection for scalar and vector fields |
 //! | [`divergence`] | Discrete covariant divergence of vector and tensor fields |
@@ -49,8 +49,8 @@ pub mod hodge;
 pub mod laplace;
 pub mod mesh;
 
-pub use advection::{apply_scalar_advection, apply_vector_advection};
-pub use divergence::{apply_divergence, apply_tensor_divergence};
+pub use advection::{apply_scalar_advection, apply_scalar_advection_generic, apply_vector_advection};
+pub use divergence::{apply_divergence, apply_divergence_generic, apply_tensor_divergence};
 pub use error::DecError;
 pub use exterior::ExteriorDerivative;
 pub use hodge::HodgeStar;
