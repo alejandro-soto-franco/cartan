@@ -137,38 +137,9 @@ fn collapse_edge_surviving_vertex_at_midpoint() {
 
 #[test]
 fn collapse_edge_rejects_foldover() {
-    // Build a mesh where collapsing edge (1,3) would flip triangle [1,4,0].
-    //
-    //       0=(0,2)
-    //      / \
-    //     /   \
-    //  1=(-1,0)--2=(1,0)
-    //     \   /
-    //      \ /
-    //   3=(0,-1)
-    //      |
-    //   4=(-0.8, 0.5)  <-- positioned so that moving 1 to midpoint(-1,0),(0,-1)=(-0.5,-0.5)
-    //                       causes triangle [1,4,0] to flip orientation.
-    //
-    // Triangle [1,4,0] = [(-1,0), (-0.8,0.5), (0,2)]:
-    //   area_before = 0.5 * ((0.2)(2) - (0.5)(1)) = 0.5*(0.4-0.5) = -0.05  (CW)
-    // After collapse, vertex 1 moves to (-0.5,-0.5):
-    //   [(-0.5,-0.5), (-0.8,0.5), (0,2)]:
-    //   area_after = 0.5*((-0.3)(2.5) - (1.0)(0.5)) = 0.5*(-0.75-0.5) = -0.625  (still CW)
-    //
-    // That's same sign. Let me try a different configuration.
-    // We need a triangle where moving the survivor inverts the orientation.
-    //
-    // Simpler approach: place vertex 4 such that the triangle [1,4,0] is barely
-    // CCW with vertex 1 at (-1,0), but becomes CW when 1 moves to (-0.5,-0.5).
-    //
-    //   4 = (-0.6, 0.1): triangle [1,4,0] = [(-1,0),(-0.6,0.1),(0,2)]
-    //   ab = (0.4, 0.1), ac = (1, 2)
-    //   area = 0.5*(0.4*2 - 0.1*1) = 0.5*(0.8-0.1) = 0.35 (CCW)
-    //   After: [(-0.5,-0.5),(-0.6,0.1),(0,2)]
-    //   ab = (-0.1, 0.6), ac = (0.5, 2.5)
-    //   area = 0.5*((-0.1)*2.5 - 0.6*0.5) = 0.5*(-0.25-0.3) = -0.275 (CW!)
-    //   Foldover detected!
+    // Vertex 4 at (-0.6, 0.1) makes triangle [1,4,0] barely CCW.
+    // Collapsing edge (1,3) moves vertex 1 from (-1,0) to the midpoint (-0.5,-0.5),
+    // which flips [1,4,0] from CCW (area=+0.35) to CW (area=-0.275).
     let manifold = Euclidean::<2>;
     let vertices = vec![
         SVector::from([0.0, 2.0]),    // 0
