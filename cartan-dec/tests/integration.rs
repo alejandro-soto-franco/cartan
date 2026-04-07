@@ -5,7 +5,7 @@
 
 use cartan_dec::{
     ExteriorDerivative, FlatMesh, HodgeStar, Mesh, Operators, apply_divergence,
-    apply_scalar_advection,
+    apply_divergence_generic, apply_scalar_advection, apply_scalar_advection_generic,
 };
 use cartan_manifolds::euclidean::Euclidean;
 use nalgebra::DVector;
@@ -280,6 +280,122 @@ fn advection_of_constant_field_vanishes() {
     assert!(
         max_err < 1e-13,
         "advection of constant: max |result| = {max_err:.2e}"
+    );
+}
+
+#[test]
+fn advection_generic_constant_field_vanishes() {
+    use nalgebra::SVector;
+
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    let nv = mesh.n_vertices();
+
+    let f = DVector::<f64>::from_element(nv, 5.0);
+    let u: Vec<SVector<f64, 2>> = vec![SVector::<f64, 2>::new(1.0, 0.5); nv];
+
+    let adv = apply_scalar_advection_generic(&mesh, &manifold, &f, &u);
+    let max_err = adv.abs().max();
+    assert!(
+        max_err < 1e-13,
+        "generic advection of constant: max = {max_err:.2e}"
+    );
+}
+
+#[test]
+fn advection_generic_matches_old() {
+    use nalgebra::SVector;
+
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    let nv = mesh.n_vertices();
+
+    let f: DVector<f64> = DVector::from_fn(nv, |v, _| {
+        let p = mesh.vertex(v);
+        (std::f64::consts::PI * p.x).sin() * (std::f64::consts::PI * p.y).cos()
+    });
+
+    let mut u_old = DVector::<f64>::zeros(2 * nv);
+    let mut u_new: Vec<SVector<f64, 2>> = Vec::with_capacity(nv);
+    for v in 0..nv {
+        let p = mesh.vertex(v);
+        u_old[v] = p.x;
+        u_old[nv + v] = -p.y;
+        u_new.push(SVector::<f64, 2>::new(p.x, -p.y));
+    }
+
+    let adv_old = apply_scalar_advection(&mesh, &f, &u_old);
+    let adv_new = apply_scalar_advection_generic(&mesh, &manifold, &f, &u_new);
+
+    let diff = (&adv_old - &adv_new).norm();
+    assert!(
+        diff < 1e-12,
+        "generic vs old advection: diff = {diff}"
+    );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Divergence (generic)
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[test]
+fn divergence_generic_constant_field_vanishes() {
+    use nalgebra::SVector;
+
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    let ext = ExteriorDerivative::from_mesh(&mesh);
+    let hodge = HodgeStar::from_mesh(&mesh, &manifold);
+    let nv = mesh.n_vertices();
+
+    let u: Vec<SVector<f64, 2>> = vec![SVector::<f64, 2>::new(1.0, 0.0); nv];
+
+    let div_u = apply_divergence_generic(&mesh, &manifold, &ext, &hodge, &u);
+    let max_interior_err = {
+        let mut m = 0.0f64;
+        for v in 0..nv {
+            let p = mesh.vertex(v);
+            let is_boundary =
+                p.x < 1e-10 || p.x > 1.0 - 1e-10 || p.y < 1e-10 || p.y > 1.0 - 1e-10;
+            if !is_boundary {
+                m = m.max(div_u[v].abs());
+            }
+        }
+        m
+    };
+
+    assert!(
+        max_interior_err < 1e-12,
+        "generic div(const) interior: max = {max_interior_err:.2e}"
+    );
+}
+
+#[test]
+fn divergence_generic_matches_old() {
+    use nalgebra::SVector;
+
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    let ext = ExteriorDerivative::from_mesh(&mesh);
+    let hodge = HodgeStar::from_mesh(&mesh, &manifold);
+    let nv = mesh.n_vertices();
+
+    let mut u_old = DVector::<f64>::zeros(2 * nv);
+    let mut u_new: Vec<SVector<f64, 2>> = Vec::with_capacity(nv);
+    for v in 0..nv {
+        let p = mesh.vertex(v);
+        u_old[v] = p.x;
+        u_old[nv + v] = -p.y;
+        u_new.push(SVector::<f64, 2>::new(p.x, -p.y));
+    }
+
+    let div_old = apply_divergence(&mesh, &ext, &hodge, &u_old);
+    let div_new = apply_divergence_generic(&mesh, &manifold, &ext, &hodge, &u_new);
+
+    let diff = (&div_old - &div_new).norm();
+    assert!(
+        diff < 1e-12,
+        "generic vs old divergence: diff = {diff}"
     );
 }
 
@@ -737,4 +853,108 @@ fn adjacency_rebuild_matches_initial() {
     assert_eq!(mesh_orig.vertex_boundaries, mesh_rebuilt.vertex_boundaries);
     assert_eq!(mesh_orig.vertex_simplices, mesh_rebuilt.vertex_simplices);
     assert_eq!(mesh_orig.boundary_simplices, mesh_rebuilt.boundary_simplices);
+}
+
+// -------------------------------------------------------------------------
+// K=4 tet mesh smoke tests
+// -------------------------------------------------------------------------
+
+#[test]
+fn tet_mesh_k4_adjacency() {
+    use nalgebra::SVector;
+
+    let manifold = Euclidean::<3>;
+    let v0 = SVector::<f64, 3>::new(0.0, 0.0, 0.0);
+    let v1 = SVector::<f64, 3>::new(1.0, 0.0, 0.0);
+    let v2 = SVector::<f64, 3>::new(0.0, 1.0, 0.0);
+    let v3 = SVector::<f64, 3>::new(0.0, 0.0, 1.0);
+
+    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
+        &manifold,
+        vec![v0, v1, v2, v3],
+        vec![[0, 1, 2, 3]],
+    );
+
+    assert_eq!(mesh.n_vertices(), 4);
+    assert_eq!(mesh.n_simplices(), 1);
+    assert_eq!(mesh.n_boundaries(), 4);
+
+    // Each vertex is in 3 boundary faces.
+    for v in 0..4 {
+        assert_eq!(
+            mesh.vertex_boundaries[v].len(),
+            3,
+            "vertex {v} has {} boundary faces, expected 3",
+            mesh.vertex_boundaries[v].len()
+        );
+    }
+
+    // Each vertex is in 1 simplex.
+    for v in 0..4 {
+        assert_eq!(mesh.vertex_simplices[v].len(), 1);
+    }
+
+    // Each boundary face has exactly 1 co-simplex.
+    for b in 0..4 {
+        assert_eq!(mesh.boundary_simplices[b].len(), 1);
+    }
+
+    // Euler characteristic: V - B + S = 4 - 4 + 1 = 1
+    assert_eq!(mesh.euler_characteristic(), 1);
+}
+
+#[test]
+fn tet_mesh_k4_exterior_dimensions() {
+    // For K=4: d[0] is (n_faces x n_vertices), d[1] is (n_tets x n_faces).
+    // Note: exactness d[1]*d[0]=0 does NOT hold for K=4 because our 2-level
+    // mesh stores faces (2-simplices) as boundaries, skipping edges. The
+    // chain complex requires all intermediate simplices for exactness.
+    // For K=3 (triangle meshes), boundaries = edges and exactness holds.
+    use nalgebra::SVector;
+
+    let manifold = Euclidean::<3>;
+    let v0 = SVector::<f64, 3>::new(0.0, 0.0, 0.0);
+    let v1 = SVector::<f64, 3>::new(1.0, 0.0, 0.0);
+    let v2 = SVector::<f64, 3>::new(0.0, 1.0, 0.0);
+    let v3 = SVector::<f64, 3>::new(0.0, 0.0, 1.0);
+
+    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
+        &manifold,
+        vec![v0, v1, v2, v3],
+        vec![[0, 1, 2, 3]],
+    );
+
+    let ext = ExteriorDerivative::from_mesh_sparse_generic(&mesh);
+    assert_eq!(ext.degree(), 2);
+    // d[0]: 4 faces x 4 vertices
+    assert_eq!(ext.d0().rows(), 4);
+    assert_eq!(ext.d0().cols(), 4);
+    // d[1]: 1 tet x 4 faces
+    assert_eq!(ext.d1().rows(), 1);
+    assert_eq!(ext.d1().cols(), 4);
+}
+
+#[test]
+fn tet_mesh_k4_simplex_volume() {
+    // Volume of the standard simplex [0,0,0],[1,0,0],[0,1,0],[0,0,1] = 1/6.
+    use nalgebra::SVector;
+
+    let manifold = Euclidean::<3>;
+    let v0 = SVector::<f64, 3>::new(0.0, 0.0, 0.0);
+    let v1 = SVector::<f64, 3>::new(1.0, 0.0, 0.0);
+    let v2 = SVector::<f64, 3>::new(0.0, 1.0, 0.0);
+    let v3 = SVector::<f64, 3>::new(0.0, 0.0, 1.0);
+
+    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
+        &manifold,
+        vec![v0, v1, v2, v3],
+        vec![[0, 1, 2, 3]],
+    );
+
+    let vol = mesh.simplex_volume(&manifold, 0);
+    let expected = 1.0 / 6.0;
+    assert!(
+        (vol - expected).abs() < 1e-14,
+        "standard tet volume: got {vol}, expected {expected}"
+    );
 }

@@ -2,26 +2,9 @@
 
 //! Discrete covariant advection operator for scalar and tensor-valued fields.
 //!
-//! The covariant advection of a scalar field f by a velocity field u is:
-//!
-//!   (u · ∇) f
-//!
-//! Discretized via upwind finite differences on the primal mesh:
-//! for each vertex v, the advective flux from neighbor w is:
-//!
-//!   flux(v, w) = max(u_{vw}, 0) * f\[w\] - max(-u_{vw}, 0) * f\[v\]
-//!
-//! where u_{vw} = u · (w - v) / |w - v| is the velocity projected onto
-//! edge (v, w). The upwind scheme is first-order but unconditionally stable.
-//!
-//! ## Covariant advection of tensor fields
-//!
-//! For a vector field q transported by velocity u, the covariant advection is:
-//!
-//!   (u · ∇) q + (connection term)
-//!
-//! On a flat domain, the connection term vanishes and this reduces to
-//! component-wise scalar advection.
+//! The upwind scheme computes (u . nabla) f at each vertex by iterating over
+//! incident boundary faces (edges for K=3) via the adjacency maps. This gives
+//! O(V * avg_degree) complexity regardless of K.
 //!
 //! ## References
 //!
@@ -30,75 +13,95 @@
 
 use nalgebra::DVector;
 
-use crate::mesh::FlatMesh;
+use cartan_core::Manifold;
 
-/// Apply the upwind covariant advection operator to a scalar 0-form.
+use crate::mesh::{FlatMesh, Mesh};
+
+/// K-generic upwind covariant advection of a scalar 0-form.
 ///
 /// # Arguments
 ///
-/// - `mesh`: the simplicial mesh.
+/// - `mesh`: the simplicial mesh (must have adjacency maps built).
+/// - `manifold`: the Riemannian manifold for metric operations.
 /// - `f`: scalar field at vertices (n_v vector).
-/// - `u`: velocity field at vertices, stored as [u_x[0..n_v], u_y[0..n_v]] (2*n_v vector).
+/// - `u`: velocity field as one tangent vector per vertex.
 ///
 /// # Returns
 ///
-/// `(u · ∇) f` at each vertex as an n_v vector.
-pub fn apply_scalar_advection(mesh: &FlatMesh, f: &DVector<f64>, u: &DVector<f64>) -> DVector<f64> {
+/// `(u . nabla) f` at each vertex as an n_v vector.
+pub fn apply_scalar_advection_generic<M: Manifold, const K: usize, const B: usize>(
+    mesh: &Mesh<M, K, B>,
+    manifold: &M,
+    f: &DVector<f64>,
+    u: &[M::Tangent],
+) -> DVector<f64> {
     let nv = mesh.n_vertices();
     assert_eq!(f.len(), nv, "advection: f must have n_v entries");
-    assert_eq!(u.len(), 2 * nv, "advection: u must have 2*n_v entries");
+    assert_eq!(u.len(), nv, "advection: u must have n_v tangent vectors");
 
     let mut result = DVector::<f64>::zeros(nv);
 
     for v in 0..nv {
-        let pv = mesh.vertex(v);
-        let uv = nalgebra::Vector2::new(u[v], u[nv + v]);
+        let pv = &mesh.vertices[v];
+        let uv = &u[v];
 
-        // Accumulate advective flux from all edges containing v.
-        // We iterate over edges and contribute to both endpoints.
-        for &[i, j] in &mesh.boundaries {
-            if i != v && j != v {
-                continue;
+        // Iterate over incident boundary faces of vertex v.
+        for &b in &mesh.vertex_boundaries[v] {
+            let boundary = &mesh.boundaries[b];
+
+            // Find the other vertices of this boundary face.
+            for &other in boundary {
+                if other == v {
+                    continue;
+                }
+
+                let po = &mesh.vertices[other];
+
+                // Direction from v to other in tangent space.
+                let edge_tangent = match manifold.log(pv, po) {
+                    Ok(t) => t,
+                    Err(_) => continue,
+                };
+                let len = manifold.norm(pv, &edge_tangent);
+                if len < 1e-30 {
+                    continue;
+                }
+
+                // Project velocity onto edge direction.
+                let u_proj = manifold.inner(pv, uv, &edge_tangent) / len;
+
+                // Upwind flux.
+                result[v] += if u_proj > 0.0 {
+                    u_proj * (f[other] - f[v]) / len
+                } else {
+                    u_proj * (f[v] - f[other]) / len
+                };
             }
-            let other = if i == v { j } else { i };
-            let po = mesh.vertex(other);
-
-            // Unit vector from v to other.
-            let diff = po - pv;
-            let len = diff.norm();
-            if len < 1e-30 {
-                continue;
-            }
-            let edge_dir = diff / len;
-
-            // Normal velocity component along edge: u_v · (other - v)/|other - v|.
-            let u_proj = uv.dot(&edge_dir);
-
-            // Upwind flux: if u_proj > 0, advect from other to v.
-            result[v] += if u_proj > 0.0 {
-                u_proj * (f[other] - f[v]) / len
-            } else {
-                u_proj * (f[v] - f[other]) / len
-            };
         }
     }
 
     result
 }
 
-/// Apply the upwind covariant advection operator to a vector-valued 0-form.
+/// Apply the upwind covariant advection operator to a scalar 0-form (flat mesh, old API).
+///
+/// Backward-compatible wrapper. Velocity is stored as [u_x[0..n_v], u_y[0..n_v]].
+pub fn apply_scalar_advection(mesh: &FlatMesh, f: &DVector<f64>, u: &DVector<f64>) -> DVector<f64> {
+    let nv = mesh.n_vertices();
+    assert_eq!(f.len(), nv, "advection: f must have n_v entries");
+    assert_eq!(u.len(), 2 * nv, "advection: u must have 2*n_v entries");
+
+    let u_tangent: Vec<nalgebra::SVector<f64, 2>> = (0..nv)
+        .map(|v| nalgebra::SVector::<f64, 2>::new(u[v], u[nv + v]))
+        .collect();
+
+    let manifold = cartan_manifolds::euclidean::Euclidean::<2>;
+    apply_scalar_advection_generic(mesh, &manifold, f, &u_tangent)
+}
+
+/// Apply the upwind covariant advection operator to a vector-valued 0-form (flat mesh, old API).
 ///
 /// For a flat domain, applies scalar advection component-wise.
-///
-/// # Arguments
-///
-/// - `mesh`: the simplicial mesh.
-/// - `q`: field at vertices, stored as [q_x[0..n_v], q_y[0..n_v]] (2*n_v vector).
-/// - `u`: velocity field at vertices, stored as [u_x[0..n_v], u_y[0..n_v]] (2*n_v vector).
-///
-/// # Returns
-///
-/// `(u · ∇) q` at each vertex as a 2*n_v vector.
 pub fn apply_vector_advection(mesh: &FlatMesh, q: &DVector<f64>, u: &DVector<f64>) -> DVector<f64> {
     let nv = mesh.n_vertices();
     assert_eq!(
