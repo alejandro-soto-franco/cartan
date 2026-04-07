@@ -4,7 +4,8 @@
 // operator correctness, and physical sanity checks.
 
 use cartan_dec::{
-    ExteriorDerivative, FlatMesh, HodgeStar, Operators, apply_divergence, apply_scalar_advection,
+    ExteriorDerivative, FlatMesh, HodgeStar, Mesh, Operators, apply_divergence,
+    apply_scalar_advection,
 };
 use cartan_manifolds::euclidean::Euclidean;
 use nalgebra::DVector;
@@ -78,16 +79,16 @@ fn exterior_derivative_exactness() {
 fn d0_dimensions() {
     let mesh = FlatMesh::unit_square_grid(3);
     let ext = ExteriorDerivative::from_mesh(&mesh);
-    assert_eq!(ext.d0.nrows(), mesh.n_boundaries());
-    assert_eq!(ext.d0.ncols(), mesh.n_vertices());
+    assert_eq!(ext.d0().rows(), mesh.n_boundaries());
+    assert_eq!(ext.d0().cols(), mesh.n_vertices());
 }
 
 #[test]
 fn d1_dimensions() {
     let mesh = FlatMesh::unit_square_grid(3);
     let ext = ExteriorDerivative::from_mesh(&mesh);
-    assert_eq!(ext.d1.nrows(), mesh.n_simplices());
-    assert_eq!(ext.d1.ncols(), mesh.n_boundaries());
+    assert_eq!(ext.d1().rows(), mesh.n_simplices());
+    assert_eq!(ext.d1().cols(), mesh.n_boundaries());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -326,6 +327,195 @@ fn lichnerowicz_laplacian_flat_kills_constant_tensor() {
     assert!(
         max_err < 1e-12,
         "Lichnerowicz(const tensor): max err = {max_err:.2e}"
+    );
+}
+
+// -------------------------------------------------------------------------
+// Sparse exterior derivative tests
+// -------------------------------------------------------------------------
+
+#[test]
+fn sparse_exterior_matches_dense() {
+    // The sparse exterior derivative must match the dense one to machine epsilon.
+    use nalgebra::DMatrix;
+
+    let mesh = FlatMesh::unit_square_grid(4);
+    let ext = ExteriorDerivative::from_mesh_sparse(&mesh);
+
+    let nv = mesh.n_vertices();
+    let ne = mesh.n_boundaries();
+    let nt = mesh.n_simplices();
+
+    // Build expected dense d0
+    let mut d0_dense = DMatrix::<f64>::zeros(ne, nv);
+    for (e, &[i, j]) in mesh.boundaries.iter().enumerate() {
+        d0_dense[(e, i)] = -1.0;
+        d0_dense[(e, j)] = 1.0;
+    }
+
+    // Check d[0]
+    let d0_sp = ext.d0();
+    for r in 0..ne {
+        for c in 0..nv {
+            let sp_val = d0_sp.get(r, c).copied().unwrap_or(0.0);
+            let dn_val = d0_dense[(r, c)];
+            assert!(
+                (sp_val - dn_val).abs() < 1e-15,
+                "d0[{r},{c}]: sparse={sp_val}, dense={dn_val}"
+            );
+        }
+    }
+
+    // Build expected dense d1
+    let mut d1_dense = DMatrix::<f64>::zeros(nt, ne);
+    for (t, (local_e, local_s)) in mesh
+        .simplex_boundary_ids
+        .iter()
+        .zip(mesh.boundary_signs.iter())
+        .enumerate()
+    {
+        for k in 0..3 {
+            d1_dense[(t, local_e[k])] = local_s[k];
+        }
+    }
+
+    // Check d[1]
+    let d1_sp = ext.d1();
+    for r in 0..nt {
+        for c in 0..ne {
+            let sp_val = d1_sp.get(r, c).copied().unwrap_or(0.0);
+            let dn_val = d1_dense[(r, c)];
+            assert!(
+                (sp_val - dn_val).abs() < 1e-15,
+                "d1[{r},{c}]: sparse={sp_val}, dense={dn_val}"
+            );
+        }
+    }
+}
+
+#[test]
+fn sparse_exterior_exactness() {
+    // d[k+1] * d[k] = 0 for all k.
+    let mesh = FlatMesh::unit_square_grid(4);
+    let ext = ExteriorDerivative::from_mesh_sparse(&mesh);
+    let max_err = ext.check_exactness();
+    assert!(
+        max_err < 1e-14,
+        "sparse exactness: max entry of d1*d0 = {max_err:.2e}"
+    );
+}
+
+#[test]
+fn sparse_exterior_k_generic_dimensions() {
+    // d has K-1 entries. For K=3: d[0] is (n_edges x n_verts), d[1] is (n_faces x n_edges).
+    let mesh = FlatMesh::unit_square_grid(3);
+    let ext = ExteriorDerivative::from_mesh_sparse(&mesh);
+    assert_eq!(ext.degree(), 2);
+    assert_eq!(ext.d0().rows(), mesh.n_boundaries());
+    assert_eq!(ext.d0().cols(), mesh.n_vertices());
+    assert_eq!(ext.d1().rows(), mesh.n_simplices());
+    assert_eq!(ext.d1().cols(), mesh.n_boundaries());
+}
+
+// -------------------------------------------------------------------------
+// K-generic geometric primitives
+// -------------------------------------------------------------------------
+
+#[test]
+fn simplex_volume_triangle_matches_triangle_area() {
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    for t in 0..mesh.n_simplices() {
+        let generic = mesh.simplex_volume(&manifold, t);
+        let specific = mesh.triangle_area(&manifold, t);
+        assert!(
+            (generic - specific).abs() < 1e-14,
+            "simplex {t}: generic={generic}, specific={specific}"
+        );
+    }
+}
+
+#[test]
+fn simplex_circumcenter_triangle_matches_circumcenter() {
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    for t in 0..mesh.n_simplices() {
+        let generic = mesh.simplex_circumcenter(&manifold, t);
+        let specific = mesh.circumcenter(&manifold, t);
+        let diff = (generic - specific).norm();
+        assert!(
+            diff < 1e-14,
+            "simplex {t}: circumcenter diff = {diff}"
+        );
+    }
+}
+
+#[test]
+fn boundary_volume_matches_edge_length() {
+    let mesh = FlatMesh::unit_square_grid(4);
+    let manifold = Euclidean::<2>;
+    for e in 0..mesh.n_boundaries() {
+        let generic = mesh.boundary_volume(&manifold, e);
+        let specific = mesh.edge_length(&manifold, e);
+        assert!(
+            (generic - specific).abs() < 1e-14,
+            "boundary {e}: generic={generic}, specific={specific}"
+        );
+    }
+}
+
+#[test]
+fn regular_tet_volume() {
+    // A regular tetrahedron with edge length 1 has volume sqrt(2)/12.
+    use nalgebra::SVector;
+
+    let manifold = Euclidean::<3>;
+    let v0 = SVector::<f64, 3>::new(0.0, 0.0, 0.0);
+    let v1 = SVector::<f64, 3>::new(1.0, 0.0, 0.0);
+    let v2 = SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 2.0, 0.0);
+    let v3 = SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 6.0, (2.0_f64 / 3.0).sqrt());
+
+    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
+        &manifold,
+        vec![v0, v1, v2, v3],
+        vec![[0, 1, 2, 3]],
+    );
+
+    let vol = mesh.simplex_volume(&manifold, 0);
+    let expected = (2.0_f64).sqrt() / 12.0;
+    assert!(
+        (vol - expected).abs() < 1e-12,
+        "regular tet volume: got {vol}, expected {expected}"
+    );
+}
+
+#[test]
+fn regular_tet_circumcenter_is_centroid() {
+    // For a regular tetrahedron, the circumcenter equals the centroid.
+    use nalgebra::SVector;
+
+    let manifold = Euclidean::<3>;
+    let v0 = SVector::<f64, 3>::new(0.0, 0.0, 0.0);
+    let v1 = SVector::<f64, 3>::new(1.0, 0.0, 0.0);
+    let v2 = SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 2.0, 0.0);
+    let v3 = SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 6.0, (2.0_f64 / 3.0).sqrt());
+
+    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
+        &manifold,
+        vec![v0, v1, v2, v3],
+        vec![[0, 1, 2, 3]],
+    );
+
+    let cc = mesh.simplex_circumcenter(&manifold, 0);
+    let centroid = (SVector::<f64, 3>::new(0.0, 0.0, 0.0)
+        + SVector::<f64, 3>::new(1.0, 0.0, 0.0)
+        + SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 2.0, 0.0)
+        + SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 6.0, (2.0_f64 / 3.0).sqrt()))
+        * 0.25;
+    let diff = (cc - centroid).norm();
+    assert!(
+        diff < 1e-12,
+        "regular tet circumcenter: diff from centroid = {diff}"
     );
 }
 
