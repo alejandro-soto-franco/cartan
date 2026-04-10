@@ -2,6 +2,7 @@ use cartan_dec::mesh_quality::{
     is_delaunay, is_well_centered, angle_at_vertex, quality_report, make_delaunay, make_well_centered,
 };
 use cartan_dec::mesh_gen::{icosphere, torus};
+use cartan_dec::HodgeStar;
 use cartan_dec::FlatMesh;
 use cartan_manifolds::euclidean::Euclidean;
 use cartan_manifolds::sphere::Sphere;
@@ -230,5 +231,36 @@ fn test_torus_delaunay() {
         report.is_delaunay,
         "regular torus grid should be Delaunay, non-Delaunay edges: {}",
         report.non_delaunay_edges
+    );
+}
+
+#[test]
+fn test_circumcentric_star0_positive_on_well_centered_mesh() {
+    let manifold = Sphere::<3>;
+    let mesh = icosphere(&manifold, 2, true);
+
+    let hodge = HodgeStar::from_mesh_circumcentric(&mesh, &manifold).unwrap();
+    let s0 = hodge.star0();
+    for i in 0..mesh.n_vertices() {
+        assert!(
+            s0[i] > 0.0,
+            "circumcentric star0[{i}] = {} should be positive on well-centered mesh",
+            s0[i]
+        );
+    }
+}
+
+#[test]
+fn test_circumcentric_star0_sums_to_surface_area() {
+    let manifold = Sphere::<3>;
+    let mesh = icosphere(&manifold, 3, true);
+
+    let hodge = HodgeStar::from_mesh_circumcentric(&mesh, &manifold).unwrap();
+    let total: f64 = hodge.star0().iter().sum();
+    // Surface area of unit sphere = 4*pi.
+    let expected = 4.0 * std::f64::consts::PI;
+    assert!(
+        (total - expected).abs() < 0.5,
+        "total dual area = {total}, expected ~{expected:.4}"
     );
 }
