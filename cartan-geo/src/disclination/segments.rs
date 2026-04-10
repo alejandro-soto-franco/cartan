@@ -23,7 +23,7 @@
 
 use nalgebra::SMatrix;
 
-use crate::holonomy::{loop_holonomy, is_half_disclination};
+use crate::holonomy::{is_half_disclination, loop_holonomy};
 
 /// Minimal interface required by disclination scanning algorithms.
 ///
@@ -145,33 +145,45 @@ pub fn scan_disclination_lines_3d<F: QTensorField3D>(q: &F) -> Vec<DisclinationS
                 // Dual loop in yz-plane (fa→fb→fc→fd is CW viewed from +x)
                 {
                     // fa: face with corners (i,j,l), (i,j,lp), (i,jp,lp), (i,jp,l)
-                    let fa = face_center_frame(q, [
-                        q.idx(i, j, l),
-                        q.idx(i, j, lp),
-                        q.idx(i, jp, lp),
-                        q.idx(i, jp, l),
-                    ]);
+                    let fa = face_center_frame(
+                        q,
+                        [
+                            q.idx(i, j, l),
+                            q.idx(i, j, lp),
+                            q.idx(i, jp, lp),
+                            q.idx(i, jp, l),
+                        ],
+                    );
                     // fb: face with corners (i,j,lm), (i,j,l), (i,jp,l), (i,jp,lm)
-                    let fb = face_center_frame(q, [
-                        q.idx(i, j, lm),
-                        q.idx(i, j, l),
-                        q.idx(i, jp, l),
-                        q.idx(i, jp, lm),
-                    ]);
+                    let fb = face_center_frame(
+                        q,
+                        [
+                            q.idx(i, j, lm),
+                            q.idx(i, j, l),
+                            q.idx(i, jp, l),
+                            q.idx(i, jp, lm),
+                        ],
+                    );
                     // fc: face with corners (i,jm,lm), (i,jm,l), (i,j,l), (i,j,lm)
-                    let fc = face_center_frame(q, [
-                        q.idx(i, jm, lm),
-                        q.idx(i, jm, l),
-                        q.idx(i, j, l),
-                        q.idx(i, j, lm),
-                    ]);
+                    let fc = face_center_frame(
+                        q,
+                        [
+                            q.idx(i, jm, lm),
+                            q.idx(i, jm, l),
+                            q.idx(i, j, l),
+                            q.idx(i, j, lm),
+                        ],
+                    );
                     // fd: face with corners (i,jm,l), (i,jm,lp), (i,j,lp), (i,j,l)
-                    let fd = face_center_frame(q, [
-                        q.idx(i, jm, l),
-                        q.idx(i, jm, lp),
-                        q.idx(i, j, lp),
-                        q.idx(i, j, l),
-                    ]);
+                    let fd = face_center_frame(
+                        q,
+                        [
+                            q.idx(i, jm, l),
+                            q.idx(i, jm, lp),
+                            q.idx(i, j, lp),
+                            q.idx(i, j, l),
+                        ],
+                    );
 
                     let frames = [fa, fb, fc, fd];
                     let hol = loop_holonomy(&frames);
@@ -181,11 +193,7 @@ pub fn scan_disclination_lines_3d<F: QTensorField3D>(q: &F) -> Vec<DisclinationS
                         segs.push(DisclinationSegment {
                             edge: (v0, v1),
                             charge: DisclinationCharge::Half(Sign::Positive),
-                            midpoint: [
-                                (i as f64 + 0.5) * dx,
-                                j as f64 * dx,
-                                l as f64 * dx,
-                            ],
+                            midpoint: [(i as f64 + 0.5) * dx, j as f64 * dx, l as f64 * dx],
                         });
                     }
                 }
@@ -194,33 +202,45 @@ pub fn scan_disclination_lines_3d<F: QTensorField3D>(q: &F) -> Vec<DisclinationS
                 // Dual loop in xz-plane (fa→fb→fc→fd is CW viewed from +y)
                 {
                     // fa: corners (i,j,l), (ip,j,l), (ip,j,lp), (i,j,lp)
-                    let fa = face_center_frame(q, [
-                        q.idx(i, j, l),
-                        q.idx(ip, j, l),
-                        q.idx(ip, j, lp),
-                        q.idx(i, j, lp),
-                    ]);
+                    let fa = face_center_frame(
+                        q,
+                        [
+                            q.idx(i, j, l),
+                            q.idx(ip, j, l),
+                            q.idx(ip, j, lp),
+                            q.idx(i, j, lp),
+                        ],
+                    );
                     // fb: corners (im,j,l), (i,j,l), (i,j,lp), (im,j,lp)
-                    let fb = face_center_frame(q, [
-                        q.idx(im, j, l),
-                        q.idx(i, j, l),
-                        q.idx(i, j, lp),
-                        q.idx(im, j, lp),
-                    ]);
+                    let fb = face_center_frame(
+                        q,
+                        [
+                            q.idx(im, j, l),
+                            q.idx(i, j, l),
+                            q.idx(i, j, lp),
+                            q.idx(im, j, lp),
+                        ],
+                    );
                     // fc: corners (im,j,lm), (i,j,lm), (i,j,l), (im,j,l)
-                    let fc = face_center_frame(q, [
-                        q.idx(im, j, lm),
-                        q.idx(i, j, lm),
-                        q.idx(i, j, l),
-                        q.idx(im, j, l),
-                    ]);
+                    let fc = face_center_frame(
+                        q,
+                        [
+                            q.idx(im, j, lm),
+                            q.idx(i, j, lm),
+                            q.idx(i, j, l),
+                            q.idx(im, j, l),
+                        ],
+                    );
                     // fd: corners (i,j,lm), (ip,j,lm), (ip,j,l), (i,j,l)
-                    let fd = face_center_frame(q, [
-                        q.idx(i, j, lm),
-                        q.idx(ip, j, lm),
-                        q.idx(ip, j, l),
-                        q.idx(i, j, l),
-                    ]);
+                    let fd = face_center_frame(
+                        q,
+                        [
+                            q.idx(i, j, lm),
+                            q.idx(ip, j, lm),
+                            q.idx(ip, j, l),
+                            q.idx(i, j, l),
+                        ],
+                    );
 
                     let frames = [fa, fb, fc, fd];
                     let hol = loop_holonomy(&frames);
@@ -230,11 +250,7 @@ pub fn scan_disclination_lines_3d<F: QTensorField3D>(q: &F) -> Vec<DisclinationS
                         segs.push(DisclinationSegment {
                             edge: (v0, v1),
                             charge: DisclinationCharge::Half(Sign::Positive),
-                            midpoint: [
-                                i as f64 * dx,
-                                (j as f64 + 0.5) * dx,
-                                l as f64 * dx,
-                            ],
+                            midpoint: [i as f64 * dx, (j as f64 + 0.5) * dx, l as f64 * dx],
                         });
                     }
                 }
@@ -243,33 +259,45 @@ pub fn scan_disclination_lines_3d<F: QTensorField3D>(q: &F) -> Vec<DisclinationS
                 // Dual loop in xy-plane (fa→fb→fc→fd is CW viewed from +z)
                 {
                     // fa: corners (i,j,l), (i,jp,l), (ip,jp,l), (ip,j,l)
-                    let fa = face_center_frame(q, [
-                        q.idx(i, j, l),
-                        q.idx(i, jp, l),
-                        q.idx(ip, jp, l),
-                        q.idx(ip, j, l),
-                    ]);
+                    let fa = face_center_frame(
+                        q,
+                        [
+                            q.idx(i, j, l),
+                            q.idx(i, jp, l),
+                            q.idx(ip, jp, l),
+                            q.idx(ip, j, l),
+                        ],
+                    );
                     // fb: corners (i,jm,l), (i,j,l), (ip,j,l), (ip,jm,l)
-                    let fb = face_center_frame(q, [
-                        q.idx(i, jm, l),
-                        q.idx(i, j, l),
-                        q.idx(ip, j, l),
-                        q.idx(ip, jm, l),
-                    ]);
+                    let fb = face_center_frame(
+                        q,
+                        [
+                            q.idx(i, jm, l),
+                            q.idx(i, j, l),
+                            q.idx(ip, j, l),
+                            q.idx(ip, jm, l),
+                        ],
+                    );
                     // fc: corners (im,jm,l), (im,j,l), (i,j,l), (i,jm,l)
-                    let fc = face_center_frame(q, [
-                        q.idx(im, jm, l),
-                        q.idx(im, j, l),
-                        q.idx(i, j, l),
-                        q.idx(i, jm, l),
-                    ]);
+                    let fc = face_center_frame(
+                        q,
+                        [
+                            q.idx(im, jm, l),
+                            q.idx(im, j, l),
+                            q.idx(i, j, l),
+                            q.idx(i, jm, l),
+                        ],
+                    );
                     // fd: corners (im,j,l), (im,jp,l), (i,jp,l), (i,j,l)
-                    let fd = face_center_frame(q, [
-                        q.idx(im, j, l),
-                        q.idx(im, jp, l),
-                        q.idx(i, jp, l),
-                        q.idx(i, j, l),
-                    ]);
+                    let fd = face_center_frame(
+                        q,
+                        [
+                            q.idx(im, j, l),
+                            q.idx(im, jp, l),
+                            q.idx(i, jp, l),
+                            q.idx(i, j, l),
+                        ],
+                    );
 
                     let frames = [fa, fb, fc, fd];
                     let hol = loop_holonomy(&frames);
@@ -279,11 +307,7 @@ pub fn scan_disclination_lines_3d<F: QTensorField3D>(q: &F) -> Vec<DisclinationS
                         segs.push(DisclinationSegment {
                             edge: (v0, v1),
                             charge: DisclinationCharge::Half(Sign::Positive),
-                            midpoint: [
-                                i as f64 * dx,
-                                j as f64 * dx,
-                                (l as f64 + 0.5) * dx,
-                            ],
+                            midpoint: [i as f64 * dx, j as f64 * dx, (l as f64 + 0.5) * dx],
                         });
                     }
                 }
@@ -318,14 +342,24 @@ pub struct UniformQGrid {
 
 #[cfg(test)]
 impl QTensorField3D for UniformQGrid {
-    fn nx(&self) -> usize { self.nx }
-    fn ny(&self) -> usize { self.ny }
-    fn nz(&self) -> usize { self.nz }
-    fn dx(&self) -> f64 { self.dx }
+    fn nx(&self) -> usize {
+        self.nx
+    }
+    fn ny(&self) -> usize {
+        self.ny
+    }
+    fn nz(&self) -> usize {
+        self.nz
+    }
+    fn dx(&self) -> f64 {
+        self.dx
+    }
     fn idx(&self, i: usize, j: usize, l: usize) -> usize {
         ((i % self.nx) * self.ny + (j % self.ny)) * self.nz + (l % self.nz)
     }
-    fn embed_matrix3(&self, _k: usize) -> SMatrix<f64, 3, 3> { self.qtensor }
+    fn embed_matrix3(&self, _k: usize) -> SMatrix<f64, 3, 3> {
+        self.qtensor
+    }
 }
 
 #[cfg(test)]
@@ -336,11 +370,23 @@ mod tests {
         // Uniaxial Q tensor along x: Q = S(n⊗n − I/3), n = [1,0,0], S = 0.6
         let s = 0.6_f64;
         let qtensor = SMatrix::<f64, 3, 3>::new(
-            2.0 / 3.0 * s,  0.0, 0.0,
-            0.0, -1.0 / 3.0 * s, 0.0,
-            0.0, 0.0, -1.0 / 3.0 * s,
+            2.0 / 3.0 * s,
+            0.0,
+            0.0,
+            0.0,
+            -1.0 / 3.0 * s,
+            0.0,
+            0.0,
+            0.0,
+            -1.0 / 3.0 * s,
         );
-        UniformQGrid { nx, ny, nz, dx: 1.0, qtensor }
+        UniformQGrid {
+            nx,
+            ny,
+            nz,
+            dx: 1.0,
+            qtensor,
+        }
     }
 
     #[test]
@@ -348,8 +394,11 @@ mod tests {
         // A perfectly uniform Q field has no disclinations.
         let q = uniform_q(8, 8, 8);
         let segs = scan_disclination_lines_3d(&q);
-        assert!(segs.is_empty(),
-            "Uniform Q field should have no disclination segments, got {}", segs.len());
+        assert!(
+            segs.is_empty(),
+            "Uniform Q field should have no disclination segments, got {}",
+            segs.len()
+        );
     }
 
     #[test]

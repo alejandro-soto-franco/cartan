@@ -1,4 +1,4 @@
-use cartan_dec::extrinsic::{FaceData, ExtrinsicOperators};
+use cartan_dec::extrinsic::{ExtrinsicOperators, FaceData};
 use cartan_dec::mesh_gen::icosphere;
 use cartan_manifolds::sphere::Sphere;
 
@@ -75,7 +75,12 @@ fn test_projectors_kill_normal() {
     let mesh = icosphere(&manifold, 1, true);
     let face_data = FaceData::from_mesh(&mesh);
 
-    for (f, (p, n)) in face_data.projectors.iter().zip(&face_data.normals).enumerate() {
+    for (f, (p, n)) in face_data
+        .projectors
+        .iter()
+        .zip(&face_data.normals)
+        .enumerate()
+    {
         let pn = p * n;
         assert!(
             pn.norm() < 1e-10,
@@ -154,7 +159,7 @@ fn test_grad_is_neg_div_transpose() {
     let nv = mesh.n_vertices();
 
     // <DIV * u, p> should equal <u, -GRAD * p> for arbitrary u, p.
-    let u: Vec<f64> = (0..3*nv).map(|i| (i as f64 * 0.1).sin()).collect();
+    let u: Vec<f64> = (0..3 * nv).map(|i| (i as f64 * 0.1).sin()).collect();
     let p: Vec<f64> = (0..nv).map(|i| (i as f64 * 0.3).cos()).collect();
 
     let div_u = ops.apply_div(&u);

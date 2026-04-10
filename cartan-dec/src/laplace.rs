@@ -139,10 +139,7 @@ impl Operators<Euclidean<2>, 3, 2> {
 impl<M: Manifold, const K: usize, const B: usize> Operators<M, K, B> {
     /// K-generic constructor: assembles exterior derivative, Hodge star, and
     /// scalar Laplace-Beltrami from any mesh.
-    pub fn from_mesh_generic(
-        mesh: &Mesh<M, K, B>,
-        manifold: &M,
-    ) -> Result<Self, DecError> {
+    pub fn from_mesh_generic(mesh: &Mesh<M, K, B>, manifold: &M) -> Result<Self, DecError> {
         let ext = ExteriorDerivative::from_mesh_sparse_generic(mesh);
         let hodge = HodgeStar::from_mesh_generic(mesh, manifold)?;
         let laplace_beltrami = assemble_scalar_laplacian(&ext, &hodge);

@@ -33,25 +33,25 @@
 extern crate alloc;
 
 pub mod curvature;
-pub mod geodesic;
 #[cfg(feature = "std")]
 pub mod disclination;
+pub mod geodesic;
 #[cfg(feature = "std")]
 pub mod holonomy;
 pub mod jacobi;
 
 pub use curvature::{CurvatureQuery, scalar_at, sectional_at};
-pub use geodesic::Geodesic;
 #[cfg(feature = "std")]
 pub use disclination::{
-    DisclinationCharge, DisclinationSegment, DisclinationLine, DisclinationEvent,
-    EventKind, QTensorField3D, Sign, scan_disclination_lines_3d, connect_disclination_lines,
+    DisclinationCharge, DisclinationEvent, DisclinationLine, DisclinationSegment, EventKind,
+    QTensorField3D, Sign, connect_disclination_lines, scan_disclination_lines_3d,
     track_disclination_events,
 };
+pub use geodesic::Geodesic;
 #[cfg(feature = "std")]
 pub use holonomy::{
-    Disclination, edge_transition, holonomy_deviation, is_half_disclination,
-    loop_holonomy, rotation_angle, scan_disclinations,
+    Disclination, edge_transition, holonomy_deviation, is_half_disclination, loop_holonomy,
+    rotation_angle, scan_disclinations,
 };
 #[cfg(feature = "alloc")]
 pub use jacobi::{JacobiResult, integrate_jacobi};

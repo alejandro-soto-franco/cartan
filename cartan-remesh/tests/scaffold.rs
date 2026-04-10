@@ -1,6 +1,6 @@
 // ~/cartan/cartan-remesh/tests/scaffold.rs
 
-use cartan_remesh::{RemeshConfig, RemeshError, RemeshLog, EdgeSplit};
+use cartan_remesh::{EdgeSplit, RemeshConfig, RemeshError, RemeshLog};
 
 #[test]
 fn remesh_log_default_is_empty() {

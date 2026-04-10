@@ -18,9 +18,9 @@
 use num_complex::Complex;
 use sprs::{CsMat, TriMat};
 
-use cartan_core::Manifold;
-use crate::mesh::Mesh;
 use crate::hodge::HodgeStar;
+use crate::mesh::Mesh;
+use cartan_core::Manifold;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Section<K>: complex section of the line bundle L_k
@@ -64,7 +64,12 @@ impl<const K: u32> Section<K> {
     pub fn add(&self, other: &Self) -> Self {
         assert_eq!(self.values.len(), other.values.len());
         Self {
-            values: self.values.iter().zip(&other.values).map(|(a, b)| a + b).collect(),
+            values: self
+                .values
+                .iter()
+                .zip(&other.values)
+                .map(|(a, b)| a + b)
+                .collect(),
         }
     }
 
@@ -95,7 +100,8 @@ impl<const K: u32> Section<K> {
 
     /// L2 inner product: sum_v conj(a_v) * b_v * dual_area_v.
     pub fn l2_inner(&self, other: &Self, dual_areas: &[f64]) -> Complex<f64> {
-        self.values.iter()
+        self.values
+            .iter()
             .zip(&other.values)
             .zip(dual_areas)
             .map(|((a, b), &area)| a.conj() * b * area)
@@ -134,7 +140,11 @@ impl<const K: u32> Section<K> {
     pub fn from_real_components(q1: &[f64], q2: &[f64]) -> Self {
         assert_eq!(q1.len(), q2.len());
         Self {
-            values: q1.iter().zip(q2).map(|(&r, &i)| Complex::new(r, i)).collect(),
+            values: q1
+                .iter()
+                .zip(q2)
+                .map(|(&r, &i)| Complex::new(r, i))
+                .collect(),
         }
     }
 }
@@ -171,10 +181,7 @@ impl ConnectionAngles {
     ///
     /// For dual edges, Omega_{e*} is computed from the first edge vector of
     /// each face (the reference frame direction) transported across the shared edge.
-    pub fn from_mesh<M: Manifold>(
-        mesh: &Mesh<M, 3, 2>,
-        manifold: &M,
-    ) -> Self {
+    pub fn from_mesh<M: Manifold>(mesh: &Mesh<M, 3, 2>, manifold: &M) -> Self {
         let ne = mesh.n_boundaries();
         let mut primal = vec![0.0; ne];
         let mut dual = vec![0.0; ne];
@@ -186,8 +193,12 @@ impl ConnectionAngles {
 
             // Primal connection: vertex-to-vertex.
             // Log maps give tangent vectors in each vertex's frame.
-            let log_ij = manifold.log(pi, pj).unwrap_or_else(|_| manifold.zero_tangent(pi));
-            let log_ji = manifold.log(pj, pi).unwrap_or_else(|_| manifold.zero_tangent(pj));
+            let log_ij = manifold
+                .log(pi, pj)
+                .unwrap_or_else(|_| manifold.zero_tangent(pi));
+            let log_ji = manifold
+                .log(pj, pi)
+                .unwrap_or_else(|_| manifold.zero_tangent(pj));
 
             // Compute angles of these tangent vectors in a local 2D frame.
             // For a 2-manifold in R^3, we use the first incident triangle to
@@ -345,7 +356,13 @@ impl<const K: u32> BochnerLaplacian<K> {
 
         // Precompute inverse dual areas for row scaling.
         let inv_star0: Vec<f64> = (0..nv)
-            .map(|i| if star0[i].abs() > 1e-30 { -1.0 / star0[i] } else { 0.0 })
+            .map(|i| {
+                if star0[i].abs() > 1e-30 {
+                    -1.0 / star0[i]
+                } else {
+                    0.0
+                }
+            })
             .collect();
 
         for e in 0..ne {
