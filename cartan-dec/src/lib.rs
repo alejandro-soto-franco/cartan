@@ -48,6 +48,7 @@ pub mod exterior;
 pub mod hodge;
 pub mod laplace;
 pub mod mesh;
+pub mod mesh_quality;
 
 pub use advection::{apply_scalar_advection, apply_scalar_advection_generic, apply_vector_advection};
 pub use divergence::{apply_divergence, apply_divergence_generic, apply_tensor_divergence};
