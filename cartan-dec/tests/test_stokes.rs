@@ -1,5 +1,5 @@
-use cartan_dec::stokes::StokesSolverAL;
 use cartan_dec::mesh_gen::icosphere;
+use cartan_dec::stokes::StokesSolverAL;
 use cartan_manifolds::sphere::Sphere;
 
 #[test]

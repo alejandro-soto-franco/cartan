@@ -7,8 +7,8 @@
 //! This module provides predicates to check these properties and operators
 //! to improve mesh quality via edge flips and Lloyd smoothing.
 
-use cartan_core::Manifold;
 use crate::mesh::Mesh;
+use cartan_core::Manifold;
 
 /// Compute the angle at vertex `v_idx` within simplex `s` on manifold `m`.
 ///
@@ -104,10 +104,7 @@ fn opposite_angle<M: Manifold, const K: usize, const B: usize>(
 /// to all angles being acute (< pi/2).
 ///
 /// Uses the existing `Mesh::check_well_centered` implementation.
-pub fn is_well_centered<M: Manifold>(
-    mesh: &Mesh<M, 3, 2>,
-    manifold: &M,
-) -> bool {
+pub fn is_well_centered<M: Manifold>(mesh: &Mesh<M, 3, 2>, manifold: &M) -> bool {
     mesh.check_well_centered(manifold).is_ok()
 }
 
@@ -195,10 +192,7 @@ pub fn quality_report<M: Manifold, const K: usize, const B: usize>(
 /// opposite diagonal. Rebuilds topology afterward.
 ///
 /// Panics if the edge is a boundary edge (only one adjacent triangle).
-fn edge_flip<M: Manifold>(
-    mesh: &mut Mesh<M, 3, 2>,
-    e: usize,
-) {
+fn edge_flip<M: Manifold>(mesh: &mut Mesh<M, 3, 2>, e: usize) {
     let cofaces = mesh.boundary_simplices[e].clone();
     assert_eq!(cofaces.len(), 2, "cannot flip a boundary edge");
     let t0 = cofaces[0];
@@ -229,10 +223,7 @@ fn edge_flip<M: Manifold>(
 /// angles sum to > pi. Repeats until no more flips are needed.
 ///
 /// The number of vertices and triangles is preserved (no Steiner points).
-pub fn make_delaunay<M: Manifold>(
-    mut mesh: Mesh<M, 3, 2>,
-    manifold: &M,
-) -> Mesh<M, 3, 2> {
+pub fn make_delaunay<M: Manifold>(mut mesh: Mesh<M, 3, 2>, manifold: &M) -> Mesh<M, 3, 2> {
     let max_iterations = mesh.n_boundaries() * mesh.n_boundaries();
 
     for _ in 0..max_iterations {
@@ -326,9 +317,7 @@ pub fn make_well_centered<M: Manifold>(
                     continue;
                 }
                 let disp = tan.clone() * (1.0 / w);
-                let disp_norm = manifold
-                    .inner(&mesh.vertices[v], &disp, &disp)
-                    .sqrt();
+                let disp_norm = manifold.inner(&mesh.vertices[v], &disp, &disp).sqrt();
                 max_displacement = max_displacement.max(disp_norm);
                 mesh.vertices[v] = manifold.exp(&mesh.vertices[v], &disp);
             }

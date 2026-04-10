@@ -6,8 +6,8 @@
 //! bounds and a curvature-CFL criterion. Flip and smoothing passes are
 //! deferred to a future extension (Task 11 must land first).
 
-use cartan_manifolds::euclidean::Euclidean;
 use cartan_dec::Mesh;
+use cartan_manifolds::euclidean::Euclidean;
 
 use crate::config::RemeshConfig;
 use crate::log::RemeshLog;
@@ -203,11 +203,7 @@ pub fn adaptive_remesh(
             Err(_) => {
                 // Foldover detected: skip this edge. If all short edges cause
                 // foldover, break to avoid infinite loop.
-                let remaining: Vec<(usize, f64)> = to_collapse
-                    .iter()
-                    .skip(1)
-                    .copied()
-                    .collect();
+                let remaining: Vec<(usize, f64)> = to_collapse.iter().skip(1).copied().collect();
                 let mut collapsed_any = false;
                 for (e, _) in remaining {
                     // Edge index may have shifted, re-validate.

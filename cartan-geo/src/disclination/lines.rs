@@ -102,8 +102,16 @@ fn compute_frenet(positions: &[[f64; 3]]) -> (Vec<[f64; 3]>, Vec<f64>, Vec<f64>)
     // Step 1: compute tangents using central differences on positions.
     let mut tangents = vec![[0.0f64; 3]; n];
     for i in 0..n {
-        let prev = if i == 0 { positions[0] } else { positions[i - 1] };
-        let next = if i == n - 1 { positions[n - 1] } else { positions[i + 1] };
+        let prev = if i == 0 {
+            positions[0]
+        } else {
+            positions[i - 1]
+        };
+        let next = if i == n - 1 {
+            positions[n - 1]
+        } else {
+            positions[i + 1]
+        };
         let diff = sub3(next, prev);
         tangents[i] = normalize3(diff);
     }
@@ -119,9 +127,21 @@ fn compute_frenet(positions: &[[f64; 3]]) -> (Vec<[f64; 3]>, Vec<f64>, Vec<f64>)
     let mut curvatures = vec![0.0f64; n];
     for i in 0..n {
         let t_prev = if i == 0 { tangents[0] } else { tangents[i - 1] };
-        let t_next = if i == n - 1 { tangents[n - 1] } else { tangents[i + 1] };
-        let p_prev = if i == 0 { positions[0] } else { positions[i - 1] };
-        let p_next = if i == n - 1 { positions[n - 1] } else { positions[i + 1] };
+        let t_next = if i == n - 1 {
+            tangents[n - 1]
+        } else {
+            tangents[i + 1]
+        };
+        let p_prev = if i == 0 {
+            positions[0]
+        } else {
+            positions[i - 1]
+        };
+        let p_next = if i == n - 1 {
+            positions[n - 1]
+        } else {
+            positions[i + 1]
+        };
         // ds = arc length step (approximate)
         let ds = norm3(sub3(p_next, p_prev));
         let dt = sub3(t_next, t_prev);
@@ -144,10 +164,26 @@ fn compute_frenet(positions: &[[f64; 3]]) -> (Vec<[f64; 3]>, Vec<f64>, Vec<f64>)
     // Step 4: torsion tau = -N · (dB/ds) via central differences on B.
     let mut torsions = vec![0.0f64; n];
     for i in 0..n {
-        let b_prev = if i == 0 { binormals[0] } else { binormals[i - 1] };
-        let b_next = if i == n - 1 { binormals[n - 1] } else { binormals[i + 1] };
-        let p_prev = if i == 0 { positions[0] } else { positions[i - 1] };
-        let p_next = if i == n - 1 { positions[n - 1] } else { positions[i + 1] };
+        let b_prev = if i == 0 {
+            binormals[0]
+        } else {
+            binormals[i - 1]
+        };
+        let b_next = if i == n - 1 {
+            binormals[n - 1]
+        } else {
+            binormals[i + 1]
+        };
+        let p_prev = if i == 0 {
+            positions[0]
+        } else {
+            positions[i - 1]
+        };
+        let p_next = if i == n - 1 {
+            positions[n - 1]
+        } else {
+            positions[i + 1]
+        };
         let ds = norm3(sub3(p_next, p_prev));
         let db = sub3(b_next, b_prev);
         if ds > 1e-14 {
@@ -223,12 +259,16 @@ pub fn connect_disclination_lines(segs: &[DisclinationSegment], _dx: f64) -> Vec
 
         // Build an ordered path through this component.
         // Find a degree-1 vertex (endpoint) if it exists; otherwise start from any vertex.
-        let degree: HashMap<usize, usize> = component_vertices.iter().map(|&v| {
-            let d = adj.get(&v).map(|n| n.len()).unwrap_or(0);
-            (v, d)
-        }).collect();
+        let degree: HashMap<usize, usize> = component_vertices
+            .iter()
+            .map(|&v| {
+                let d = adj.get(&v).map(|n| n.len()).unwrap_or(0);
+                (v, d)
+            })
+            .collect();
 
-        let path_start = component_vertices.iter()
+        let path_start = component_vertices
+            .iter()
             .find(|&&v| *degree.get(&v).unwrap_or(&0) == 1)
             .copied()
             .unwrap_or(component_vertices[0]);
@@ -248,7 +288,10 @@ pub fn connect_disclination_lines(segs: &[DisclinationSegment], _dx: f64) -> Vec
         loop {
             // Find unvisited neighbor
             let next = adj.get(&current).and_then(|neighbors| {
-                neighbors.iter().find(|&&(u, _)| !path_visited.contains(&u)).map(|&(u, _)| u)
+                neighbors
+                    .iter()
+                    .find(|&&(u, _)| !path_visited.contains(&u))
+                    .map(|&(u, _)| u)
             });
             match next {
                 Some(u) => {
@@ -261,7 +304,8 @@ pub fn connect_disclination_lines(segs: &[DisclinationSegment], _dx: f64) -> Vec
         }
 
         // Check if loop: first and last vertex are adjacent
-        let is_loop = adj.get(&path[path.len() - 1])
+        let is_loop = adj
+            .get(&path[path.len() - 1])
             .map(|n| n.iter().any(|&(u, _)| u == path[0]))
             .unwrap_or(false)
             && path.len() > 2;
@@ -329,8 +373,8 @@ pub fn connect_disclination_lines(segs: &[DisclinationSegment], _dx: f64) -> Vec
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::segments::Sign;
+    use super::*;
 
     #[test]
     fn test_connect_single_segment() {
@@ -351,25 +395,32 @@ mod tests {
         use std::f64::consts::PI;
         let n = 20usize;
         let mut segs = Vec::new();
-        let positions: Vec<[f64; 3]> = (0..n).map(|i| {
-            let t = 2.0 * PI * (i as f64) / (n as f64);
-            [t.cos(), t.sin(), t / 5.0]
-        }).collect();
+        let positions: Vec<[f64; 3]> = (0..n)
+            .map(|i| {
+                let t = 2.0 * PI * (i as f64) / (n as f64);
+                [t.cos(), t.sin(), t / 5.0]
+            })
+            .collect();
         // Build synthetic segments along the helix
-        for i in 0..n-1 {
+        for i in 0..n - 1 {
             segs.push(DisclinationSegment {
-                edge: (i, i+1),
+                edge: (i, i + 1),
                 charge: DisclinationCharge::Half(Sign::Positive),
-                midpoint: [(positions[i][0]+positions[i+1][0])/2.0,
-                           (positions[i][1]+positions[i+1][1])/2.0,
-                           (positions[i][2]+positions[i+1][2])/2.0],
+                midpoint: [
+                    (positions[i][0] + positions[i + 1][0]) / 2.0,
+                    (positions[i][1] + positions[i + 1][1]) / 2.0,
+                    (positions[i][2] + positions[i + 1][2]) / 2.0,
+                ],
             });
         }
         let lines = connect_disclination_lines(&segs, 1.0);
         assert!(!lines.is_empty());
         // At least one interior vertex must have nonzero torsion
         let max_torsion = lines[0].torsions.iter().cloned().fold(0.0f64, f64::max);
-        assert!(max_torsion > 1e-6,
-            "Helical line must have nonzero torsion, max was {}", max_torsion);
+        assert!(
+            max_torsion > 1e-6,
+            "Helical line must have nonzero torsion, max was {}",
+            max_torsion
+        );
     }
 }

@@ -107,7 +107,10 @@ pub fn edge_transition(
 ///
 /// Panics if `frames.len() < 2`.
 pub fn loop_holonomy(frames: &[SMatrix<Real, 3, 3>]) -> SMatrix<Real, 3, 3> {
-    assert!(frames.len() >= 2, "loop_holonomy requires at least 2 frames");
+    assert!(
+        frames.len() >= 2,
+        "loop_holonomy requires at least 2 frames"
+    );
 
     let n = frames.len();
     let mut hol = SMatrix::<Real, 3, 3>::identity();
@@ -194,11 +197,7 @@ pub fn scan_disclinations(
     ny: usize,
     threshold: Real,
 ) -> Vec<Disclination> {
-    assert_eq!(
-        frames.len(),
-        nx * ny,
-        "frames.len() must equal nx * ny"
-    );
+    assert_eq!(frames.len(), nx * ny, "frames.len() must equal nx * ny");
 
     let idx = |i: usize, j: usize| i * ny + j;
     let mut result = Vec::new();
@@ -248,22 +247,14 @@ mod tests {
     fn rot_z(theta: Real) -> SMatrix<Real, 3, 3> {
         let c = theta.cos();
         let s = theta.sin();
-        SMatrix::<Real, 3, 3>::from_row_slice(&[
-            c, -s, 0.0,
-            s,  c, 0.0,
-            0.0, 0.0, 1.0,
-        ])
+        SMatrix::<Real, 3, 3>::from_row_slice(&[c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0])
     }
 
     // Build an SO(3) rotation matrix about the x-axis by angle theta.
     fn rot_x(theta: Real) -> SMatrix<Real, 3, 3> {
         let c = theta.cos();
         let s = theta.sin();
-        SMatrix::<Real, 3, 3>::from_row_slice(&[
-            1.0, 0.0, 0.0,
-            0.0,  c, -s,
-            0.0,  s,  c,
-        ])
+        SMatrix::<Real, 3, 3>::from_row_slice(&[1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c])
     }
 
     #[test]
@@ -382,18 +373,18 @@ mod tests {
         // Vertex linear index: i*ny + j = i*2 + j for ny=2.
         //   (0,0)=0, (1,0)=2, (0,1)=1, (1,1)=3
         let mut frames = vec![identity_frame(); 4];
-        frames[0] = rot_z(0.0);            // (0,0)
-        frames[2] = rot_z(PI / 4.0);       // (1,0)
-        frames[3] = rot_z(PI / 2.0);       // (1,1)
+        frames[0] = rot_z(0.0); // (0,0)
+        frames[2] = rot_z(PI / 4.0); // (1,0)
+        frames[3] = rot_z(PI / 2.0); // (1,1)
         frames[1] = rot_z(3.0 * PI / 4.0); // (0,1)
 
         let defects = scan_disclinations(&frames, 2, 2, PI / 2.0);
-        assert_eq!(defects.len(), 1, "expected exactly one defect in a 2x2 grid");
-        assert!(
-            defects[0].angle > PI / 2.0,
-            "angle = {}",
-            defects[0].angle
+        assert_eq!(
+            defects.len(),
+            1,
+            "expected exactly one defect in a 2x2 grid"
         );
+        assert!(defects[0].angle > PI / 2.0, "angle = {}", defects[0].angle);
         // For a +1/2 disclination the holonomy angle should be close to pi.
         assert_abs_diff_eq!(defects[0].angle, PI, epsilon = 1e-10);
     }

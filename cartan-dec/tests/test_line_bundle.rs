@@ -1,11 +1,11 @@
 use num_complex::Complex;
 
+use cartan_dec::HodgeStar;
 use cartan_dec::line_bundle::{
-    Section, ConnectionAngles, BochnerLaplacian, defect_charges,
-    section_to_q_components, q_components_to_section,
+    BochnerLaplacian, ConnectionAngles, Section, defect_charges, q_components_to_section,
+    section_to_q_components,
 };
 use cartan_dec::mesh_gen::icosphere;
-use cartan_dec::HodgeStar;
 use cartan_manifolds::sphere::Sphere;
 
 // ─────────────────────────────────────────────────────────────────────────────

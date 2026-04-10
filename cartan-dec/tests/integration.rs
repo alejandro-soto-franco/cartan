@@ -328,10 +328,7 @@ fn advection_generic_matches_old() {
     let adv_new = apply_scalar_advection_generic(&mesh, &manifold, &f, &u_new);
 
     let diff = (&adv_old - &adv_new).norm();
-    assert!(
-        diff < 1e-12,
-        "generic vs old advection: diff = {diff}"
-    );
+    assert!(diff < 1e-12, "generic vs old advection: diff = {diff}");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -355,8 +352,7 @@ fn divergence_generic_constant_field_vanishes() {
         let mut m = 0.0f64;
         for v in 0..nv {
             let p = mesh.vertex(v);
-            let is_boundary =
-                p.x < 1e-10 || p.x > 1.0 - 1e-10 || p.y < 1e-10 || p.y > 1.0 - 1e-10;
+            let is_boundary = p.x < 1e-10 || p.x > 1.0 - 1e-10 || p.y < 1e-10 || p.y > 1.0 - 1e-10;
             if !is_boundary {
                 m = m.max(div_u[v].abs());
             }
@@ -393,10 +389,7 @@ fn divergence_generic_matches_old() {
     let div_new = apply_divergence_generic(&mesh, &manifold, &ext, &hodge, &u_new);
 
     let diff = (&div_old - &div_new).norm();
-    assert!(
-        diff < 1e-12,
-        "generic vs old divergence: diff = {diff}"
-    );
+    assert!(diff < 1e-12, "generic vs old divergence: diff = {diff}");
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -647,8 +640,14 @@ fn hodge_star_generic_sphere_positive() {
         SVector::<f64, 3>::new(0.0, 0.0, -1.0),
     ];
     let tris = vec![
-        [0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4],
-        [0, 5, 2], [2, 5, 1], [1, 5, 3], [3, 5, 0],
+        [0, 2, 4],
+        [2, 1, 4],
+        [1, 3, 4],
+        [3, 0, 4],
+        [0, 5, 2],
+        [2, 5, 1],
+        [1, 5, 3],
+        [3, 5, 0],
     ];
     let mesh = Mesh::from_simplices(&manifold, verts, tris);
     let hodge = HodgeStar::from_mesh_generic(&mesh, &manifold).unwrap();
@@ -689,10 +688,7 @@ fn simplex_circumcenter_triangle_matches_circumcenter() {
         let generic = mesh.simplex_circumcenter(&manifold, t);
         let specific = mesh.circumcenter(&manifold, t);
         let diff = (generic - specific).norm();
-        assert!(
-            diff < 1e-14,
-            "simplex {t}: circumcenter diff = {diff}"
-        );
+        assert!(diff < 1e-14, "simplex {t}: circumcenter diff = {diff}");
     }
 }
 
@@ -721,11 +717,8 @@ fn regular_tet_volume() {
     let v2 = SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 2.0, 0.0);
     let v3 = SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 6.0, (2.0_f64 / 3.0).sqrt());
 
-    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
-        &manifold,
-        vec![v0, v1, v2, v3],
-        vec![[0, 1, 2, 3]],
-    );
+    let mesh: Mesh<Euclidean<3>, 4, 3> =
+        Mesh::from_simplices_generic(&manifold, vec![v0, v1, v2, v3], vec![[0, 1, 2, 3]]);
 
     let vol = mesh.simplex_volume(&manifold, 0);
     let expected = (2.0_f64).sqrt() / 12.0;
@@ -746,11 +739,8 @@ fn regular_tet_circumcenter_is_centroid() {
     let v2 = SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 2.0, 0.0);
     let v3 = SVector::<f64, 3>::new(0.5, (3.0_f64).sqrt() / 6.0, (2.0_f64 / 3.0).sqrt());
 
-    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
-        &manifold,
-        vec![v0, v1, v2, v3],
-        vec![[0, 1, 2, 3]],
-    );
+    let mesh: Mesh<Euclidean<3>, 4, 3> =
+        Mesh::from_simplices_generic(&manifold, vec![v0, v1, v2, v3], vec![[0, 1, 2, 3]]);
 
     let cc = mesh.simplex_circumcenter(&manifold, 0);
     let centroid = (SVector::<f64, 3>::new(0.0, 0.0, 0.0)
@@ -852,7 +842,10 @@ fn adjacency_rebuild_matches_initial() {
     mesh_rebuilt.rebuild_adjacency();
     assert_eq!(mesh_orig.vertex_boundaries, mesh_rebuilt.vertex_boundaries);
     assert_eq!(mesh_orig.vertex_simplices, mesh_rebuilt.vertex_simplices);
-    assert_eq!(mesh_orig.boundary_simplices, mesh_rebuilt.boundary_simplices);
+    assert_eq!(
+        mesh_orig.boundary_simplices,
+        mesh_rebuilt.boundary_simplices
+    );
 }
 
 // -------------------------------------------------------------------------
@@ -869,11 +862,8 @@ fn tet_mesh_k4_adjacency() {
     let v2 = SVector::<f64, 3>::new(0.0, 1.0, 0.0);
     let v3 = SVector::<f64, 3>::new(0.0, 0.0, 1.0);
 
-    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
-        &manifold,
-        vec![v0, v1, v2, v3],
-        vec![[0, 1, 2, 3]],
-    );
+    let mesh: Mesh<Euclidean<3>, 4, 3> =
+        Mesh::from_simplices_generic(&manifold, vec![v0, v1, v2, v3], vec![[0, 1, 2, 3]]);
 
     assert_eq!(mesh.n_vertices(), 4);
     assert_eq!(mesh.n_simplices(), 1);
@@ -918,11 +908,8 @@ fn tet_mesh_k4_exterior_dimensions() {
     let v2 = SVector::<f64, 3>::new(0.0, 1.0, 0.0);
     let v3 = SVector::<f64, 3>::new(0.0, 0.0, 1.0);
 
-    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
-        &manifold,
-        vec![v0, v1, v2, v3],
-        vec![[0, 1, 2, 3]],
-    );
+    let mesh: Mesh<Euclidean<3>, 4, 3> =
+        Mesh::from_simplices_generic(&manifold, vec![v0, v1, v2, v3], vec![[0, 1, 2, 3]]);
 
     let ext = ExteriorDerivative::from_mesh_sparse_generic(&mesh);
     assert_eq!(ext.degree(), 2);
@@ -945,11 +932,8 @@ fn tet_mesh_k4_simplex_volume() {
     let v2 = SVector::<f64, 3>::new(0.0, 1.0, 0.0);
     let v3 = SVector::<f64, 3>::new(0.0, 0.0, 1.0);
 
-    let mesh: Mesh<Euclidean<3>, 4, 3> = Mesh::from_simplices_generic(
-        &manifold,
-        vec![v0, v1, v2, v3],
-        vec![[0, 1, 2, 3]],
-    );
+    let mesh: Mesh<Euclidean<3>, 4, 3> =
+        Mesh::from_simplices_generic(&manifold, vec![v0, v1, v2, v3], vec![[0, 1, 2, 3]]);
 
     let vol = mesh.simplex_volume(&manifold, 0);
     let expected = 1.0 / 6.0;
