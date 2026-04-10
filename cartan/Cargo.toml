@@ -16,17 +16,17 @@ homepage = "https://cartan.sotofranco.dev"
 default = ["full"]
 # full: includes cartan-dec (rayon + mesh allocation). Requires std.
 # Disable this feature to get a no_std-compatible facade:
-#   cartan = { version = "0.2", default-features = false, features = ["alloc"] }
+#   cartan = { version = "0.3", default-features = false, features = ["alloc"] }
 full = ["dep:cartan-dec", "std"]
 std = ["alloc", "cartan-core/std", "cartan-manifolds/std", "cartan-optim/std", "cartan-geo/std"]
 alloc = ["cartan-core/alloc", "cartan-manifolds/alloc", "cartan-optim/alloc", "cartan-geo/alloc"]
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.2", default-features = false }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.2", default-features = false }
-cartan-optim = { path = "../cartan-optim", version = "0.2", default-features = false }
-cartan-geo = { path = "../cartan-geo", version = "0.2", default-features = false }
-cartan-dec = { path = "../cartan-dec", version = "0.2", optional = true }
+cartan-core = { path = "../cartan-core", version = "0.3", default-features = false }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.3", default-features = false }
+cartan-optim = { path = "../cartan-optim", version = "0.3", default-features = false }
+cartan-geo = { path = "../cartan-geo", version = "0.3", default-features = false }
+cartan-dec = { path = "../cartan-dec", version = "0.3", optional = true }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std_rng", "std"] }
