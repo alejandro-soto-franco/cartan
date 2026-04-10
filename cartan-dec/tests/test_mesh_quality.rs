@@ -1,4 +1,6 @@
-use cartan_dec::mesh_quality::{is_delaunay, is_well_centered, angle_at_vertex, quality_report, make_delaunay};
+use cartan_dec::mesh_quality::{
+    is_delaunay, is_well_centered, angle_at_vertex, quality_report, make_delaunay, make_well_centered,
+};
 use cartan_dec::FlatMesh;
 use cartan_manifolds::euclidean::Euclidean;
 
@@ -141,4 +143,35 @@ fn test_make_delaunay_preserves_euler() {
         chi_before,
         "Euler characteristic must be preserved by edge flips"
     );
+}
+
+#[test]
+fn test_make_well_centered_on_flat_grid() {
+    // Use a larger grid so interior vertices have room to move.
+    let mut mesh = FlatMesh::unit_square_grid(8);
+    let manifold = Euclidean::<2>;
+
+    // Perturb several interior vertices to create obtuse triangles.
+    // In a 9x9 vertex grid, vertex (row*9 + col) for interior rows/cols.
+    mesh.vertices[20][0] += 0.06;
+    mesh.vertices[30][1] += 0.06;
+    mesh.vertices[40][0] -= 0.06;
+
+    let report_before = quality_report(&mesh, &manifold);
+    assert!(
+        report_before.non_well_centered_simplices > 0,
+        "perturbation should create obtuse triangles"
+    );
+
+    let smoothed = make_well_centered(mesh, &manifold, 200, 1e-8);
+    let report_after = quality_report(&smoothed, &manifold);
+    assert!(
+        report_after.non_well_centered_simplices <= report_before.non_well_centered_simplices,
+        "Lloyd smoothing should not increase obtuse triangles: before={}, after={}",
+        report_before.non_well_centered_simplices,
+        report_after.non_well_centered_simplices,
+    );
+    // Verify the mesh is still valid.
+    assert!(report_after.is_delaunay, "should remain Delaunay after smoothing");
+    assert_eq!(smoothed.n_vertices(), 81);
 }
