@@ -11,11 +11,11 @@
 //!
 //! Currently implemented for triangle meshes (K=3) in R^3 (D=3).
 
-use nalgebra::{SMatrix, SVector, Matrix3};
+use nalgebra::{Matrix3, SMatrix, SVector};
 use sprs::{CsMat, TriMat};
 
-use cartan_core::Manifold;
 use crate::mesh::Mesh;
+use cartan_core::Manifold;
 
 /// Ambient dimension for all extrinsic operators in this module.
 const D: usize = 3;
@@ -76,7 +76,11 @@ impl FaceData {
             let e20 = v0 - v2; // opposite to v1
             let e01_opp = v1 - v0; // opposite to v2
 
-            let inv_2a = if area > 1e-30 { 1.0 / (2.0 * area) } else { 0.0 };
+            let inv_2a = if area > 1e-30 {
+                1.0 / (2.0 * area)
+            } else {
+                0.0
+            };
 
             let grad0 = inv_2a * n.cross(&e12);
             let grad1 = inv_2a * n.cross(&e20);
@@ -88,7 +92,12 @@ impl FaceData {
             fem_grads.push([grad0, grad1, grad2]);
         }
 
-        Self { normals, areas, projectors, fem_grads }
+        Self {
+            normals,
+            areas,
+            projectors,
+            fem_grads,
+        }
     }
 }
 
@@ -176,8 +185,7 @@ impl ExtrinsicOperators {
             // where l is local vertex index, i is spatial component of velocity.
             let mut k_f = SMatrix::<f64, 6, 9>::zeros();
 
-            for local_v in 0..3 {
-                let grad = &grads[local_v];
+            for (local_v, grad) in grads.iter().enumerate().take(3) {
                 let col_offset = local_v * 3;
 
                 for i in 0..3 {
@@ -192,11 +200,14 @@ impl ExtrinsicOperators {
                     // Off-diagonal entries (with sqrt(2) Voigt scaling for proper inner product):
                     // E^{01} (xy), voigt index 3
                     // K_{01,l,i} = (1/2)(P^{i0} grad_l^1 + P^{i1} grad_l^0)
-                    k_f[(3, col_offset + i)] += 0.5 * (proj[(i, 0)] * grad[1] + proj[(i, 1)] * grad[0]);
+                    k_f[(3, col_offset + i)] +=
+                        0.5 * (proj[(i, 0)] * grad[1] + proj[(i, 1)] * grad[0]);
                     // E^{02} (xz), voigt index 4
-                    k_f[(4, col_offset + i)] += 0.5 * (proj[(i, 0)] * grad[2] + proj[(i, 2)] * grad[0]);
+                    k_f[(4, col_offset + i)] +=
+                        0.5 * (proj[(i, 0)] * grad[2] + proj[(i, 2)] * grad[0]);
                     // E^{12} (yz), voigt index 5
-                    k_f[(5, col_offset + i)] += 0.5 * (proj[(i, 1)] * grad[2] + proj[(i, 2)] * grad[1]);
+                    k_f[(5, col_offset + i)] +=
+                        0.5 * (proj[(i, 1)] * grad[2] + proj[(i, 2)] * grad[1]);
                 }
             }
 
@@ -224,10 +235,8 @@ impl ExtrinsicOperators {
             // tr(E) = E^xx + E^yy + E^zz = K_f[0,:] + K_f[1,:] + K_f[2,:]
             // This gives us DIV_f as a 1x9 row vector.
             // We distribute to vertices weighted by 1/3 of face area (barycentric).
-            for local_v in 0..3 {
-                let v = simplex[local_v];
-                for local_l in 0..3 {
-                    let vl = simplex[local_l];
+            for &v in simplex.iter().take(3) {
+                for (local_l, &vl) in simplex.iter().enumerate().take(3) {
                     for i in 0..3 {
                         let col = local_l * 3 + i;
                         let trace_val = k_f[(0, col)] + k_f[(1, col)] + k_f[(2, col)];
@@ -244,7 +253,7 @@ impl ExtrinsicOperators {
         let viscosity_lap = lap_triplets.to_csc();
 
         // GRAD = -DIV^T
-        let grad = (&div.transpose_view()).to_csc().map(|&v| -v);
+        let grad = div.transpose_view().to_csc().map(|&v| -v);
 
         Self {
             n_vertices: nv,
