@@ -47,6 +47,7 @@ pub mod error;
 pub mod exterior;
 pub mod hodge;
 pub mod laplace;
+pub mod line_bundle;
 pub mod mesh;
 pub mod mesh_gen;
 pub mod mesh_quality;
