@@ -52,6 +52,7 @@ pub mod line_bundle;
 pub mod mesh;
 pub mod mesh_gen;
 pub mod mesh_quality;
+pub mod stokes;
 
 pub use advection::{apply_scalar_advection, apply_scalar_advection_generic, apply_vector_advection};
 pub use divergence::{apply_divergence, apply_divergence_generic, apply_tensor_divergence};
