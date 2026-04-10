@@ -258,3 +258,89 @@ pub fn make_delaunay<M: Manifold>(
 
     mesh
 }
+
+/// Improve mesh quality via Lloyd/CVT smoothing.
+///
+/// Each iteration moves every interior vertex toward the area-weighted
+/// centroid of its incident triangles, then re-Delaunays. This pushes
+/// the mesh toward well-centeredness (all angles acute).
+///
+/// For manifold meshes, vertex motion uses the exponential map.
+///
+/// # Parameters
+///
+/// - `max_iterations`: maximum number of smoothing passes.
+/// - `tolerance`: stop when the maximum vertex displacement is below this.
+pub fn make_well_centered<M: Manifold>(
+    mut mesh: Mesh<M, 3, 2>,
+    manifold: &M,
+    max_iterations: usize,
+    tolerance: f64,
+) -> Mesh<M, 3, 2> {
+    for _iter in 0..max_iterations {
+        let mut max_displacement = 0.0_f64;
+        let nv = mesh.n_vertices();
+
+        // Accumulate area-weighted displacement toward centroids.
+        let mut displacements: Vec<Option<M::Tangent>> = (0..nv).map(|_| None).collect();
+        let mut weights: Vec<f64> = vec![0.0; nv];
+
+        for s in 0..mesh.n_simplices() {
+            let simplex = &mesh.simplices[s];
+            let area = mesh.simplex_volume(manifold, s);
+
+            // Compute centroid in tangent space of each vertex and accumulate.
+            for &v in simplex {
+                let pv = &mesh.vertices[v];
+                let mut centroid_tan = manifold.zero_tangent(pv);
+                for &other in simplex {
+                    if other != v {
+                        let log = manifold
+                            .log(pv, &mesh.vertices[other])
+                            .unwrap_or_else(|_| manifold.zero_tangent(pv));
+                        centroid_tan = centroid_tan + log * (1.0 / 3.0);
+                    }
+                }
+                // centroid_tan points from v toward the triangle centroid.
+                let weighted = centroid_tan * area;
+                displacements[v] = Some(match displacements[v].take() {
+                    Some(existing) => existing + weighted,
+                    None => weighted,
+                });
+                weights[v] += area;
+            }
+        }
+
+        // Apply displacements to interior vertices.
+        for v in 0..nv {
+            let is_boundary = mesh.vertex_boundaries[v]
+                .iter()
+                .any(|&e| mesh.boundary_simplices[e].len() < 2);
+            if is_boundary {
+                continue;
+            }
+
+            if let Some(ref tan) = displacements[v] {
+                let w = weights[v];
+                if w < 1e-30 {
+                    continue;
+                }
+                let disp = tan.clone() * (1.0 / w);
+                let disp_norm = manifold
+                    .inner(&mesh.vertices[v], &disp, &disp)
+                    .sqrt();
+                max_displacement = max_displacement.max(disp_norm);
+                mesh.vertices[v] = manifold.exp(&mesh.vertices[v], &disp);
+            }
+        }
+
+        if max_displacement < tolerance {
+            break;
+        }
+
+        // Re-Delaunay after vertex motion.
+        mesh = make_delaunay(mesh, manifold);
+    }
+
+    mesh
+}
