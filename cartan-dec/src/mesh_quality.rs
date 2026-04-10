@@ -188,3 +188,73 @@ pub fn quality_report<M: Manifold, const K: usize, const B: usize>(
         is_well_centered: non_wc == 0,
     }
 }
+
+/// Flip an interior edge in a triangle mesh.
+///
+/// Given edge e between two triangles, replaces the shared edge with the
+/// opposite diagonal. Rebuilds topology afterward.
+///
+/// Panics if the edge is a boundary edge (only one adjacent triangle).
+fn edge_flip<M: Manifold>(
+    mesh: &mut Mesh<M, 3, 2>,
+    e: usize,
+) {
+    let cofaces = mesh.boundary_simplices[e].clone();
+    assert_eq!(cofaces.len(), 2, "cannot flip a boundary edge");
+    let t0 = cofaces[0];
+    let t1 = cofaces[1];
+    let edge = mesh.boundaries[e];
+
+    let opp0 = mesh.simplices[t0]
+        .iter()
+        .find(|&&v| !edge.contains(&v))
+        .copied()
+        .expect("opposite vertex in t0");
+    let opp1 = mesh.simplices[t1]
+        .iter()
+        .find(|&&v| !edge.contains(&v))
+        .copied()
+        .expect("opposite vertex in t1");
+
+    // Replace the two triangles with the flipped diagonal.
+    mesh.simplices[t0] = [edge[0], opp1, opp0];
+    mesh.simplices[t1] = [opp1, edge[1], opp0];
+
+    mesh.rebuild_topology();
+}
+
+/// Convert a triangle mesh to intrinsic Delaunay via edge flips.
+///
+/// Iterates over all interior edges, flipping any edge whose opposite
+/// angles sum to > pi. Repeats until no more flips are needed.
+///
+/// The number of vertices and triangles is preserved (no Steiner points).
+pub fn make_delaunay<M: Manifold>(
+    mut mesh: Mesh<M, 3, 2>,
+    manifold: &M,
+) -> Mesh<M, 3, 2> {
+    let max_iterations = mesh.n_boundaries() * mesh.n_boundaries();
+
+    for _ in 0..max_iterations {
+        let mut flipped = false;
+        for e in 0..mesh.n_boundaries() {
+            let cofaces = &mesh.boundary_simplices[e];
+            if cofaces.len() != 2 {
+                continue;
+            }
+            let edge = &mesh.boundaries[e];
+            let alpha = opposite_angle(&mesh, manifold, cofaces[0], edge);
+            let beta = opposite_angle(&mesh, manifold, cofaces[1], edge);
+            if alpha + beta > std::f64::consts::PI + 1e-10 {
+                edge_flip(&mut mesh, e);
+                flipped = true;
+                break; // Restart scan after topology change.
+            }
+        }
+        if !flipped {
+            break;
+        }
+    }
+
+    mesh
+}
