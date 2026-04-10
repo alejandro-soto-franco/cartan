@@ -19,6 +19,7 @@ sprs             = { workspace = true }
 rayon            = { workspace = true }
 thiserror        = { workspace = true }
 serde            = { workspace = true }
+num-complex      = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
