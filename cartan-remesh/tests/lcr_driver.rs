@@ -6,8 +6,8 @@ use approx::assert_relative_eq;
 use cartan_dec::Mesh;
 use cartan_manifolds::euclidean::Euclidean;
 use cartan_remesh::{
-    capture_reference_lcrs, lcr_spring_energy, lcr_spring_gradient, length_cross_ratio,
-    needs_remesh, RemeshConfig,
+    RemeshConfig, capture_reference_lcrs, lcr_spring_energy, lcr_spring_gradient,
+    length_cross_ratio, needs_remesh,
 };
 use nalgebra::SVector;
 
@@ -122,7 +122,10 @@ fn lcr_spring_energy_nonzero_for_distorted_mesh() {
     let distorted = Mesh::from_simplices(&manifold, vertices, triangles);
 
     let energy = lcr_spring_energy(&distorted, &manifold, &ref_lcrs, 1.0);
-    assert!(energy > 0.0, "energy should be positive for a distorted mesh");
+    assert!(
+        energy > 0.0,
+        "energy should be positive for a distorted mesh"
+    );
 }
 
 // ─── Driver tests ───────────────────────────────────────────────────────────

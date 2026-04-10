@@ -20,7 +20,9 @@ pub enum RemeshError {
     BoundaryEdge { edge: usize },
 
     /// The edge flip would not improve the Delaunay criterion.
-    #[error("edge {edge} already satisfies Delaunay criterion (opposite angle sum = {angle_sum:.4} rad)")]
+    #[error(
+        "edge {edge} already satisfies Delaunay criterion (opposite angle sum = {angle_sum:.4} rad)"
+    )]
     AlreadyDelaunay { edge: usize, angle_sum: f64 },
 
     /// A vertex or edge index is out of bounds.

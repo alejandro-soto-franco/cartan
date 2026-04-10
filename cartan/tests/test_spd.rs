@@ -14,9 +14,7 @@
 
 mod common;
 
-use cartan_core::{
-    Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real,
-};
+use cartan_core::{Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real};
 use cartan_manifolds::Spd;
 use nalgebra::SMatrix;
 use rand::SeedableRng;

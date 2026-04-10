@@ -328,9 +328,15 @@ impl Manifold for QTensor3 {
         let qzz = -qxx - qyy;
 
         SMatrix::<Real, 3, 3>::from_row_slice(&[
-            qxx * scale,  qxy * scale,  qxz * scale,
-            qxy * scale,  qyy * scale,  qyz * scale,
-            qxz * scale,  qyz * scale,  qzz * scale,
+            qxx * scale,
+            qxy * scale,
+            qxz * scale,
+            qxy * scale,
+            qyy * scale,
+            qyz * scale,
+            qxz * scale,
+            qyz * scale,
+            qzz * scale,
         ])
     }
 
@@ -433,12 +439,7 @@ impl Curvature for QTensor3 {
     }
 
     /// Ricci curvature: identically zero (flat manifold).
-    fn ricci_curvature(
-        &self,
-        _p: &Self::Point,
-        _u: &Self::Tangent,
-        _v: &Self::Tangent,
-    ) -> Real {
+    fn ricci_curvature(&self, _p: &Self::Point, _u: &Self::Tangent, _v: &Self::Tangent) -> Real {
         0.0
     }
 
@@ -591,16 +592,25 @@ mod tests {
     /// Build a uniaxial Q-tensor with director z and order parameter S.
     fn uniaxial_z(s: Real) -> SMatrix<Real, 3, 3> {
         SMatrix::<Real, 3, 3>::from_row_slice(&[
-            -s / 3.0, 0.0, 0.0,
-             0.0, -s / 3.0, 0.0,
-             0.0,  0.0,  2.0 * s / 3.0,
+            -s / 3.0,
+            0.0,
+            0.0,
+            0.0,
+            -s / 3.0,
+            0.0,
+            0.0,
+            0.0,
+            2.0 * s / 3.0,
         ])
     }
 
     #[test]
     fn check_point_accepts_valid_uniaxial() {
         let q = uniaxial_z(0.5);
-        assert!(QTensor3.check_point(&q).is_ok(), "valid uniaxial Q rejected");
+        assert!(
+            QTensor3.check_point(&q).is_ok(),
+            "valid uniaxial Q rejected"
+        );
     }
 
     #[test]
@@ -640,11 +650,8 @@ mod tests {
     fn project_tangent_is_sym_traceless() {
         // An arbitrary 3×3 matrix projected to tangent space should be sym-traceless.
         let q = uniaxial_z(0.5);
-        let v_arb = SMatrix::<Real, 3, 3>::from_row_slice(&[
-            1.0, 2.0, 3.0,
-            4.0, 5.0, 6.0,
-            7.0, 8.0, 9.0,
-        ]);
+        let v_arb =
+            SMatrix::<Real, 3, 3>::from_row_slice(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]);
         let v_st = QTensor3.project_tangent(&q, &v_arb);
         // Symmetry.
         assert_abs_diff_eq!((v_st - v_st.transpose()).norm(), 0.0, epsilon = 1e-14);
