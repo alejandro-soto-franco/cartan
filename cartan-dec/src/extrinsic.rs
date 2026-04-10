@@ -1,8 +1,7 @@
 //! Extrinsic operators on embedded manifolds via tangent-plane projection.
 //!
-//! Implements the discretisation from Zhu, Saintillan, Chern (2025):
-//! "Stokes flow of an evolving fluid film with arbitrary shape and topology."
-//! arXiv:2407.14025, JFM 1003, R1.
+//! Implements a tangent-projector discretisation for surface operators
+//! on embedded triangle meshes.
 //!
 //! All operators bypass the intrinsic connection by working in the ambient
 //! R^D and projecting to the tangent plane per simplex. This generalises
