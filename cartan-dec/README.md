@@ -16,12 +16,24 @@ metric-free exterior derivative.
 
 The crate provides:
 
-- `Mesh<M, K, B>`, a generic simplicial complex parameterized by manifold
-  type `M`, simplex dimension `K`, and embedding dimension `B`.
+- `Mesh<M, K, B>`, a generic simplicial complex parameterised by manifold
+  type `M`, simplex dimension `K`, and boundary dimension `B`.
 - `ExteriorDerivative`, sparse boundary operators d0 and d1 (via `sprs`).
-- `HodgeStar`, diagonal Hodge star operators indexed by form degree.
+- `HodgeStar`, diagonal Hodge star operators (barycentric or circumcentric dual).
 - `Operators`, assembled Laplace-Beltrami, Bochner, and Lichnerowicz
   Laplacians.
+- **Mesh quality**: `mesh_quality` module with Delaunay/well-centred predicates,
+  intrinsic edge flips, and Lloyd/CVT smoothing.
+- **Mesh generators**: `mesh_gen` module with icosphere and torus builders
+  (optional well-centred output).
+- **Complex line bundles**: `line_bundle` module with `Section<K>` for k-atic
+  fields, `ConnectionAngles`, `BochnerLaplacian<K>`, and exact discrete defect
+  charges (Poincare-Hopf).
+- **Extrinsic operators**: `extrinsic` module with tangent-plane projection,
+  FEM gradients, Killing operator, DIV, GRAD, and viscosity Laplacian for
+  surfaces in R^3 (following Zhu, Saintillan, Chern 2025).
+- **Stokes solver**: `stokes` module with augmented Lagrangian solver for
+  incompressible viscous flow on triangle meshes.
 - Upwind covariant advection and discrete divergence for scalar, vector,
   and tensor fields.
 
