@@ -264,3 +264,39 @@ fn test_circumcentric_star0_sums_to_surface_area() {
         "total dual area = {total}, expected ~{expected:.4}"
     );
 }
+
+#[test]
+fn test_full_pipeline_icosphere_quality() {
+    let manifold = Sphere::<3>;
+
+    for level in 1..=3 {
+        let mesh = icosphere(&manifold, level, true);
+
+        // Topology.
+        assert_eq!(mesh.euler_characteristic(), 2, "level {level}: chi must be 2");
+
+        // Quality.
+        let report = quality_report(&mesh, &manifold);
+        assert!(report.is_delaunay, "level {level}: must be Delaunay");
+
+        // Circumcentric Hodge star works.
+        let hodge = HodgeStar::from_mesh_circumcentric(&mesh, &manifold).unwrap();
+        let total_area: f64 = hodge.star0().iter().sum();
+        assert!(
+            (total_area - 4.0 * std::f64::consts::PI).abs() < 0.5,
+            "level {level}: total dual area {total_area} should be close to 4*pi"
+        );
+
+        // All dual areas positive.
+        assert!(
+            hodge.star0().iter().all(|&a| a > 0.0),
+            "level {level}: all circumcentric dual areas must be positive"
+        );
+
+        // All star1 entries non-negative (Delaunay guarantee).
+        assert!(
+            hodge.star1().iter().all(|&s| s >= -1e-10),
+            "level {level}: all cotangent weights must be non-negative"
+        );
+    }
+}
