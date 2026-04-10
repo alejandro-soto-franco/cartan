@@ -147,6 +147,85 @@ impl HodgeStar {
         })
     }
 
+    /// Circumcentric Hodge star (requires a well-centered mesh).
+    ///
+    /// star0 uses circumcentric dual cell areas (sum of sub-triangle areas
+    /// formed by circumcenters and edge midpoints). This preserves
+    /// primal-dual orthogonality, which the barycentric dual does not.
+    ///
+    /// star1 and star2 are identical to `from_mesh_generic`.
+    ///
+    /// Returns `Err` if the mesh is not well-centered.
+    pub fn from_mesh_circumcentric<M: Manifold>(
+        mesh: &Mesh<M, 3, 2>,
+        manifold: &M,
+    ) -> Result<Self, DecError> {
+
+        mesh.check_well_centered(manifold)?;
+
+        let nv = mesh.n_vertices();
+        let ne = mesh.n_boundaries();
+        let nt = mesh.n_simplices();
+
+        // star0: circumcentric dual cell area.
+        // For each triangle, the circumcenter C and edge midpoints form sub-triangles.
+        // Each vertex v gets the area of the sub-quadrilateral (midpoint_prev, C, midpoint_next, v).
+        let mut s0 = DVector::<f64>::zeros(nv);
+        for t in 0..nt {
+            let cc = mesh.simplex_circumcenter(manifold, t);
+            let simplex = &mesh.simplices[t];
+
+            for local in 0..3 {
+                let v = simplex[local];
+                let v_prev = simplex[(local + 2) % 3];
+                let v_next = simplex[(local + 1) % 3];
+
+                let mid_prev = geodesic_midpoint(manifold, &mesh.vertices[v], &mesh.vertices[v_prev]);
+                let mid_next = geodesic_midpoint(manifold, &mesh.vertices[v], &mesh.vertices[v_next]);
+
+                // Sub-quad area = area(v, mid_prev, cc) + area(v, cc, mid_next).
+                let area1 = tangent_triangle_area(manifold, &mesh.vertices[v], &mid_prev, &cc);
+                let area2 = tangent_triangle_area(manifold, &mesh.vertices[v], &cc, &mid_next);
+                s0[v] += area1 + area2;
+            }
+        }
+
+        // star1 and star2: same logic as from_mesh_generic.
+        let mut s2 = DVector::<f64>::zeros(nt);
+        for t in 0..nt {
+            let area = mesh.simplex_volume(manifold, t);
+            s2[t] = if area > 1e-30 { 1.0 / area } else { 0.0 };
+        }
+
+        let mut s1 = DVector::<f64>::zeros(ne);
+        for e in 0..ne {
+            let primal_len = mesh.boundary_volume(manifold, e);
+            if primal_len < 1e-30 {
+                s1[e] = 0.0;
+                continue;
+            }
+            let cofaces = &mesh.boundary_simplices[e];
+            let dual_len = match cofaces.len() {
+                2 => {
+                    let c1 = mesh.simplex_circumcenter(manifold, cofaces[0]);
+                    let c2 = mesh.simplex_circumcenter(manifold, cofaces[1]);
+                    manifold.dist(&c1, &c2).unwrap_or(0.0)
+                }
+                1 => {
+                    let c = mesh.simplex_circumcenter(manifold, cofaces[0]);
+                    let mid = mesh.boundary_circumcenter(manifold, e);
+                    manifold.dist(&c, &mid).unwrap_or(0.0)
+                }
+                _ => 0.0,
+            };
+            s1[e] = dual_len / primal_len;
+        }
+
+        Ok(Self {
+            star: vec![s0, s1, s2],
+        })
+    }
+
     /// Access the k-form Hodge star diagonal.
     pub fn star_k(&self, k: usize) -> &DVector<f64> {
         &self.star[k]
@@ -186,4 +265,35 @@ impl HodgeStar {
     pub fn star2_inv(&self) -> DVector<f64> {
         self.star_k_inv(2)
     }
+}
+
+/// Geodesic midpoint of two points on a manifold.
+fn geodesic_midpoint<M: Manifold>(manifold: &M, p: &M::Point, q: &M::Point) -> M::Point {
+    let log = manifold
+        .log(p, q)
+        .unwrap_or_else(|_| manifold.zero_tangent(p));
+    manifold.exp(p, &(log * 0.5))
+}
+
+/// Area of a triangle (a, b, c) computed via the Gram determinant in the tangent space at a.
+///
+/// area = 0.5 * sqrt(|ab|^2 |ac|^2 - <ab, ac>^2)
+fn tangent_triangle_area<M: Manifold>(
+    manifold: &M,
+    a: &M::Point,
+    b: &M::Point,
+    c: &M::Point,
+) -> f64 {
+    let ab = manifold
+        .log(a, b)
+        .unwrap_or_else(|_| manifold.zero_tangent(a));
+    let ac = manifold
+        .log(a, c)
+        .unwrap_or_else(|_| manifold.zero_tangent(a));
+
+    let ab2 = manifold.inner(a, &ab, &ab);
+    let ac2 = manifold.inner(a, &ac, &ac);
+    let abac = manifold.inner(a, &ab, &ac);
+    let det = (ab2 * ac2 - abac * abac).max(0.0);
+    0.5 * det.sqrt()
 }
