@@ -12,8 +12,8 @@ documentation = "https://docs.rs/cartan-optim"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.2", default-features = false }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.2", default-features = false }
+cartan-core = { path = "../cartan-core", version = "0.3", default-features = false }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.3", default-features = false }
 libm = { version = "0.2", default-features = false }
 
 [dev-dependencies]

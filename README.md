@@ -22,7 +22,7 @@ Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev)
 - **Zero-cost abstractions**: manifold types are zero-sized; all geometry lives in the trait impls
 - **Optimization**: `cartan-optim` provides RGD, RCG, RTR, and Fréchet mean on any `Manifold`
 - **Geodesic tools**: `cartan-geo` provides parameterized geodesics, curvature queries, and Jacobi field integration
-- **DEC layer**: `cartan-dec` discretizes covariant differential operators on simplicial meshes for PDE solvers
+- **DEC layer**: `cartan-dec` discretizes covariant differential operators on simplicial meshes for PDE solvers, with complex line bundle sections for k-atic fields, extrinsic Killing operator, and augmented Lagrangian Stokes solver
 - **Adaptive remeshing**: `cartan-remesh` provides split, collapse, flip, shift, and curvature-CFL-driven adaptive refinement
 - **Python bindings**: `cartan-py` exposes the full library to Python via PyO3 with numpy interop
 
@@ -78,7 +78,7 @@ cartan-core         trait definitions, CartanError, Real alias
 cartan-manifolds    concrete manifold implementations (8 manifolds + FrameField3D)
 cartan-optim        Riemannian optimization: RGD, RCG, RTR, Frechet mean
 cartan-geo          geodesic curves, curvature queries, Jacobi fields
-cartan-dec          discrete exterior calculus for PDE solvers
+cartan-dec          discrete exterior calculus, line bundles, extrinsic operators, Stokes solver
 cartan-remesh       adaptive remeshing: split, collapse, flip, shift, curvature-CFL driver
 cartan-py           Python bindings via PyO3 (pip install cartan)
 ```
