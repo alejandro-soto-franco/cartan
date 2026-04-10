@@ -10,10 +10,6 @@
 //! - [`BochnerLaplacian`]: sparse Hermitian Laplacian on L_k
 //! - [`defect_charges`]: exact discrete topological charge per face
 //!
-//! ## References
-//!
-//! - Zhu, Saintillan, Chern (2024). "Active nematic fluids on Riemannian
-//!   2-manifolds." arXiv:2405.06044. Sections 2.1 and 3.
 
 use num_complex::Complex;
 use sprs::{CsMat, TriMat};
