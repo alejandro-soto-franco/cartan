@@ -1,4 +1,4 @@
-use cartan_dec::mesh_quality::{is_delaunay, is_well_centered, angle_at_vertex, quality_report};
+use cartan_dec::mesh_quality::{is_delaunay, is_well_centered, angle_at_vertex, quality_report, make_delaunay};
 use cartan_dec::FlatMesh;
 use cartan_manifolds::euclidean::Euclidean;
 
@@ -97,5 +97,48 @@ fn test_quality_report_unit_square() {
         (report.max_angle - std::f64::consts::FRAC_PI_2).abs() < 0.01,
         "expected max angle ~pi/2, got {}",
         report.max_angle
+    );
+}
+
+#[test]
+fn test_make_delaunay_fixes_bad_diagonal() {
+    let verts = vec![
+        [0.0, 0.0],
+        [1.0, 0.1],
+        [2.0, 0.0],
+        [1.0, -0.1],
+    ];
+    let tris = vec![[0, 2, 1], [0, 3, 2]];
+    let mesh = FlatMesh::from_triangles(verts, tris);
+    let manifold = Euclidean::<2>;
+    assert!(!is_delaunay(&mesh, &manifold));
+
+    let fixed = make_delaunay(mesh, &manifold);
+    assert!(
+        is_delaunay(&fixed, &manifold),
+        "make_delaunay should produce a Delaunay mesh"
+    );
+    assert_eq!(fixed.n_vertices(), 4);
+    assert_eq!(fixed.n_simplices(), 2);
+}
+
+#[test]
+fn test_make_delaunay_preserves_euler() {
+    let verts = vec![
+        [0.0, 0.0],
+        [1.0, 0.1],
+        [2.0, 0.0],
+        [1.0, -0.1],
+    ];
+    let tris = vec![[0, 2, 1], [0, 3, 2]];
+    let mesh = FlatMesh::from_triangles(verts, tris);
+    let chi_before = mesh.euler_characteristic();
+
+    let manifold = Euclidean::<2>;
+    let fixed = make_delaunay(mesh, &manifold);
+    assert_eq!(
+        fixed.euler_characteristic(),
+        chi_before,
+        "Euler characteristic must be preserved by edge flips"
     );
 }
