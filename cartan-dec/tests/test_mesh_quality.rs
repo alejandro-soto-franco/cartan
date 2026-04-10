@@ -1,7 +1,7 @@
 use cartan_dec::mesh_quality::{
     is_delaunay, is_well_centered, angle_at_vertex, quality_report, make_delaunay, make_well_centered,
 };
-use cartan_dec::mesh_gen::icosphere;
+use cartan_dec::mesh_gen::{icosphere, torus};
 use cartan_dec::FlatMesh;
 use cartan_manifolds::euclidean::Euclidean;
 use cartan_manifolds::sphere::Sphere;
@@ -209,4 +209,26 @@ fn test_icosphere_well_centered() {
     assert!(report.is_delaunay, "well-centered icosphere should be Delaunay");
     // Icosphere subdivision naturally produces near-equilateral triangles,
     // so it should already be well-centered or very close after smoothing.
+}
+
+#[test]
+fn test_torus_euler_characteristic() {
+    let manifold = Euclidean::<3>;
+    let mesh = torus(&manifold, 3.0, 1.0, 20, 10, false);
+    assert_eq!(mesh.euler_characteristic(), 0, "T^2 has chi=0");
+    assert_eq!(mesh.n_vertices(), 200);
+    assert_eq!(mesh.n_simplices(), 400);
+}
+
+#[test]
+fn test_torus_delaunay() {
+    let manifold = Euclidean::<3>;
+    let mesh = torus(&manifold, 3.0, 1.0, 16, 8, false);
+    let report = quality_report(&mesh, &manifold);
+    // Regular parametric torus grid should be Delaunay.
+    assert!(
+        report.is_delaunay,
+        "regular torus grid should be Delaunay, non-Delaunay edges: {}",
+        report.non_delaunay_edges
+    );
 }
