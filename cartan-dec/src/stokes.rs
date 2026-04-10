@@ -5,13 +5,8 @@
 //!   2*mu*DIV^nabla(K*U) - GRAD*p + f = 0
 //!   DIV*U = 0
 //!
-//! using the augmented Lagrangian (AL) method from Zhu et al. (2024),
-//! Algorithm 3. The inner linear system is solved by conjugate gradient.
-//!
-//! ## References
-//!
-//! - Zhu, Saintillan, Chern (2024). "Active nematic fluids on Riemannian
-//!   2-manifolds." arXiv:2405.06044. Section 3.6, Algorithm 3.
+//! using the augmented Lagrangian (AL) method. The inner linear system
+//! is solved by conjugate gradient.
 
 use nalgebra::SVector;
 use sprs::{CsMat, TriMat};
