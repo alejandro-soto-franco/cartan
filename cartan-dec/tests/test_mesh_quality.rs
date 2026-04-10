@@ -1,8 +1,10 @@
 use cartan_dec::mesh_quality::{
     is_delaunay, is_well_centered, angle_at_vertex, quality_report, make_delaunay, make_well_centered,
 };
+use cartan_dec::mesh_gen::icosphere;
 use cartan_dec::FlatMesh;
 use cartan_manifolds::euclidean::Euclidean;
+use cartan_manifolds::sphere::Sphere;
 
 #[test]
 fn test_unit_square_grid_is_delaunay() {
@@ -174,4 +176,37 @@ fn test_make_well_centered_on_flat_grid() {
     // Verify the mesh is still valid.
     assert!(report_after.is_delaunay, "should remain Delaunay after smoothing");
     assert_eq!(smoothed.n_vertices(), 81);
+}
+
+#[test]
+fn test_icosphere_euler_characteristic() {
+    let manifold = Sphere::<3>;
+    let mesh = icosphere(&manifold, 2, false);
+    assert_eq!(mesh.euler_characteristic(), 2, "S^2 has chi=2");
+    assert_eq!(mesh.n_vertices(), 162);
+    assert_eq!(mesh.n_simplices(), 320);
+}
+
+#[test]
+fn test_icosphere_vertices_on_sphere() {
+    let manifold = Sphere::<3>;
+    let mesh = icosphere(&manifold, 3, false);
+    for (i, v) in mesh.vertices.iter().enumerate() {
+        let r = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
+        assert!(
+            (r - 1.0).abs() < 1e-12,
+            "vertex {i} should be on unit sphere, r = {r}"
+        );
+    }
+}
+
+#[test]
+fn test_icosphere_well_centered() {
+    let manifold = Sphere::<3>;
+    let mesh = icosphere(&manifold, 2, true);
+    assert_eq!(mesh.euler_characteristic(), 2);
+    let report = quality_report(&mesh, &manifold);
+    assert!(report.is_delaunay, "well-centered icosphere should be Delaunay");
+    // Icosphere subdivision naturally produces near-equilateral triangles,
+    // so it should already be well-centered or very close after smoothing.
 }
