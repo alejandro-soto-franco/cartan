@@ -21,11 +21,7 @@ use crate::mesh_quality::{is_well_centered, make_delaunay, make_well_centered};
 /// - `level`: refinement level (0 = 12 vertices, 1 = 42, 2 = 162, 3 = 642, 4 = 2562).
 /// - `well_centered`: if true, apply Delaunay flips + Lloyd smoothing to ensure
 ///   all circumcenters lie inside their triangles.
-pub fn icosphere(
-    manifold: &Sphere<3>,
-    level: usize,
-    well_centered: bool,
-) -> Mesh<Sphere<3>, 3, 2> {
+pub fn icosphere(manifold: &Sphere<3>, level: usize, well_centered: bool) -> Mesh<Sphere<3>, 3, 2> {
     let (mut vertices, mut triangles) = icosahedron_seed();
 
     for _ in 0..level {
@@ -120,8 +116,7 @@ pub fn torus_gaussian_curvature(
     for _i in 0..n_major {
         for j in 0..n_minor {
             let phi = 2.0 * std::f64::consts::PI * j as f64 / n_minor as f64;
-            let k = phi.cos()
-                / (minor_radius * (major_radius + minor_radius * phi.cos()));
+            let k = phi.cos() / (minor_radius * (major_radius + minor_radius * phi.cos()));
             curvatures.push(k);
         }
     }
@@ -136,16 +131,41 @@ fn icosahedron_seed() -> (Vec<[f64; 3]>, Vec<[usize; 3]>) {
     let b = phi / norm;
 
     let vertices = vec![
-        [-a,  b,  0.0], [ a,  b,  0.0], [-a, -b,  0.0], [ a, -b,  0.0],
-        [ 0.0, -a,  b], [ 0.0,  a,  b], [ 0.0, -a, -b], [ 0.0,  a, -b],
-        [ b,  0.0, -a], [ b,  0.0,  a], [-b,  0.0, -a], [-b,  0.0,  a],
+        [-a, b, 0.0],
+        [a, b, 0.0],
+        [-a, -b, 0.0],
+        [a, -b, 0.0],
+        [0.0, -a, b],
+        [0.0, a, b],
+        [0.0, -a, -b],
+        [0.0, a, -b],
+        [b, 0.0, -a],
+        [b, 0.0, a],
+        [-b, 0.0, -a],
+        [-b, 0.0, a],
     ];
 
     let triangles = vec![
-        [0, 11, 5],  [0, 5, 1],   [0, 1, 7],   [0, 7, 10],  [0, 10, 11],
-        [1, 5, 9],   [5, 11, 4],  [11, 10, 2],  [10, 7, 6],  [7, 1, 8],
-        [3, 9, 4],   [3, 4, 2],   [3, 2, 6],    [3, 6, 8],   [3, 8, 9],
-        [4, 9, 5],   [2, 4, 11],  [6, 2, 10],   [8, 6, 7],   [9, 8, 1],
+        [0, 11, 5],
+        [0, 5, 1],
+        [0, 1, 7],
+        [0, 7, 10],
+        [0, 10, 11],
+        [1, 5, 9],
+        [5, 11, 4],
+        [11, 10, 2],
+        [10, 7, 6],
+        [7, 1, 8],
+        [3, 9, 4],
+        [3, 4, 2],
+        [3, 2, 6],
+        [3, 6, 8],
+        [3, 8, 9],
+        [4, 9, 5],
+        [2, 4, 11],
+        [6, 2, 10],
+        [8, 6, 7],
+        [9, 8, 1],
     ];
 
     (vertices, triangles)

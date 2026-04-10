@@ -127,7 +127,10 @@ impl<M: Manifold, const K: usize, const B: usize> Mesh<M, K, B> {
 
         for simplex in &simplices {
             for &v in simplex {
-                assert!(v < n_v, "simplex vertex index {v} out of bounds (n_v={n_v})");
+                assert!(
+                    v < n_v,
+                    "simplex vertex index {v} out of bounds (n_v={n_v})"
+                );
             }
 
             let mut local_boundary_ids = [0usize; K];
@@ -555,9 +558,7 @@ impl<M: Manifold> Mesh<M, 3, 2> {
         match cofaces.len() {
             1 => (cofaces[0], None),
             2 => (cofaces[0], Some(cofaces[1])),
-            n => panic!(
-                "non-manifold edge {e}: has {n} co-faces (expected 1 or 2)"
-            ),
+            n => panic!("non-manifold edge {e}: has {n} co-faces (expected 1 or 2)"),
         }
     }
 
@@ -779,8 +780,7 @@ fn dense_determinant(a: &[f64], n: usize) -> f64 {
         1 => a[0],
         2 => a[0] * a[3] - a[1] * a[2],
         3 => {
-            a[0] * (a[4] * a[8] - a[5] * a[7])
-                - a[1] * (a[3] * a[8] - a[5] * a[6])
+            a[0] * (a[4] * a[8] - a[5] * a[7]) - a[1] * (a[3] * a[8] - a[5] * a[6])
                 + a[2] * (a[3] * a[7] - a[4] * a[6])
         }
         _ => {

@@ -112,7 +112,9 @@ pub fn track_disclination_events(
     for (b_idx, cb) in centroids_b.iter().enumerate() {
         let cb = *cb;
         let best = centroids_a.iter().enumerate().min_by(|(_, ca1), (_, ca2)| {
-            dist3(**ca1, cb).partial_cmp(&dist3(**ca2, cb)).unwrap_or(std::cmp::Ordering::Equal)
+            dist3(**ca1, cb)
+                .partial_cmp(&dist3(**ca2, cb))
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
         if let Some((a_idx, ca)) = best {
             if dist3(*ca, cb) < proximity_threshold {
@@ -126,7 +128,9 @@ pub fn track_disclination_events(
     for (a_idx, ca) in centroids_a.iter().enumerate() {
         let ca = *ca;
         let best = centroids_b.iter().enumerate().min_by(|(_, cb1), (_, cb2)| {
-            dist3(**cb1, ca).partial_cmp(&dist3(**cb2, ca)).unwrap_or(std::cmp::Ordering::Equal)
+            dist3(**cb1, ca)
+                .partial_cmp(&dist3(**cb2, ca))
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
         if let Some((b_idx, cb)) = best {
             if dist3(*cb, ca) < proximity_threshold {
@@ -213,15 +217,15 @@ pub fn track_disclination_events(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::segments::{DisclinationCharge, Sign};
+    use super::*;
 
     #[test]
     fn test_no_events_same_frame() {
         // Comparing a set of lines to itself produces no events
         let line = DisclinationLine {
-            vertices: vec![[0.0,0.0,0.0],[1.0,0.0,0.0]],
-            tangents: vec![[1.0,0.0,0.0],[1.0,0.0,0.0]],
+            vertices: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
+            tangents: vec![[1.0, 0.0, 0.0], [1.0, 0.0, 0.0]],
             curvatures: vec![0.0, 0.0],
             torsions: vec![0.0, 0.0],
             charge: DisclinationCharge::Half(Sign::Positive),

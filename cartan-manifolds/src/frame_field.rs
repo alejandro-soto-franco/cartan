@@ -76,10 +76,10 @@ use crate::qtensor::q_to_frame;
 /// `g₀·g₁·g₂ = +1`. Right-multiplying a frame `R` by such a matrix flips the
 /// signs of the corresponding columns while keeping `R` in SO(3).
 const D2_SIGNS: [(Real, Real, Real); 4] = [
-    (1.0, 1.0, 1.0),    // identity
-    (-1.0, -1.0, 1.0),  // flip columns 0 and 1 (covers n ↔ -n for uniaxial)
-    (-1.0, 1.0, -1.0),  // flip columns 0 and 2
-    (1.0, -1.0, -1.0),  // flip columns 1 and 2
+    (1.0, 1.0, 1.0),   // identity
+    (-1.0, -1.0, 1.0), // flip columns 0 and 1 (covers n ↔ -n for uniaxial)
+    (-1.0, 1.0, -1.0), // flip columns 0 and 2
+    (1.0, -1.0, -1.0), // flip columns 1 and 2
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,7 +232,9 @@ mod tests {
     #[test]
     fn from_q_field_length() {
         let mut rng = SmallRng::seed_from_u64(0);
-        let qs: Vec<_> = (0..10).map(|_| random_nematic(&mut rng, 0.1, 0.8)).collect();
+        let qs: Vec<_> = (0..10)
+            .map(|_| random_nematic(&mut rng, 0.1, 0.8))
+            .collect();
         let ff = FrameField3D::from_q_field(&qs);
         assert_eq!(ff.len(), 10);
         assert!(!ff.is_empty());
@@ -275,7 +277,9 @@ mod tests {
     #[test]
     fn gauge_fix_preserves_so3() {
         let mut rng = SmallRng::seed_from_u64(42);
-        let qs: Vec<_> = (0..20).map(|_| random_nematic(&mut rng, 0.2, 0.9)).collect();
+        let qs: Vec<_> = (0..20)
+            .map(|_| random_nematic(&mut rng, 0.2, 0.9))
+            .collect();
         let ff = FrameField3D::from_q_field(&qs);
         let fixed = ff.gauge_fix_chain();
 
@@ -341,7 +345,9 @@ mod tests {
         // After gauge fixing, consecutive frame differences should be smaller.
         let q = uniaxial_q(1.0, 0.2, 0.05, 0.65);
         let mut rng = SmallRng::seed_from_u64(99);
-        let qs: Vec<_> = (0..16).map(|_| random_nematic(&mut rng, 0.3, 0.8)).collect();
+        let qs: Vec<_> = (0..16)
+            .map(|_| random_nematic(&mut rng, 0.3, 0.8))
+            .collect();
         let ff = FrameField3D::from_q_field(&qs);
 
         // Manually flip every even frame (except 0) with diag(-1,-1,+1).
@@ -352,7 +358,9 @@ mod tests {
                 flipped_frames[i][(row, 1)] *= -1.0;
             }
         }
-        let ff_flipped = FrameField3D { frames: flipped_frames };
+        let ff_flipped = FrameField3D {
+            frames: flipped_frames,
+        };
         let fixed = ff_flipped.gauge_fix_chain();
 
         // Each fixed frame must still be in SO(3).

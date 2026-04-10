@@ -1,9 +1,10 @@
-use cartan_dec::mesh_quality::{
-    is_delaunay, is_well_centered, angle_at_vertex, quality_report, make_delaunay, make_well_centered,
-};
-use cartan_dec::mesh_gen::{icosphere, torus};
-use cartan_dec::HodgeStar;
 use cartan_dec::FlatMesh;
+use cartan_dec::HodgeStar;
+use cartan_dec::mesh_gen::{icosphere, torus};
+use cartan_dec::mesh_quality::{
+    angle_at_vertex, is_delaunay, is_well_centered, make_delaunay, make_well_centered,
+    quality_report,
+};
 use cartan_manifolds::euclidean::Euclidean;
 use cartan_manifolds::sphere::Sphere;
 
@@ -22,10 +23,10 @@ fn test_non_delaunay_detected() {
     // Four vertices forming a thin rhombus where the diagonal creates
     // opposite angles summing to > pi.
     let verts = vec![
-        [0.0, 0.0],   // 0: left
-        [1.0, 0.1],   // 1: top (close to horizontal)
-        [2.0, 0.0],   // 2: right
-        [1.0, -0.1],  // 3: bottom (close to horizontal)
+        [0.0, 0.0],  // 0: left
+        [1.0, 0.1],  // 1: top (close to horizontal)
+        [2.0, 0.0],  // 2: right
+        [1.0, -0.1], // 3: bottom (close to horizontal)
     ];
     // Triangles sharing edge (0, 2): the "bad" diagonal of the thin rhombus.
     let tris = vec![[0, 2, 1], [0, 3, 2]];
@@ -40,11 +41,7 @@ fn test_non_delaunay_detected() {
 #[test]
 fn test_angle_at_vertex_equilateral() {
     let h = (3.0_f64).sqrt() / 2.0;
-    let verts = vec![
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [0.5, h],
-    ];
+    let verts = vec![[0.0, 0.0], [1.0, 0.0], [0.5, h]];
     let tris = vec![[0, 1, 2]];
     let mesh = FlatMesh::from_triangles(verts, tris);
     let manifold = Euclidean::<2>;
@@ -62,11 +59,7 @@ fn test_angle_at_vertex_equilateral() {
 #[test]
 fn test_equilateral_is_well_centered() {
     let h = (3.0_f64).sqrt() / 2.0;
-    let verts = vec![
-        [0.0, 0.0],
-        [1.0, 0.0],
-        [0.5, h],
-    ];
+    let verts = vec![[0.0, 0.0], [1.0, 0.0], [0.5, h]];
     let tris = vec![[0, 1, 2]];
     let mesh = FlatMesh::from_triangles(verts, tris);
     let manifold = Euclidean::<2>;
@@ -75,11 +68,7 @@ fn test_equilateral_is_well_centered() {
 
 #[test]
 fn test_obtuse_is_not_well_centered() {
-    let verts = vec![
-        [0.0, 0.0],
-        [4.0, 0.0],
-        [0.1, 0.1],
-    ];
+    let verts = vec![[0.0, 0.0], [4.0, 0.0], [0.1, 0.1]];
     let tris = vec![[0, 1, 2]];
     let mesh = FlatMesh::from_triangles(verts, tris);
     let manifold = Euclidean::<2>;
@@ -107,12 +96,7 @@ fn test_quality_report_unit_square() {
 
 #[test]
 fn test_make_delaunay_fixes_bad_diagonal() {
-    let verts = vec![
-        [0.0, 0.0],
-        [1.0, 0.1],
-        [2.0, 0.0],
-        [1.0, -0.1],
-    ];
+    let verts = vec![[0.0, 0.0], [1.0, 0.1], [2.0, 0.0], [1.0, -0.1]];
     let tris = vec![[0, 2, 1], [0, 3, 2]];
     let mesh = FlatMesh::from_triangles(verts, tris);
     let manifold = Euclidean::<2>;
@@ -129,12 +113,7 @@ fn test_make_delaunay_fixes_bad_diagonal() {
 
 #[test]
 fn test_make_delaunay_preserves_euler() {
-    let verts = vec![
-        [0.0, 0.0],
-        [1.0, 0.1],
-        [2.0, 0.0],
-        [1.0, -0.1],
-    ];
+    let verts = vec![[0.0, 0.0], [1.0, 0.1], [2.0, 0.0], [1.0, -0.1]];
     let tris = vec![[0, 2, 1], [0, 3, 2]];
     let mesh = FlatMesh::from_triangles(verts, tris);
     let chi_before = mesh.euler_characteristic();
@@ -175,7 +154,10 @@ fn test_make_well_centered_on_flat_grid() {
         report_after.non_well_centered_simplices,
     );
     // Verify the mesh is still valid.
-    assert!(report_after.is_delaunay, "should remain Delaunay after smoothing");
+    assert!(
+        report_after.is_delaunay,
+        "should remain Delaunay after smoothing"
+    );
     assert_eq!(smoothed.n_vertices(), 81);
 }
 
@@ -207,7 +189,10 @@ fn test_icosphere_well_centered() {
     let mesh = icosphere(&manifold, 2, true);
     assert_eq!(mesh.euler_characteristic(), 2);
     let report = quality_report(&mesh, &manifold);
-    assert!(report.is_delaunay, "well-centered icosphere should be Delaunay");
+    assert!(
+        report.is_delaunay,
+        "well-centered icosphere should be Delaunay"
+    );
     // Icosphere subdivision naturally produces near-equilateral triangles,
     // so it should already be well-centered or very close after smoothing.
 }
@@ -273,7 +258,11 @@ fn test_full_pipeline_icosphere_quality() {
         let mesh = icosphere(&manifold, level, true);
 
         // Topology.
-        assert_eq!(mesh.euler_characteristic(), 2, "level {level}: chi must be 2");
+        assert_eq!(
+            mesh.euler_characteristic(),
+            2,
+            "level {level}: chi must be 2"
+        );
 
         // Quality.
         let report = quality_report(&mesh, &manifold);

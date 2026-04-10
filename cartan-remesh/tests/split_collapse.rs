@@ -3,7 +3,7 @@
 use approx::assert_relative_eq;
 use cartan_dec::Mesh;
 use cartan_manifolds::euclidean::Euclidean;
-use cartan_remesh::{collapse_edge, split_edge, RemeshError};
+use cartan_remesh::{RemeshError, collapse_edge, split_edge};
 use nalgebra::SVector;
 
 /// Build a diamond mesh: 4 vertices, 2 triangles sharing edge (1,2).
@@ -126,8 +126,7 @@ fn collapse_edge_surviving_vertex_at_midpoint() {
     let mut mesh = diamond_mesh();
     let edge = find_edge(&mesh, 1, 2).expect("edge (1,2) must exist");
 
-    let log = collapse_edge(&mut mesh, &manifold, edge, 0.5)
-        .expect("collapse should succeed");
+    let log = collapse_edge(&mut mesh, &manifold, edge, 0.5).expect("collapse should succeed");
 
     let survivor = log.collapses[0].surviving_vertex;
     let pos = &mesh.vertices[survivor];
@@ -142,11 +141,11 @@ fn collapse_edge_rejects_foldover() {
     // which flips [1,4,0] from CCW (area=+0.35) to CW (area=-0.275).
     let manifold = Euclidean::<2>;
     let vertices = vec![
-        SVector::from([0.0, 2.0]),    // 0
-        SVector::from([-1.0, 0.0]),   // 1
-        SVector::from([1.0, 0.0]),    // 2
-        SVector::from([0.0, -1.0]),   // 3
-        SVector::from([-0.6, 0.1]),   // 4
+        SVector::from([0.0, 2.0]),  // 0
+        SVector::from([-1.0, 0.0]), // 1
+        SVector::from([1.0, 0.0]),  // 2
+        SVector::from([0.0, -1.0]), // 3
+        SVector::from([-0.6, 0.1]), // 4
     ];
     let triangles = vec![[1, 2, 0], [2, 1, 3], [1, 3, 4], [1, 4, 0]];
     let mut mesh = Mesh::from_simplices(&manifold, vertices, triangles);

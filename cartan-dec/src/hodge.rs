@@ -160,7 +160,6 @@ impl HodgeStar {
         mesh: &Mesh<M, 3, 2>,
         manifold: &M,
     ) -> Result<Self, DecError> {
-
         mesh.check_well_centered(manifold)?;
 
         let nv = mesh.n_vertices();
@@ -180,8 +179,10 @@ impl HodgeStar {
                 let v_prev = simplex[(local + 2) % 3];
                 let v_next = simplex[(local + 1) % 3];
 
-                let mid_prev = geodesic_midpoint(manifold, &mesh.vertices[v], &mesh.vertices[v_prev]);
-                let mid_next = geodesic_midpoint(manifold, &mesh.vertices[v], &mesh.vertices[v_next]);
+                let mid_prev =
+                    geodesic_midpoint(manifold, &mesh.vertices[v], &mesh.vertices[v_prev]);
+                let mid_next =
+                    geodesic_midpoint(manifold, &mesh.vertices[v], &mesh.vertices[v_next]);
 
                 // Sub-quad area = area(v, mid_prev, cc) + area(v, cc, mid_next).
                 let area1 = tangent_triangle_area(manifold, &mesh.vertices[v], &mid_prev, &cc);

@@ -21,11 +21,7 @@ use crate::log::{EdgeCollapse, EdgeFlip, EdgeSplit, RemeshLog, VertexShift};
 /// # Panics
 ///
 /// Panics if `edge >= mesh.n_boundaries()`.
-pub fn split_edge<M: Manifold>(
-    mesh: &mut Mesh<M, 3, 2>,
-    manifold: &M,
-    edge: usize,
-) -> RemeshLog {
+pub fn split_edge<M: Manifold>(mesh: &mut Mesh<M, 3, 2>, manifold: &M, edge: usize) -> RemeshLog {
     assert!(edge < mesh.n_boundaries(), "edge index out of bounds");
 
     let [v_a, v_b] = mesh.boundaries[edge];
@@ -350,10 +346,7 @@ pub fn shift_vertex<M: Manifold>(
     manifold: &M,
     vertex: usize,
 ) -> RemeshLog {
-    assert!(
-        vertex < mesh.n_vertices(),
-        "vertex index out of bounds"
-    );
+    assert!(vertex < mesh.n_vertices(), "vertex index out of bounds");
 
     // Collect 1-ring neighbors from incident edges.
     let mut neighbors: Vec<usize> = Vec::new();

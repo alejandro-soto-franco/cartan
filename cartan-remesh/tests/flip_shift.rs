@@ -3,7 +3,7 @@
 use approx::assert_relative_eq;
 use cartan_dec::Mesh;
 use cartan_manifolds::euclidean::Euclidean;
-use cartan_remesh::{flip_edge, shift_vertex, RemeshError};
+use cartan_remesh::{RemeshError, flip_edge, shift_vertex};
 use nalgebra::SVector;
 
 /// Build a diamond mesh: 4 vertices, 2 triangles sharing edge (1,2).
@@ -54,17 +54,20 @@ fn flip_edge_flips_shared_diagonal() {
     // the quad is "concave" in Delaunay terms. Create a thin, tall diamond.
     let manifold = Euclidean::<2>;
     let vertices = vec![
-        SVector::from([0.0, 0.3]),   // 0 (top, close to edge)
-        SVector::from([-1.0, 0.0]),  // 1 (left)
-        SVector::from([1.0, 0.0]),   // 2 (right)
-        SVector::from([0.0, -0.3]),  // 3 (bottom, close to edge)
+        SVector::from([0.0, 0.3]),  // 0 (top, close to edge)
+        SVector::from([-1.0, 0.0]), // 1 (left)
+        SVector::from([1.0, 0.0]),  // 2 (right)
+        SVector::from([0.0, -0.3]), // 3 (bottom, close to edge)
     ];
     let triangles = vec![[1, 2, 0], [2, 1, 3]];
     let mut mesh = Mesh::from_simplices(&manifold, vertices, triangles);
 
     let edge = find_edge(&mesh, 1, 2).expect("edge (1,2) must exist");
     let result = flip_edge(&mut mesh, &manifold, edge);
-    assert!(result.is_ok(), "flip should succeed on non-Delaunay diamond");
+    assert!(
+        result.is_ok(),
+        "flip should succeed on non-Delaunay diamond"
+    );
 
     let log = result.unwrap();
     assert_eq!(log.flips.len(), 1);
@@ -147,18 +150,13 @@ fn shift_vertex_moves_toward_centroid() {
     // Outer ring at the unit square corners, interior vertex 4 offset from center.
     let manifold = Euclidean::<2>;
     let vertices = vec![
-        SVector::from([0.0, 1.0]),  // 0 (top-left)
-        SVector::from([1.0, 1.0]),  // 1 (top-right)
-        SVector::from([1.0, 0.0]),  // 2 (bottom-right)
-        SVector::from([0.0, 0.0]),  // 3 (bottom-left)
-        SVector::from([0.3, 0.3]),  // 4 (interior, offset from centroid (0.5, 0.5))
+        SVector::from([0.0, 1.0]), // 0 (top-left)
+        SVector::from([1.0, 1.0]), // 1 (top-right)
+        SVector::from([1.0, 0.0]), // 2 (bottom-right)
+        SVector::from([0.0, 0.0]), // 3 (bottom-left)
+        SVector::from([0.3, 0.3]), // 4 (interior, offset from centroid (0.5, 0.5))
     ];
-    let triangles = vec![
-        [0, 1, 4],
-        [1, 2, 4],
-        [2, 3, 4],
-        [3, 0, 4],
-    ];
+    let triangles = vec![[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]];
     let mut mesh = Mesh::from_simplices(&manifold, vertices, triangles);
 
     let old_pos = mesh.vertices[4];
@@ -185,18 +183,13 @@ fn shift_vertex_regular_mesh_negligible_displacement() {
     // the Laplacian displacement should be (near) zero.
     let manifold = Euclidean::<2>;
     let vertices = vec![
-        SVector::from([0.0, 1.0]),  // 0
-        SVector::from([1.0, 1.0]),  // 1
-        SVector::from([1.0, 0.0]),  // 2
-        SVector::from([0.0, 0.0]),  // 3
-        SVector::from([0.5, 0.5]),  // 4 (exactly at centroid)
+        SVector::from([0.0, 1.0]), // 0
+        SVector::from([1.0, 1.0]), // 1
+        SVector::from([1.0, 0.0]), // 2
+        SVector::from([0.0, 0.0]), // 3
+        SVector::from([0.5, 0.5]), // 4 (exactly at centroid)
     ];
-    let triangles = vec![
-        [0, 1, 4],
-        [1, 2, 4],
-        [2, 3, 4],
-        [3, 0, 4],
-    ];
+    let triangles = vec![[0, 1, 4], [1, 2, 4], [2, 3, 4], [3, 0, 4]];
     let mut mesh = Mesh::from_simplices(&manifold, vertices, triangles);
 
     let old_pos = mesh.vertices[4];

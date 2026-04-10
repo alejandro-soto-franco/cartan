@@ -29,11 +29,7 @@ use cartan_dec::Mesh;
 /// # Panics
 ///
 /// Panics if `edge >= mesh.n_boundaries()`.
-pub fn length_cross_ratio<M: Manifold>(
-    mesh: &Mesh<M, 3, 2>,
-    manifold: &M,
-    edge: usize,
-) -> f64 {
+pub fn length_cross_ratio<M: Manifold>(mesh: &Mesh<M, 3, 2>, manifold: &M, edge: usize) -> f64 {
     assert!(edge < mesh.n_boundaries(), "edge index out of bounds");
 
     let adjacent = &mesh.boundary_simplices[edge];
@@ -85,10 +81,7 @@ pub fn length_cross_ratio<M: Manifold>(
 /// This snapshot is used as the reference configuration for the LCR spring
 /// energy, so that subsequent remeshing steps can penalise conformal
 /// distortion relative to the initial mesh.
-pub fn capture_reference_lcrs<M: Manifold>(
-    mesh: &Mesh<M, 3, 2>,
-    manifold: &M,
-) -> Vec<f64> {
+pub fn capture_reference_lcrs<M: Manifold>(mesh: &Mesh<M, 3, 2>, manifold: &M) -> Vec<f64> {
     (0..mesh.n_boundaries())
         .map(|e| length_cross_ratio(mesh, manifold, e))
         .collect()
