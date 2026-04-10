@@ -16,9 +16,9 @@
 use nalgebra::SVector;
 use sprs::{CsMat, TriMat};
 
-use cartan_core::Manifold;
 use crate::extrinsic::ExtrinsicOperators;
 use crate::mesh::Mesh;
+use cartan_core::Manifold;
 
 const D: usize = 3;
 
@@ -206,7 +206,7 @@ impl StokesSolverAL {
     }
 
     /// Project out Killing vector fields (rigid motions) from a velocity field.
-    fn project_out_killing(&self, u: &mut Vec<f64>) {
+    fn project_out_killing(&self, u: &mut [f64]) {
         for basis in &self.killing_basis {
             let dot: f64 = u.iter().zip(basis).map(|(a, b)| a * b).sum();
             let norm_sq: f64 = basis.iter().map(|b| b * b).sum();
@@ -247,9 +247,9 @@ fn compute_killing_basis<M: Manifold<Point = SVector<f64, D>>>(
             let r = mesh.vertices[v];
             // Cross product of unit axis vector with r.
             let cross = match axis {
-                0 => SVector::<f64, 3>::new(0.0, -r[2], r[1]),    // e_x x r
-                1 => SVector::<f64, 3>::new(r[2], 0.0, -r[0]),    // e_y x r
-                2 => SVector::<f64, 3>::new(-r[1], r[0], 0.0),    // e_z x r
+                0 => SVector::<f64, 3>::new(0.0, -r[2], r[1]), // e_x x r
+                1 => SVector::<f64, 3>::new(r[2], 0.0, -r[0]), // e_y x r
+                2 => SVector::<f64, 3>::new(-r[1], r[0], 0.0), // e_z x r
                 _ => unreachable!(),
             };
             b[v * 3] = cross[0];
@@ -267,8 +267,8 @@ fn compute_killing_basis<M: Manifold<Point = SVector<f64, D>>>(
             if norm_sq > 1e-30 {
                 let coeff = dot / norm_sq;
                 let bj = basis[j].clone();
-                for k in 0..basis[i].len() {
-                    basis[i][k] -= coeff * bj[k];
+                for (k, bj_k) in bj.iter().enumerate() {
+                    basis[i][k] -= coeff * bj_k;
                 }
             }
         }

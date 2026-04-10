@@ -37,9 +37,7 @@ struct Args {
 }
 
 fn parse_dims(s: &str) -> Vec<usize> {
-    s.split(',')
-        .filter_map(|d| d.trim().parse().ok())
-        .collect()
+    s.split(',').filter_map(|d| d.trim().parse().ok()).collect()
 }
 
 macro_rules! bench_sphere {
@@ -117,12 +115,12 @@ fn emit(manifold: &str, op: &str, dim: usize, times: &[u128]) {
 fn bench_spheres(dims: &[usize]) {
     // Const-generic dimensions must be known at compile time.
     // We enumerate the supported sizes explicitly.
-    bench_sphere!(3, dims);   // S^2
-    bench_sphere!(4, dims);   // S^3
-    bench_sphere!(6, dims);   // S^5
-    bench_sphere!(11, dims);  // S^10
-    bench_sphere!(26, dims);  // S^25
-    bench_sphere!(51, dims);  // S^50
+    bench_sphere!(3, dims); // S^2
+    bench_sphere!(4, dims); // S^3
+    bench_sphere!(6, dims); // S^5
+    bench_sphere!(11, dims); // S^10
+    bench_sphere!(26, dims); // S^25
+    bench_sphere!(51, dims); // S^50
     bench_sphere!(101, dims); // S^100
 }
 
