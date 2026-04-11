@@ -17,7 +17,7 @@ std = ["alloc", "cartan-core/std", "rand/std", "rand_distr/std", "nalgebra/std"]
 alloc = ["cartan-core/alloc", "rand/alloc", "rand_distr/alloc", "nalgebra/alloc"]
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.3", default-features = false }
+cartan-core = { path = "../cartan-core", version = "0.4", default-features = false }
 # libm satisfies f64: RealField in no_std mode (unconditional — no harm in std mode).
 # nalgebra/std and nalgebra/alloc are threaded through the feature flags above.
 nalgebra = { workspace = true, features = ["libm"] }
