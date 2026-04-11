@@ -11,7 +11,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Scientific/Engineering :: Mathematics",
 ]
-version = "0.2.0"
+version = "0.4.0"
 description = "Python bindings for the cartan Riemannian geometry library"
 license = { text = "MIT" }
 
