@@ -42,6 +42,7 @@
 //! - Hirani. "Discrete Exterior Calculus." Caltech PhD thesis, 2003.
 
 pub mod advection;
+pub mod cartesian_connection;
 pub mod divergence;
 pub mod error;
 pub mod exterior;
@@ -63,5 +64,6 @@ pub use error::DecError;
 pub use exterior::ExteriorDerivative;
 pub use hodge::HodgeStar;
 pub use laplace::Operators;
+pub use cartesian_connection::cartesian_3d_connection;
 pub use levi_civita::{levi_civita_2d, edge_transport_from_angles};
 pub use mesh::{FlatMesh, Mesh};
