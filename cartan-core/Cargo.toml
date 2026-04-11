@@ -1,6 +1,6 @@
 [package]
 name = "cartan-core"
-description = "Core traits for Riemannian geometry: Manifold, Retraction, ParallelTransport, Curvature"
+description = "Core traits for Riemannian geometry and fiber bundles: Manifold, Fiber, DiscreteConnection, ParallelTransport, Curvature"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
