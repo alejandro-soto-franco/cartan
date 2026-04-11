@@ -16,12 +16,13 @@ Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev)
 
 ## Features
 
-- **Generic trait hierarchy**: `Manifold`, `Retraction`, `ParallelTransport`, `VectorTransport`, `Connection`, `Curvature`, `GeodesicInterpolation`
+- **Generic trait hierarchy**: `Manifold`, `Retraction`, `ParallelTransport`, `VectorTransport`, `Connection`, `Curvature`, `GeodesicInterpolation`, `Fiber`, `DiscreteConnection`, `CovLaplacian`
 - **Const-generic manifolds**: `Sphere<3>`, `Grassmann<5,2>`, dimensions checked at compile time
 - **Correct numerics**: Taylor expansions near singularities, cut locus detection, structured error handling
 - **Zero-cost abstractions**: manifold types are zero-sized; all geometry lives in the trait impls
 - **Optimization**: `cartan-optim` provides RGD, RCG, RTR, and Fréchet mean on any `Manifold`
 - **Geodesic tools**: `cartan-geo` provides parameterized geodesics, curvature queries, and Jacobi field integration
+- **Fiber bundles**: `Fiber` trait with frame-first SO(d) transport, `CovLaplacian` generic over any fiber type. Built-in fibers: `U1Spin2` (nematics on surfaces), `NematicFiber3D` (3D Q-tensors), `TangentFiber<D>`
 - **DEC layer**: `cartan-dec` discretizes covariant differential operators on simplicial meshes for PDE solvers, with complex line bundle sections for k-atic fields, extrinsic Killing operator, and augmented Lagrangian Stokes solver
 - **Adaptive remeshing**: `cartan-remesh` provides split, collapse, flip, shift, and curvature-CFL-driven adaptive refinement
 - **Python bindings**: `cartan-py` exposes the full library to Python via PyO3 with numpy interop
