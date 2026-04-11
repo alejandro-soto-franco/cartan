@@ -4,6 +4,37 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.4.0] - 2026-04-11
+
+### Added
+
+- **cartan-core**: fiber bundle traits for covariant field transport on simplicial meshes.
+  - `Fiber` trait: abstract fiber type with SO(d) representation map `transport_by`.
+  - `FiberOps` trait: component-wise arithmetic for generic covariant Laplacian.
+  - `Section` / `VecSection`: fiber element per mesh vertex.
+  - `DiscreteConnection<D>` trait: SO(D) frame transport per edge.
+  - `EdgeTransport2D` / `EdgeTransport3D`: concrete SO(2)/SO(3) storage.
+  - `CovLaplacian`: generic covariant Laplacian over any `FiberOps + DiscreteConnection`. Positive-semidefinite (DEC convention).
+  - `U1Spin2` fiber: nematic on 2-manifolds (spin-2 phase rotation).
+  - `TangentFiber<D>` fiber: R^D vector with fundamental SO(D) representation.
+  - `NematicFiber3D` fiber: traceless symmetric 3x3, 5 components (Q -> R Q R^T).
+- **cartan-dec**: `levi_civita_2d()` builds `EdgeTransport2D` from triangle mesh geometry via `ConnectionAngles`. Verified against `BochnerLaplacian<2>` on icosphere.
+- **cartan-dec**: `cartesian_3d_connection()` builds `EdgeTransport3D` + `CovLaplacian` for periodic Cartesian grids with SO(3) identity transport.
+
+---
+
+## [0.3.0] - 2026-04-10
+
+### Added
+
+- **cartan-dec**: `line_bundle` module with `Section<K>` (complex section of L_k), `ConnectionAngles` (discrete Levi-Civita on primal and dual edges), `BochnerLaplacian<K>` (sparse Hermitian Laplacian on L_k), and `defect_charges` (exact discrete Poincare-Hopf topological charge).
+- **cartan-dec**: extrinsic operators module: `KillingOperator`, `ExtrinsicDiv`, `ExtrinsicGrad`, and viscosity Laplacian for surface Stokes problems.
+- **cartan-dec**: augmented Lagrangian Stokes solver on triangle meshes with Killing vector projection.
+- **cartan-dec**: circumcentric Hodge star for well-centered meshes.
+- **cartan-dec**: torus mesh generator with well-centered option.
+
+---
+
 ## [0.2.0] - 2026-04-08
 
 ### Added
