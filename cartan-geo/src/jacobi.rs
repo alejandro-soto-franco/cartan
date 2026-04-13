@@ -165,3 +165,121 @@ where
         velocity,
     }
 }
+
+#[cfg(feature = "alloc")]
+/// Integrate a Jacobi field along an **arbitrary base curve** using RK4.
+///
+/// The Jacobi equation `D²J/dt² + R(J, γ') γ' = 0` holds for any smooth
+/// curve `γ`, not only geodesics. This lets Jacobi-field integration ride
+/// on an SDE path from `cartan-stochastic::stochastic_development` or any
+/// piecewise-linear trajectory on `M`.
+///
+/// # Arguments
+///
+/// - `manifold`: the ambient manifold.
+/// - `path`: the base curve sampled at times `t_i = i · dt`. Length
+///   `n_points = n_steps + 1`.
+/// - `dt`: uniform time increment between consecutive path samples.
+/// - `j0`: initial Jacobi value `J(t_0)` as a tangent at `path[0]`.
+/// - `j0_dot`: initial covariant velocity `J'(t_0)` as a tangent at `path[0]`.
+///
+/// # Velocity reconstruction
+///
+/// At each step the instantaneous velocity `γ'(t_i)` is approximated by
+/// `log_{path[i]}(path[i+1]) / dt`. This is exact to leading order in `dt`
+/// for any `C^2` curve and matches the discretisation level of the RK4
+/// Jacobi integrator itself. For the final step we reuse the previous
+/// velocity as a fallback (the RK4 update at `t_{n-1}` only needs one
+/// velocity evaluation and the integrator never reads `velocity[n]`).
+///
+/// # Errors
+///
+/// Returns `CartanError` when `log` fails (typically at the cut locus).
+/// Pass a finer `path` discretisation to avoid.
+pub fn integrate_jacobi_along_path<M>(
+    manifold: &M,
+    path: &[M::Point],
+    dt: Real,
+    j0: M::Tangent,
+    j0_dot: M::Tangent,
+) -> Result<JacobiResult<M::Tangent>, cartan_core::CartanError>
+where
+    M: Manifold + Curvature + ParallelTransport,
+{
+    assert!(
+        path.len() >= 2,
+        "integrate_jacobi_along_path: need at least 2 path points (n_steps >= 1)"
+    );
+    let n_steps = path.len() - 1;
+    let inv_dt = 1.0 / dt;
+
+    let mut params = Vec::with_capacity(n_steps + 1);
+    let mut field = Vec::with_capacity(n_steps + 1);
+    let mut velocity = Vec::with_capacity(n_steps + 1);
+
+    params.push(0.0);
+    field.push(j0.clone());
+    velocity.push(j0_dot.clone());
+
+    let mut j = j0;
+    let mut j_dot = j0_dot;
+
+    for k in 0..n_steps {
+        let p = &path[k];
+        let p_next = &path[k + 1];
+
+        // Approximate γ'(t_k) by finite-difference log. This is exact to
+        // leading order in dt for C^2 curves. A future higher-order scheme
+        // could use three-point stencils but RK4 accuracy on the Jacobi ODE
+        // is itself O(dt^4), so upgrading just the velocity estimate alone
+        // does not improve the overall order.
+        let gamma_dot = manifold.log(p, p_next)? * inv_dt;
+
+        // Same RK4 update as the geodesic case, with frozen γ' and base
+        // point p within one step.
+        let rhs = |j_val: &M::Tangent, j_vel: &M::Tangent| -> (M::Tangent, M::Tangent) {
+            let r = manifold.riemann_curvature(p, j_val, &gamma_dot, &gamma_dot);
+            (j_vel.clone(), -r)
+        };
+
+        let (k1_j, k1_v) = rhs(&j, &j_dot);
+        let j_mid1 = j.clone() + k1_j.clone() * (dt * 0.5);
+        let v_mid1 = j_dot.clone() + k1_v.clone() * (dt * 0.5);
+
+        let (k2_j, k2_v) = rhs(&j_mid1, &v_mid1);
+        let j_mid2 = j.clone() + k2_j.clone() * (dt * 0.5);
+        let v_mid2 = j_dot.clone() + k2_v.clone() * (dt * 0.5);
+
+        let (k3_j, k3_v) = rhs(&j_mid2, &v_mid2);
+        let j_end = j.clone() + k3_j.clone() * dt;
+        let v_end = j_dot.clone() + k3_v.clone() * dt;
+
+        let (k4_j, k4_v) = rhs(&j_end, &v_end);
+
+        let j_new_ambient = j.clone()
+            + (k1_j.clone() + k2_j.clone() * 2.0 + k3_j.clone() * 2.0 + k4_j) * (dt / 6.0);
+        let v_new_ambient = j_dot.clone() + (k1_v + k2_v * 2.0 + k3_v * 2.0 + k4_v) * (dt / 6.0);
+
+        let j_new = manifold.project_tangent(p_next, &j_new_ambient);
+        let v_new = manifold.project_tangent(p_next, &v_new_ambient);
+
+        // Parallel-transport to the next tangent space so the next RK4
+        // evaluation operates in the correct coordinates.
+        j = manifold
+            .transport(p, p_next, &j_new)
+            .unwrap_or_else(|_| j_new.clone());
+        j_dot = manifold
+            .transport(p, p_next, &v_new)
+            .unwrap_or_else(|_| v_new.clone());
+
+        params.push((k + 1) as Real * dt);
+        field.push(j.clone());
+        velocity.push(j_dot.clone());
+    }
+
+    Ok(JacobiResult {
+        params,
+        field,
+        velocity,
+    })
+}
