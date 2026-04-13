@@ -25,6 +25,7 @@ Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev)
 - **Fiber bundles**: `Fiber` trait with frame-first SO(d) transport, `CovLaplacian` generic over any fiber type. Built-in fibers: `U1Spin2` (nematics on surfaces), `NematicFiber3D` (3D Q-tensors), `TangentFiber<D>`
 - **DEC layer**: `cartan-dec` discretizes covariant differential operators on simplicial meshes for PDE solvers, with complex line bundle sections for k-atic fields, extrinsic Killing operator, and augmented Lagrangian Stokes solver
 - **Adaptive remeshing**: `cartan-remesh` provides split, collapse, flip, shift, and curvature-CFL-driven adaptive refinement
+- **Stochastic analysis**: `cartan-stochastic` provides orthonormal frame bundle primitives, horizontal lift, Stratonovich development (Eells-Elworthy-Malliavin BM on `M`), and the Wishart SPD diffusion. Foundation for downstream Bismut-Elworthy-Li Greeks work
 - **Python bindings**: `cartan-py` exposes the full library to Python via PyO3 with numpy interop
 
 ## Quick Start
@@ -66,7 +67,8 @@ Every manifold implements all seven traits in the hierarchy. Intrinsic dimension
 | Sphere S^(N-1) | `Sphere<N>` | N−1 | K = 1 |
 | Special orthogonal SO(N) | `SpecialOrthogonal<N>` | N(N−1)/2 | K ≥ 0 (bi-invariant) |
 | Special Euclidean SE(N) | `SpecialEuclidean<N>` | N(N+1)/2 | flat × sphere |
-| Symmetric positive definite SPD(N) | `Spd<N>` | N(N+1)/2 | K ≤ 0 (Cartan-Hadamard) |
+| Symmetric positive definite SPD(N) | `Spd<N>` | N(N+1)/2 | K ≤ 0 (Cartan-Hadamard, affine-invariant) |
+| SPD(N) Bures-Wasserstein | `SpdBuresWasserstein<N>` | N(N+1)/2 | K ≥ 0 (2-Wasserstein on Gaussians) |
 | Grassmann Gr(N, K) | `Grassmann<N, K>` | K(N−K) | 0 ≤ K ≤ 2 |
 | Correlation Corr(N) | `Corr<N>` | N(N−1)/2 | flat, K = 0 |
 | Q-tensor Sym_0(R^3) | `QTensor3` | 5 | flat, Frobenius metric |
@@ -81,6 +83,7 @@ cartan-optim        Riemannian optimization: RGD, RCG, RTR, Frechet mean
 cartan-geo          geodesic curves, curvature queries, Jacobi fields
 cartan-dec          discrete exterior calculus, line bundles, extrinsic operators, Stokes solver
 cartan-remesh       adaptive remeshing: split, collapse, flip, shift, curvature-CFL driver
+cartan-stochastic   orthonormal frame bundle, horizontal lift, Stratonovich development, Wishart SDE
 cartan-py           Python bindings via PyO3 (pip install cartan)
 ```
 
