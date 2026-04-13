@@ -7,6 +7,7 @@ mod manifolds;
 mod optim;
 mod geo;
 mod holonomy;
+mod stochastic;
 
 /// cartan: Riemannian geometry, manifold optimization, and geodesic computation.
 #[pymodule]
@@ -18,5 +19,6 @@ fn cartan(m: &Bound<'_, PyModule>) -> PyResult<()> {
     geo::register(m)?;
     holonomy::register(m)?;
     dec::register(m)?;
+    stochastic::register(m)?;
     Ok(())
 }
