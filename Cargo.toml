@@ -8,6 +8,7 @@ members = [
     "cartan-geo",
     "cartan-dec",
     "cartan-remesh",
+    "cartan-stochastic",
     "benchmarks/rust",
 ]
 exclude = ["experiments", "cartan-py"]

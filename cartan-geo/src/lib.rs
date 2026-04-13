@@ -54,4 +54,4 @@ pub use holonomy::{
     rotation_angle, scan_disclinations,
 };
 #[cfg(feature = "alloc")]
-pub use jacobi::{JacobiResult, integrate_jacobi};
+pub use jacobi::{JacobiResult, integrate_jacobi, integrate_jacobi_along_path};
