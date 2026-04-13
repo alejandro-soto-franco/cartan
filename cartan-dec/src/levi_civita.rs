@@ -55,8 +55,7 @@ pub fn edge_transport_from_angles(
     let mut transports = Vec::with_capacity(ne);
     let mut edges = Vec::with_capacity(ne);
 
-    for e in 0..ne {
-        let alpha = angles.primal[e];
+    for (e, &alpha) in angles.primal.iter().enumerate().take(ne) {
         let ca = alpha.cos();
         let sa = alpha.sin();
         transports.push([ca, -sa, sa, ca]);

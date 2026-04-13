@@ -14,6 +14,9 @@
 //!
 //! Elastic smoothing in physical equations enters as **-K * Delta** (minus sign).
 
+#[cfg(feature = "alloc")]
+use alloc::{vec, vec::Vec};
+
 use crate::fiber::{Fiber, FiberOps, Section, VecSection};
 
 /// Discrete connection: SO(D) frame transport per edge.
