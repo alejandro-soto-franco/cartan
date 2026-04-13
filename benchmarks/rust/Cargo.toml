@@ -12,6 +12,7 @@ path = "src/main.rs"
 cartan-core = { path = "../../cartan-core", features = ["std"] }
 cartan-manifolds = { path = "../../cartan-manifolds", features = ["std"] }
 cartan-optim = { path = "../../cartan-optim", features = ["std"] }
+cartan-stochastic = { path = "../../cartan-stochastic" }
 nalgebra = { version = "0.33", features = ["std"] }
 rand = { version = "0.9", features = ["std_rng", "std"] }
 rand_distr = { version = "0.5", features = ["std"] }

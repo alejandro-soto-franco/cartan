@@ -23,6 +23,7 @@ cartan-manifolds = { path = "../cartan-manifolds", features = ["std"] }
 cartan-optim = { path = "../cartan-optim", features = ["std"] }
 cartan-geo = { path = "../cartan-geo", features = ["std"] }
 cartan-dec = { path = "../cartan-dec" }
+cartan-stochastic = { path = "../cartan-stochastic" }
 sprs = { version = "0.11", default-features = false }
 rand = { version = "0.9", features = ["std_rng", "std", "os_rng", "thread_rng"] }
 rand_distr = { version = "0.5" }
