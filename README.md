@@ -189,7 +189,7 @@ let result = minimize_rgd(
 ## cartan-geo
 
 ```rust
-use cartan_geo::{Geodesic, integrate_jacobi};
+use cartan_geo::{Geodesic, integrate_jacobi, integrate_jacobi_along_path};
 use cartan_manifolds::Sphere;
 
 let s2 = Sphere::<3>;
@@ -199,8 +199,43 @@ let geo = Geodesic::from_two_points(&s2, p, &q).unwrap();
 let points = geo.sample(20);           // 20 evenly-spaced points on [0,1]
 println!("arc length = {:.4}", geo.length());
 
-// Jacobi field: D²J/dt² + R(J, γ')γ' = 0
+// Jacobi field along a geodesic: D²J/dt² + R(J, γ')γ' = 0
 let result = integrate_jacobi(&geo, j0, j0_dot, 200);
+
+// Jacobi field along an arbitrary base curve (e.g. an SDE path from
+// cartan-stochastic). Works on any manifold + curvature + parallel-transport.
+let result = integrate_jacobi_along_path(&s2, &path, dt, j0, j0_dot)?;
+```
+
+## cartan-stochastic
+
+Stochastic analysis on Riemannian manifolds: orthonormal frame bundle, horizontal lift, Stratonovich development (the Eells-Elworthy-Malliavin construction of Brownian motion on a manifold), and the Wishart SPD diffusion. Foundation for downstream Bismut-Elworthy-Li Greeks work.
+
+Any manifold implementing `Manifold + Retraction + VectorTransport` automatically gets Brownian-motion integration:
+
+```rust
+use cartan_manifolds::{Sphere, Spd, SpdBuresWasserstein};
+use cartan_stochastic::{random_frame_at, stochastic_development, wishart_step};
+
+// Brownian motion on S^2 via the orthonormal frame bundle.
+let s2 = Sphere::<3>;
+let p0 = nalgebra::SVector::<f64, 3>::new(0.0, 0.0, 1.0);
+let frame = random_frame_at(&s2, &p0, &mut rng)?;
+let result = stochastic_development(&s2, &p0, frame, 200, 0.001, &mut rng, 1e-10)?;
+// result.path: Vec<Point> on S^2; matches the closed-form heat-kernel expectation
+//   E[z_T] = exp(-T) starting at the north pole.
+
+// Same routine on Bures-Wasserstein SPD (optimal-transport metric on Gaussians).
+let bw = SpdBuresWasserstein::<3>;
+let p0 = nalgebra::SMatrix::<f64, 3, 3>::identity();
+let frame = random_frame_at(&bw, &p0, &mut rng)?;
+let result = stochastic_development(&bw, &p0, frame, 80, 0.002, &mut rng, 1e-8)?;
+
+// Wishart SPD diffusion: dX = √X dB + dB^T √X + n·I dt.
+let mut x = nalgebra::SMatrix::<f64, 3, 3>::identity();
+for _ in 0..n_steps {
+    x = wishart_step(&x, /* shape = */ 3.0, /* dt = */ 0.01, &mut rng);
+}
 ```
 
 ## cartan-dec
