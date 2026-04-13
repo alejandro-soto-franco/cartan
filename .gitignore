@@ -3,3 +3,8 @@ Cargo.lock
 .wolf/
 docs/
 experiments/
+
+# PyO3 venv and dev artefacts
+cartan-py/target/
+cartan-py/.venv/
+**/Cargo.lock.bak

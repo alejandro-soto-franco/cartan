@@ -72,15 +72,20 @@ pub trait Section<F: Fiber> {
     fn at_mut(&mut self, v: usize) -> &mut F::Element;
 }
 
-// ─── Vec-backed Section ──────────────────────────────────────────────────────
+// ─── Vec-backed Section (requires `alloc`) ──────────────────────────────────
+
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
 /// A Vec-backed section: stores one `F::Element` per vertex.
+#[cfg(feature = "alloc")]
 #[derive(Clone, Debug)]
 pub struct VecSection<F: Fiber> {
     data: Vec<F::Element>,
     _marker: core::marker::PhantomData<F>,
 }
 
+#[cfg(feature = "alloc")]
 impl<F: Fiber> VecSection<F> {
     /// Create a section with `n` zero elements.
     pub fn zeros(n: usize) -> Self {
@@ -106,6 +111,7 @@ impl<F: Fiber> VecSection<F> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<F: Fiber> Section<F> for VecSection<F> {
     fn n_vertices(&self) -> usize { self.data.len() }
     fn at(&self, v: usize) -> &F::Element { &self.data[v] }
@@ -193,10 +199,14 @@ where
     [f64; D]: Default,
 {
     fn accumulate_diff(target: &mut [f64; D], a: &[f64; D], b: &[f64; D], scale: f64) {
-        for i in 0..D { target[i] += scale * (a[i] - b[i]); }
+        for (t, (ai, bi)) in target.iter_mut().zip(a.iter().zip(b.iter())) {
+            *t += scale * (ai - bi);
+        }
     }
     fn scale_element(target: &mut [f64; D], scale: f64) {
-        for i in 0..D { target[i] *= scale; }
+        for t in target.iter_mut() {
+            *t *= scale;
+        }
     }
 }
 
@@ -230,15 +240,15 @@ impl Fiber for NematicFiber3D {
 
         // Q' = R Q R^T
         let mut qp = [[0.0_f64; 3]; 3];
-        for i in 0..3 {
-            for j in 0..3 {
+        for (i, qp_row) in qp.iter_mut().enumerate() {
+            for (j, qp_ij) in qp_row.iter_mut().enumerate() {
                 let mut sum = 0.0;
-                for a in 0..3 {
-                    for b in 0..3 {
-                        sum += r(i, a) * q[a][b] * r(j, b);
+                for (a, q_row) in q.iter().enumerate() {
+                    for (b, &q_ab) in q_row.iter().enumerate() {
+                        sum += r(i, a) * q_ab * r(j, b);
                     }
                 }
-                qp[i][j] = sum;
+                *qp_ij = sum;
             }
         }
 
@@ -249,9 +259,13 @@ impl Fiber for NematicFiber3D {
 
 impl FiberOps for NematicFiber3D {
     fn accumulate_diff(target: &mut [f64; 5], a: &[f64; 5], b: &[f64; 5], scale: f64) {
-        for i in 0..5 { target[i] += scale * (a[i] - b[i]); }
+        for (t, (ai, bi)) in target.iter_mut().zip(a.iter().zip(b.iter())) {
+            *t += scale * (ai - bi);
+        }
     }
     fn scale_element(target: &mut [f64; 5], scale: f64) {
-        for i in 0..5 { target[i] *= scale; }
+        for t in target.iter_mut() {
+            *t *= scale;
+        }
     }
 }

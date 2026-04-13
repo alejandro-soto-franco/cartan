@@ -33,6 +33,7 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[cfg(feature = "alloc")]
 pub mod bundle;
 pub mod connection;
 pub mod curvature;
@@ -51,11 +52,14 @@ pub mod transport;
 pub type Real = f64;
 
 // Re-exports for convenience.
+#[cfg(feature = "alloc")]
 pub use bundle::{CovLaplacian, DiscreteConnection, EdgeTransport2D, EdgeTransport3D};
 pub use connection::Connection;
 pub use curvature::Curvature;
 pub use error::CartanError;
-pub use fiber::{Fiber, FiberOps, NematicFiber3D, Section, TangentFiber, U1Spin2, VecSection};
+pub use fiber::{Fiber, FiberOps, NematicFiber3D, Section, TangentFiber, U1Spin2};
+#[cfg(feature = "alloc")]
+pub use fiber::VecSection;
 pub use geodesic::GeodesicInterpolation;
 pub use manifold::Manifold;
 pub use retraction::Retraction;
