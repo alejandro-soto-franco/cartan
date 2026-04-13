@@ -1,0 +1,22 @@
+[package]
+name = "cartan-stochastic"
+description = "Stochastic analysis on manifolds: orthonormal frame bundle, horizontal lift, Stratonovich development. Foundation for Eells-Elworthy-Malliavin Brownian motion and Bismut-Elworthy-Li Greeks."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["riemannian", "stochastic", "brownian-motion", "malliavin", "manifold"]
+categories = ["mathematics", "science"]
+
+[dependencies]
+cartan-core = { path = "../cartan-core", version = "0.4.0" }
+nalgebra.workspace = true
+rand.workspace = true
+rand_distr.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.4.0", features = ["std"] }
+approx.workspace = true
+rand = { workspace = true, features = ["std", "std_rng"] }
