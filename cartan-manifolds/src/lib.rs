@@ -50,6 +50,8 @@ pub mod se;
 pub mod so;
 #[cfg(feature = "std")]
 pub mod spd;
+#[cfg(feature = "std")]
+pub mod spd_bures;
 pub mod sphere;
 pub mod util;
 
@@ -66,4 +68,6 @@ pub use se::{SEPoint, SETangent, SpecialEuclidean};
 pub use so::SpecialOrthogonal;
 #[cfg(feature = "std")]
 pub use spd::Spd;
+#[cfg(feature = "std")]
+pub use spd_bures::{bw_distance_sq, SpdBuresWasserstein};
 pub use sphere::Sphere;
