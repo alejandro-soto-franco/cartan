@@ -1,11 +1,17 @@
+# This crate is its own workspace root, detached from the parent cartan
+# workspace. Metadata is duplicated inline instead of inherited so the
+# parent workspace's Cargo.toml stays untouched.
+
+[workspace]
+
 [package]
 name = "cartan-gpu-sys"
-description = "Raw FFI bindings to VkFFT (vendored). Internal to the cartan workspace."
-version.workspace = true
-edition.workspace = true
-rust-version.workspace = true
-license.workspace = true
-repository.workspace = true
+description = "Raw FFI bindings to VkFFT (vendored). Internal to the cartan-gpu stack."
+version = "0.5.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+repository = "https://github.com/alejandro-soto-franco/cartan"
 keywords = ["cryo-em", "fft", "vulkan", "vkfft", "ffi"]
 categories = ["external-ffi-bindings", "science"]
 links = "vkfft"
@@ -17,3 +23,8 @@ pkg-config = "0.3"
 
 [lib]
 doctest = false
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 4
