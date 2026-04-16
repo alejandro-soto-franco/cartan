@@ -14,6 +14,9 @@ pub mod schemes;
 #[cfg(feature = "stochastic")]
 pub mod stochastic;
 
+#[cfg(feature = "full-field")]
+pub mod fullfield;
+
 pub use error::HomogError;
 pub use tensor::{Order2, Order4, TensorOrder};
 pub use shapes::{Shape, Sphere, Spheroid, PennyCrack, Ellipsoid, SphereNLayers, IntegrationOpts, UserInclusion};
