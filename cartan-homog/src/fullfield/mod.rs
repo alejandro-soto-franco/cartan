@@ -17,7 +17,7 @@ pub mod macroscale;
 pub mod hausdorff;
 
 pub use mesh::{PeriodicCubeMeshBuilder, PeriodicCubeMeshBuilderOpts, partition_boundary};
-pub use voxelize::CentredInclusion;
+pub use voxelize::{CentredInclusion, VoxelGrid, load_voxel_raw_u8, voxelize_centred};
 
 use nalgebra::{DVector, Matrix3};
 
@@ -187,6 +187,75 @@ impl FullField<Order2> {
     }
 }
 
+impl FullField<Order2> {
+    /// Full-field homogenisation from a pre-tagged VoxelGrid (e.g., μCT import).
+    /// The `phase_props` slice gives the isotropic scalar conductivity per phase id;
+    /// the 0 phase is the matrix, 1+ are inclusions. Vertex DOFs are pinned via
+    /// `self.bc`; the K per tet is taken from the phase id at the tet barycentre's
+    /// containing voxel.
+    pub fn homogenize_voxel(
+        &self, voxel: &VoxelGrid, phase_props: &[f64],
+    ) -> Result<Effective<Order2>, HomogError> {
+        if voxel.resolution != self.mesh_opts.resolution {
+            return Err(HomogError::Mesh(alloc::format!(
+                "voxel resolution {} != mesh resolution {}",
+                voxel.resolution, self.mesh_opts.resolution)));
+        }
+        let builder = PeriodicCubeMeshBuilder::new(&self.mesh_opts);
+        let (mesh, barycenters) = builder.build()?;
+        let (boundary_verts, _) = partition_boundary(&mesh.vertices, 1e-12);
+
+        let n = voxel.resolution;
+        let h = 1.0 / (n as f64);
+        let k_per_tet: alloc::vec::Vec<f64> = barycenters.iter().map(|b| {
+            let ii = ((b.x / h) as usize).min(n - 1);
+            let jj = ((b.y / h) as usize).min(n - 1);
+            let kk = ((b.z / h) as usize).min(n - 1);
+            let phase = voxel.get(ii, jj, kk) as usize;
+            phase_props.get(phase).copied().unwrap_or_else(|| phase_props[0])
+        }).collect();
+
+        let td = cell_problem::build_tet_data(&mesh, k_per_tet)?;
+        let nv = mesh.n_vertices();
+        let mut chi_cols: [DVector<f64>; 3] = [DVector::zeros(nv), DVector::zeros(nv), DVector::zeros(nv)];
+        let mut total_iters = 0;
+        let mut worst_residual = 0.0_f64;
+        let periodic_pairs = if self.bc == BoundaryConditions::Periodic {
+            mesh::periodic_pairs_structured(self.mesh_opts.resolution)
+        } else {
+            alloc::vec::Vec::new()
+        };
+        for (dir, chi_slot) in chi_cols.iter_mut().enumerate() {
+            let mut a = cell_problem::assemble_stiffness(&mesh, &td);
+            let mut b = cell_problem::assemble_rhs(&mesh, &td, dir);
+            match self.bc {
+                BoundaryConditions::DirichletZero => {
+                    cell_problem::apply_dirichlet_zero(&mut a, &mut b, &boundary_verts);
+                }
+                BoundaryConditions::Periodic => {
+                    cell_problem::apply_periodic(&mut a, &mut b, &periodic_pairs, 0);
+                }
+            }
+            let (mut chi, iters, res) = solver::solve_with_fallback(&a, &b, self.tol, self.max_iter)?;
+            if self.bc == BoundaryConditions::Periodic {
+                cell_problem::expand_periodic(&mut chi, &periodic_pairs);
+            }
+            *chi_slot = chi;
+            total_iters += iters;
+            worst_residual = worst_residual.max(res);
+        }
+        let k_eff = cell_problem::effective_tensor(
+            &mesh, &td, [&chi_cols[0], &chi_cols[1], &chi_cols[2]]);
+        let k_eff_sym = (k_eff + k_eff.transpose()) * 0.5;
+        Ok(Effective {
+            tensor: k_eff_sym,
+            concentration: None,
+            iterations: Some(total_iters),
+            residual: Some(worst_residual),
+        })
+    }
+}
+
 /// Inspect a phase's shape trait object to pick the voxeliser's inclusion aspect.
 /// Falls back to 1.0 (sphere) for any shape type not recognised here.
 fn classify_aspect(shape: &crate::shapes::UserInclusion<Order2>) -> f64 {
@@ -237,6 +306,35 @@ mod tests {
         let c = Matrix3::<f64>::identity() * 3.0;
         let d = reliability_indicator_order2(&c, &c).unwrap();
         assert_relative_eq!(d, 0.0, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn voxel_import_matches_analytic_sphere_path() {
+        // Generate a voxelisation of a centred sphere matching phi=0.1, run the
+        // voxel FullField, and check it agrees with the analytic sphere RVE.
+        use crate::{rve::Phase, shapes::Sphere};
+        use alloc::sync::Arc;
+
+        let phi = 0.1;
+        let n = 8;
+        let incl = CentredInclusion::from_volume_fraction(phi, 1.0);
+        let voxel = voxelize_centred(&incl, n);
+        let ff = FullField::<Order2>::new_with_resolution(n);
+        let e_voxel = ff.homogenize_voxel(&voxel, &[1.0, 5.0]).unwrap();
+
+        let mut rve = Rve::<Order2>::new();
+        rve.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0), fraction: 1.0 - phi });
+        rve.add_phase(Phase { name: "I".into(), shape: Arc::new(Sphere),
+            property: Order2::scalar(5.0), fraction: phi });
+        rve.set_matrix("M");
+        let e_analytic = ff.homogenize(&rve).unwrap();
+
+        let d = reliability_indicator_order2(&e_voxel.tensor, &e_analytic.tensor).unwrap();
+        // Voxelisation discretises the sphere into staircase cells; with N=8
+        // the two should agree to within ~10% (d_AI ~ 1e-1). This establishes
+        // that the voxel pipeline produces physically valid answers.
+        assert!(d < 0.2, "voxel vs analytic d_AI = {d}");
     }
 
     #[test]
