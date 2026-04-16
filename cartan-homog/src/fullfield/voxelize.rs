@@ -42,6 +42,41 @@ pub enum CentredInclusion {
     Spheroid { a: f64, aspect: f64 },
 }
 
+/// Raw-binary voxel indicator loader: reads N*N*N bytes from an .raw file
+/// where each byte is a phase id (0 = matrix, 1 = phase 1, etc.). Matches the
+/// convention used by most public μCT datasets (Digital Porous Media Portal,
+/// Imperial College Berea, NIST CBT). For higher-resolution datasets beyond
+/// u8 phase ids, use load_voxel_u16.
+pub fn load_voxel_raw_u8(path: &std::path::Path, resolution: usize) -> Result<VoxelGrid, crate::error::HomogError> {
+    let expected = resolution * resolution * resolution;
+    let bytes = std::fs::read(path).map_err(|e|
+        crate::error::HomogError::Mesh(alloc::format!("failed to read {}: {e}", path.display())))?;
+    if bytes.len() != expected {
+        return Err(crate::error::HomogError::Mesh(alloc::format!(
+            "voxel file size {} != expected {} for N={resolution}", bytes.len(), expected)));
+    }
+    let phase_ids: Vec<PhaseId> = bytes.iter().map(|&b| b as PhaseId).collect();
+    Ok(VoxelGrid { resolution, phase_ids })
+}
+
+/// Generate a synthetic voxelisation of a `CentredInclusion` at the given
+/// resolution. Useful for testing and for bridging analytic shape definitions
+/// to the voxel-based FullField path.
+pub fn voxelize_centred(incl: &CentredInclusion, resolution: usize) -> VoxelGrid {
+    let n = resolution;
+    let h = 1.0 / (n as f64);
+    let mut g = VoxelGrid::new(n);
+    for k in 0..n { for j in 0..n { for i in 0..n {
+        let p = Vector3::new(
+            (i as f64 + 0.5) * h,
+            (j as f64 + 0.5) * h,
+            (k as f64 + 0.5) * h,
+        );
+        g.set(i, j, k, if incl.contains(&p) { 1 } else { 0 });
+    }}}
+    g
+}
+
 impl CentredInclusion {
     /// Volume of the inclusion in the unit cube (clipped at 1 if it exceeds the cube).
     pub fn volume(&self) -> f64 {
