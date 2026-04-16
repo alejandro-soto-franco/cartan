@@ -29,7 +29,7 @@ impl<O: TensorOrder> Scheme<O> for MoriTanaka {
         }
         let sum_fa_inv = O::inverse(&sum_fa)?;
         let c_eff = O::mat_mul(&sum_fca, &sum_fa_inv);
-        let concs = opts.store_concentration.then(|| a_dils);
+        let concs = opts.store_concentration.then_some(a_dils);
         Ok(Effective { tensor: c_eff, concentration: concs, iterations: None, residual: None })
     }
 }

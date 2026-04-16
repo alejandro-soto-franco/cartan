@@ -58,7 +58,7 @@ impl FullField<Order2> {
     pub fn homogenize(&self, rve: &Rve<Order2>) -> Result<Effective<Order2>, HomogError> {
         if rve.phases.len() < 2 {
             // Homogeneous case: K_eff == matrix property, no solve required.
-            let c = rve.matrix_property()?.clone();
+            let c = *rve.matrix_property()?;
             return Ok(Effective { tensor: c, concentration: None, iterations: None, residual: None });
         }
 
@@ -90,12 +90,12 @@ impl FullField<Order2> {
         let mut chi_cols: [DVector<f64>; 3] = [DVector::zeros(nv), DVector::zeros(nv), DVector::zeros(nv)];
         let mut total_iters = 0;
         let mut worst_residual = 0.0_f64;
-        for dir in 0..3 {
+        for (dir, chi_slot) in chi_cols.iter_mut().enumerate() {
             let mut a = cell_problem::assemble_stiffness(&mesh, &td);
             let mut b = cell_problem::assemble_rhs(&mesh, &td, dir);
             cell_problem::apply_dirichlet_zero(&mut a, &mut b, &boundary_verts);
             let (chi, iters, res) = solver::pcg_jacobi(&a, &b, self.tol, self.max_iter)?;
-            chi_cols[dir] = chi;
+            *chi_slot = chi;
             total_iters += iters;
             worst_residual = worst_residual.max(res);
         }

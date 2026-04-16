@@ -41,7 +41,7 @@ impl<O: TensorOrder> Scheme<O> for SelfConsistent {
             c_hom = c_next;
 
             if res < opts.rel_tol {
-                let concs = opts.store_concentration.then(|| a_dils);
+                let concs = opts.store_concentration.then_some(a_dils);
                 return Ok(Effective { tensor: c_hom, concentration: concs,
                                        iterations: Some(iter + 1), residual: Some(res) });
             }
