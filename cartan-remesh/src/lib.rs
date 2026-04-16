@@ -26,4 +26,4 @@ pub use error::RemeshError;
 pub use lcr::{capture_reference_lcrs, lcr_spring_energy, lcr_spring_gradient, length_cross_ratio};
 pub use log::{EdgeCollapse, EdgeFlip, EdgeSplit, RemeshLog, VertexShift};
 pub use primitives::{collapse_edge, flip_edge, shift_vertex, split_edge};
-pub use primitives_3d::{barycentric_refine_tets, indicator_flags, refine_to_depth};
+pub use primitives_3d::{barycentric_refine_tets, indicator_flags, red_refine_tets_uniform, refine_to_depth};
