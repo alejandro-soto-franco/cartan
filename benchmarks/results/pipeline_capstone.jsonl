@@ -1,0 +1,7 @@
+{"stage":1,"name":"mori_tanaka_at_depths","n_calls":7,"ns":13716}
+{"stage":2,"name":"spd_geodesic_interp","ns":4027,"mid_eig_min":0.0000000000000007337261825938313,"mid_eig_max":0.0000000000000799878543850538}
+{"stage":3,"name":"slab_problem_setup","resolution":6,"ns":100}
+{"stage":4,"name":"darcy_solve","n_tets":1296,"ns":4228034,"k_eff_zz":0.0000000000000006989548693981669}
+{"stage":5,"name":"hausdorff_gate","n_refined":2048,"n_analytic":2240,"d_h":13.258252147247767,"ns":8676992}
+{"stage":6,"name":"full_field_vs_mf","resolution":8,"d_ai":0.050109833982699956,"ns":634081598}
+{"stage":"total","name":"end_to_end","ns":647011532,"ms":647.011532}
