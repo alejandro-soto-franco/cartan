@@ -36,4 +36,8 @@ pub enum RemeshError {
     /// A manifold geodesic operation (log/exp) failed.
     #[error("geodesic computation failed: {reason}")]
     GeodesicFailed { reason: String },
+
+    /// Caller-supplied input is malformed.
+    #[error("invalid input: {0}")]
+    InvalidInput(String),
 }
