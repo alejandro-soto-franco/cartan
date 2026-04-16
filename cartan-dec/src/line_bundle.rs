@@ -7,7 +7,7 @@
 //! This module provides:
 //! - [`Section`]: complex section of L_k (one `Complex<f64>` per vertex)
 //! - [`ConnectionAngles`]: discrete Levi-Civita connection on primal and dual edges
-//! - [`BochnerLaplacian`]: sparse Hermitian Laplacian on L_k
+//! - `BochnerLaplacian`: sparse Hermitian Laplacian on L_k
 //! - [`defect_charges`]: exact discrete topological charge per face
 //!
 
