@@ -31,7 +31,7 @@ ECHOES (Jean-François Barthélémy's C++/Python library, Zenodo DOI
 |---|---|
 | Median \|rel err\| | 0.00e+00 (exact agreement) |
 | Max \|rel err\| | 5.02e-04 |
-| Cases with \|rel err\| > 1e-6 | 10 (all DIFF: RK4 ODE step differs by O(Δt^4)) |
+| Cases with \|rel err\| > 1e-6 | 10 (all DIFF: formulation variant, see below) |
 
 **Hashin-Shtrikman envelope check:** all 60 sphere/Order2 cases from the
 interaction-corrected scheme set (`MT, SC, ASC, MAX, PCW, DIFF`) respect the
@@ -44,6 +44,14 @@ formula (matching ECHOES and Säevik 2014) uses `(C_r - C_0)`. The HS bound
 check flagged the discrepancy (cartan's ASC undershooting HS-lower by
 0.01–0.05 at high fraction); the fix landed on the `feature/homog-benchmarks`
 branch and brings cartan's ASC into exact agreement with ECHOES.
+
+**Residual DIFF discrepancy (v1.3 investigation item):** cartan's DIFF and
+ECHOES's DIFF converge to *different* fixed points (e.g. at φ=0.4 for sphere
+Order2: cartan 1.98418, ECHOES 1.98351). The gap is step-size-independent
+(verified up to n_steps=100,000), so it's a formulation difference: cartan
+implements the Roscoe-Brinkman ODE `dC/df = (1/(1-f))·(C_1 - C) : A_r`,
+ECHOES appears to use a Norris-Davies dual variant on compliances when the
+inclusion is softer than the matrix. Max residual ~5e-4 relative.
 
 ## Reproducing
 
