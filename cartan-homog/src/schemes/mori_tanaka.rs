@@ -68,4 +68,20 @@ mod tests {
         let e = MoriTanaka.homogenize(&rve, &SchemeOpts::default()).unwrap();
         assert_relative_eq!(e.tensor[(0, 0)], 3.0, epsilon = 1e-12);
     }
+
+    #[test]
+    fn mt_order4_two_phase_iso_bulk_between_phase_bulks() {
+        use crate::tensor::Order4;
+        let mut rve = Rve::<Order4>::new();
+        rve.add_phase(Phase { name: String::from("M"), shape: Arc::new(Sphere),
+            property: Order4::iso_stiff(72.0, 32.0), fraction: 0.8 });
+        rve.add_phase(Phase { name: String::from("I"), shape: Arc::new(Sphere),
+            property: Order4::iso_stiff(5.0, 2.0),   fraction: 0.2 });
+        rve.set_matrix("M");
+        let e = MoriTanaka.homogenize(&rve, &SchemeOpts::default()).unwrap();
+        let (j, _k) = Order4::iso_projectors();
+        let k_eff = (j * e.tensor).trace() / (3.0 * j.trace());
+        assert!(k_eff > 5.0 && k_eff < 72.0,
+                "Order4 MT bulk should lie between phase bulks: got {k_eff}");
+    }
 }
