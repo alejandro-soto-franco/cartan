@@ -4,6 +4,77 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.5.0] - 2026-04-14
+
+### Added
+
+- **cartan-stochastic** (new crate): stochastic analysis on Riemannian manifolds.
+  Foundation for the downstream `hsu` / `bismut` / `elworthy` stack and any
+  Bismut-Elworthy-Li Greeks work built on cartan.
+  - `OrthonormalFrame<M>` and `random_frame_at`: orthonormal frames over any
+    `Manifold` with modified Gram-Schmidt re-orthonormalisation against the
+    Riemannian metric.
+  - `horizontal_velocity`: `R^n → T_pM` lift via a frame.
+  - `stratonovich_step` and `stochastic_development`: the Eells-Elworthy-Malliavin
+    construction of Brownian motion on a manifold via the orthonormal frame bundle.
+    Available for any manifold implementing `Manifold + Retraction + VectorTransport`
+    through the blanket `StratonovichDevelopment` marker trait.
+  - `wishart_step`: Itô-Euler step of the Wishart SPD diffusion.
+  - Validated against the S² heat kernel: `E[z_T] ≈ e^{-T}` recovered to Monte
+    Carlo precision at 400 paths.
+
+- **cartan-manifolds**: `SpdBuresWasserstein<N>` — the SPD cone with the
+  Bures-Wasserstein (optimal-transport) metric, an alternative to the existing
+  affine-invariant `Spd<N>`. Coincides with the L²-Wasserstein metric on centred
+  Gaussian measures.
+  - Manifold impl with closed-form `inner`, `exp`, `log` via a Lyapunov solver
+    in the P-eigenbasis.
+  - Retraction delegates to `exp` (Cartan-Hadamard-like global completeness).
+  - `VectorTransport` via the Fréchet derivative of the retraction — enough
+    structure to plug into `stochastic_development`. Exact `ParallelTransport`
+    and `Curvature` impls are deferred until an elworthy/bismut consumer reads them.
+  - Standalone `bw_distance_sq()` helper for the closed-form 2-Wasserstein
+    squared distance between centred Gaussians.
+
+- **cartan-geo**: `integrate_jacobi_along_path` — RK4 Jacobi-field integration
+  along arbitrary `C²` base curves, not just geodesics. Velocity is reconstructed
+  per step via `log`. Enables Jacobi-along-SDE-path computation directly on
+  trajectories produced by `stochastic_development`.
+
+- **cartan-py**: Python bindings for the L1 stochastic primitives.
+  - `cartan.stochastic_bm_on_sphere(intrinsic_dim, p0, n_steps, dt, seed)` for
+    sphere dimensions 1..=9.
+  - `cartan.stochastic_bm_on_spd(n, p0, n_steps, dt, seed)` for SPD dimensions
+    2..=5 (affine-invariant metric).
+  - `cartan.wishart_step(x, shape_param, dt, seed)` for SPD dimensions 2..=5.
+
+- **benchmarks**: `cartan-bench` gains stochastic-primitive benchmarks
+  (`horizontal_velocity`, `stratonovich_step`, `stochastic_development_32`,
+  `wishart_step`) across sphere dims 2..50 and SPD dims 2..5. JSON-line
+  output rendered on `cartan.sotofranco.dev/performance/stochastic`.
+
+- **docs**: `STACK.md` at the repo root lays out the cartan → hsu → bismut /
+  elworthy → malliavin layer architecture with placement rules. `cartan-docs`
+  gains a full `/stochastic/*` section plus `/manifolds/spd-bures-wasserstein`
+  and `/performance/stochastic` pages.
+
+### Fixed
+
+- **no_std build**: `cartan-core::bundle` and the `VecSection` impl now gate
+  behind `feature = "alloc"`, which they always required but previously
+  failed to declare. The bare-`no_std` CI job compiles cleanly.
+- **clippy**: cleaned up pre-existing `needless_range_loop` warnings in
+  `cartan-core::fiber` and `cartan-dec::levi_civita` so the
+  `cargo clippy --workspace -- -D warnings` CI gate passes.
+
+### Changed
+
+- All 7 workspace crates bumped to 0.5.0.
+- `cartan-py` bumped to 0.5.0 on PyPI; `__version__` now reports the crate
+  version correctly (previously hard-coded to the initial 0.1.7 placeholder).
+
+---
+
 ## [0.4.0] - 2026-04-11
 
 ### Added
