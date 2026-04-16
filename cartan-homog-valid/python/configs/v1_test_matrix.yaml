@@ -1,0 +1,21 @@
+schema_version: 1
+tensor_orders: [O2, O4]
+schemes: [VOIGT, REUSS, DIL, MT, SC, MAX, DIFF]
+
+# Microstructure families. Each expands into one fixture per (order, scheme, fraction).
+microstructures:
+  - id: iso_matrix_spheres
+    matrix: iso
+    inclusion: sphere
+    fractions: [0.05, 0.20, 0.40]
+
+# Cases listed here also get written to the committed basic subset.
+basic_subset_case_ids:
+  - o2_mt_iso_matrix_spheres_phi=0.05
+  - o2_mt_iso_matrix_spheres_phi=0.20
+  - o2_mt_iso_matrix_spheres_phi=0.40
+  - o2_dil_iso_matrix_spheres_phi=0.05
+  - o2_voigt_iso_matrix_spheres_phi=0.20
+  - o2_reuss_iso_matrix_spheres_phi=0.20
+  - o4_mt_iso_matrix_spheres_phi=0.20
+  - o4_dil_iso_matrix_spheres_phi=0.05
