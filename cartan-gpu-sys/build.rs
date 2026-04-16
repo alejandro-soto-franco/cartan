@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-changed=vkfft_shim.c");
     println!("cargo:rerun-if-changed=vendor/VkFFT/vkFFT/vkFFT.h");
     println!("cargo:rerun-if-changed=build.rs");
 
@@ -26,17 +27,13 @@ fn main() {
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    // VkFFT is header-only; create a single-translation-unit shim so cc produces one object file.
-    let shim_path = out_dir.join("vkfft_shim.c");
-    std::fs::write(
-        &shim_path,
-        "#define VKFFT_BACKEND 0\n#include \"vkFFT/vkFFT.h\"\n",
-    )
-    .expect("write shim.c");
-
+    // The shim lives in the crate root so wrapper.h is on a relative path
+    // from it; it defines the cartan_vkfft_* extern-C wrappers that re-export
+    // VkFFT's static-inline API as real symbols.
     let mut build = cc::Build::new();
     build
-        .file(&shim_path)
+        .file("vkfft_shim.c")
+        .include(".")
         .include("vendor/VkFFT")
         .include(&vkfft_include)
         .include(glslang_include)
@@ -71,12 +68,10 @@ fn main() {
         .allowlist_type("VkFFTApplication")
         .allowlist_type("VkFFTLaunchParams")
         .allowlist_type("VkFFTResult.*")
-        .allowlist_function("initializeVkFFT")
-        .allowlist_function("deleteVkFFT")
-        .allowlist_function("VkFFTAppend")
-        .allowlist_function("getVkFFTVersion")
+        .allowlist_function("cartan_vkfft_.*")
         .layout_tests(false)
         .derive_default(true)
+        .wrap_unsafe_ops(true)
         .generate()
         .expect("bindgen");
 
