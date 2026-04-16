@@ -11,6 +11,13 @@ pub struct Differential {
 }
 
 impl Default for Differential {
+    /// 100 steps is enough for machine-precision convergence of this ODE (RK4 on
+    /// a smooth f ∈ [0, 0.4] domain converges by ~20 steps). The ~5e-4 residual
+    /// gap to ECHOES's DIFF output is a *formulation* difference, not step
+    /// noise: cartan uses the Roscoe-Brinkman form `dC/df = (1/(1-f))·(C_1-C):A`,
+    /// ECHOES uses what appears to be a Norris-Davies dual variant operating on
+    /// compliances for softer inclusions. Resolving that is v1.3 work; for
+    /// matching-limit validation, compare against MT instead of ECHOES DIFF.
     fn default() -> Self { Self { n_steps: 100 } }
 }
 

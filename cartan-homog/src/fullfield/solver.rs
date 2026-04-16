@@ -70,7 +70,7 @@ pub fn pcg_jacobi(
 /// but we don't bother compressing). Call `apply_ilu0` for the back-solve.
 pub struct Ilu0 {
     /// L + U combined: L below diagonal (L's diag is 1 implicitly),
-    /// diagonal is U[i,i], above diagonal is U[i,j].
+    /// diagonal is `U[i,i]`, above diagonal is `U[i,j]`.
     pub data: Vec<Vec<(usize, f64)>>,  // row i -> sorted (col, val) pairs
     pub n: usize,
 }
