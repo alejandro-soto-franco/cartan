@@ -17,15 +17,15 @@ std = ["alloc", "cartan-core/std", "cartan-manifolds/std", "nalgebra/std"]
 alloc = ["cartan-core/alloc", "cartan-manifolds/alloc", "nalgebra/alloc"]
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.4", default-features = false }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.4", default-features = false }
+cartan-core = { path = "../cartan-core", version = "0.5", default-features = false }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.5", default-features = false }
 nalgebra = { workspace = true, features = ["libm"] }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std", "std_rng"] }
 approx = { workspace = true }
-cartan-stochastic = { path = "../cartan-stochastic", version = "0.4" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.4", features = ["std"] }
+cartan-stochastic = { path = "../cartan-stochastic", version = "0.5" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.5", features = ["std"] }
 
 [package.metadata.docs.rs]
 all-features = true
