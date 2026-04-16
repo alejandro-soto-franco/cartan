@@ -17,8 +17,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.85
         with:
           components: clippy
-      - run: cargo test --workspace
-      - run: cargo clippy --workspace -- -D warnings
+      - uses: Swatinem/rust-cache@v2
+      - name: Test workspace (default features)
+        run: cargo test --workspace
+      - name: Test cartan-homog with all features
+        run: cargo test -p cartan-homog --features full-field,stochastic
+      - name: Test cartan-homog-valid with all features
+        run: cargo test -p cartan-homog-valid --features full-field,stochastic
+      - name: Clippy (default features)
+        run: cargo clippy --workspace -- -D warnings
+      - name: Clippy (all features)
+        run: cargo clippy --workspace --all-features -- -D warnings
 
   no-std-check:
     name: no_std + alloc build check
@@ -26,6 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@1.85
+      - uses: Swatinem/rust-cache@v2
       - name: Build cartan-core (bare no_std)
         run: cargo build -p cartan-core --no-default-features
       - name: Build cartan-manifolds (no_std + alloc)
