@@ -12,6 +12,14 @@ path = "src/main.rs"
 name = "cartan-bench-homog"
 path = "src/homog_main.rs"
 
+[[bin]]
+name = "cartan-bench-pipeline"
+path = "src/pipeline_main.rs"
+
+[[bin]]
+name = "cartan-bench-berea"
+path = "src/berea_main.rs"
+
 [dependencies]
 cartan-core = { path = "../../cartan-core", features = ["std"] }
 cartan-manifolds = { path = "../../cartan-manifolds", features = ["std"] }
