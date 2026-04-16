@@ -109,6 +109,64 @@ pub fn partition_boundary(vertices: &[Vector3<f64>], tol: f64) -> (Vec<usize>, V
     (boundary, interior)
 }
 
+/// Build the periodic vertex-pair list for a structured (N+1)^3 grid. Each pair
+/// is `(slave, master)` with `slave > master`; the cell-problem solve treats the
+/// slave as a duplicate of master, eliminating it from the DOF set.
+///
+/// Pairings:
+/// - face pair x=0 <-> x=1 (for j, k interior to their faces)
+/// - face pair y=0 <-> y=1
+/// - face pair z=0 <-> z=1
+/// - edge and corner vertices are collapsed to a single representative so each
+///   periodic orbit maps to exactly one master.
+pub fn periodic_pairs_structured(resolution: usize) -> Vec<(usize, usize)> {
+    let n = resolution;
+    let vid = |i: usize, j: usize, k: usize| -> usize {
+        k * (n + 1) * (n + 1) + j * (n + 1) + i
+    };
+    let mut pairs = Vec::new();
+    // For each vertex with any coordinate equal to N, map it to the equivalent
+    // vertex with that coordinate collapsed to 0. Process in a canonical order
+    // so that edge/corner vertices collapse transitively down to the master.
+    for k in 0..=n { for j in 0..=n { for i in 0..=n {
+        let mi = if i == n { 0 } else { i };
+        let mj = if j == n { 0 } else { j };
+        let mk = if k == n { 0 } else { k };
+        if (mi, mj, mk) != (i, j, k) {
+            pairs.push((vid(i, j, k), vid(mi, mj, mk)));
+        }
+    }}}
+    pairs
+}
+
+#[cfg(test)]
+mod periodic_tests {
+    use super::*;
+
+    #[test]
+    fn periodic_pairs_n2_counts() {
+        // (N+1)^3 = 27; masters = N^3 = 8; slaves = 27 - 8 = 19.
+        let pairs = periodic_pairs_structured(2);
+        assert_eq!(pairs.len(), 19);
+        // All slaves distinct.
+        let mut slaves: Vec<usize> = pairs.iter().map(|&(s, _)| s).collect();
+        slaves.sort(); slaves.dedup();
+        assert_eq!(slaves.len(), 19);
+    }
+
+    #[test]
+    fn periodic_masters_have_all_coords_less_than_n() {
+        let n = 4;
+        let pairs = periodic_pairs_structured(n);
+        for &(_s, m) in &pairs {
+            let i = m % (n + 1);
+            let j = (m / (n + 1)) % (n + 1);
+            let k = m / ((n + 1) * (n + 1));
+            assert!(i < n && j < n && k < n, "master {m} has coord = N");
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
