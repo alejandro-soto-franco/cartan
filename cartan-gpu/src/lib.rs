@@ -6,7 +6,9 @@
 pub mod buffer;
 pub mod device;
 pub mod error;
+pub mod kernel;
 
 pub use buffer::GpuBuffer;
 pub use device::Device;
 pub use error::GpuError;
+pub use kernel::Kernel;
