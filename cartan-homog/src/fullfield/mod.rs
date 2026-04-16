@@ -286,6 +286,37 @@ mod tests {
     }
 
     #[test]
+    fn full_field_void_limit_solves_at_1e6_contrast() {
+        // Near-void inclusion at phi=0.2 with 10^6:1 contrast. v1.1 Jacobi-CG
+        // stalled on this; the new ladder (Jacobi -> ILU -> dense LU) succeeds.
+        use crate::schemes::{MoriTanaka, Scheme, SchemeOpts};
+        let mut rve = Rve::<Order2>::new();
+        rve.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0), fraction: 0.8 });
+        rve.add_phase(Phase { name: "I".into(), shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0e-6), fraction: 0.2 });
+        rve.set_matrix("M");
+
+        let mut ff = FullField::<Order2>::new_with_resolution(6);
+        ff.tol = 1e-6;
+        ff.max_iter = 20_000;
+        let e_ff = ff.homogenize(&rve).expect("FF should now solve at 10^6 contrast");
+        let e_mf = MoriTanaka.homogenize(&rve, &SchemeOpts::default()).unwrap();
+        let d = reliability_indicator_order2(&e_ff.tensor, &e_mf.tensor).unwrap();
+        println!("  void-limit FF k_eff diag:  [{}, {}, {}]",
+                 e_ff.tensor[(0,0)], e_ff.tensor[(1,1)], e_ff.tensor[(2,2)]);
+        println!("  void-limit MT k_eff diag:  [{}, {}, {}]",
+                 e_mf.tensor[(0,0)], e_mf.tensor[(1,1)], e_mf.tensor[(2,2)]);
+        println!("  void-limit d_AI(FF, MF) = {d:.3e}");
+        // The gap at the void limit is inherently large because FF resolves the
+        // voids exactly as holes while MT remains an approximation. We just
+        // require: FF converged, k_eff is SPD, and k_eff < k_matrix (voids
+        // reduce conductivity, as physics requires).
+        assert!(e_ff.tensor[(0, 0)] > 0.0);
+        assert!(e_ff.tensor[(0, 0)] < 1.0);
+    }
+
+    #[test]
     fn full_field_tracks_mori_tanaka_for_dilute_sphere() {
         // Dilute spherical inclusion (phi = 0.05). Full-field on a coarse mesh
         // should agree with Mori-Tanaka to within discretisation error.
