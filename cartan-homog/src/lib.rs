@@ -8,10 +8,16 @@ pub mod error;
 pub mod tensor;
 pub mod kelvin_mandel;
 pub mod shapes;
+pub mod rve;
+pub mod schemes;
 
 pub use error::HomogError;
 pub use tensor::{Order2, Order4, TensorOrder};
 pub use shapes::{Shape, Sphere, Spheroid, PennyCrack, Ellipsoid, SphereNLayers, IntegrationOpts, UserInclusion};
-
-// Modules that land in later phases:
-//   Phase 4 rve, Phase 5 schemes, Phase 8 stochastic, Phase 9 fullfield
+pub use rve::{Phase, RefMedium, Rve};
+pub use schemes::{
+    Scheme, SchemeOpts, Effective,
+    VoigtBound, ReussBound, Dilute, DiluteStress,
+    MoriTanaka, SelfConsistent, AsymmetricSc,
+    Maxwell, PonteCastanedaWillis, Differential,
+};
