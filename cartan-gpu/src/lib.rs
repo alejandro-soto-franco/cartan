@@ -7,6 +7,8 @@ pub mod buffer;
 pub mod device;
 pub mod error;
 pub mod kernel;
+#[cfg(feature = "vkfft")]
+pub mod hal_vulkan;
 
 pub use buffer::GpuBuffer;
 pub use device::Device;
