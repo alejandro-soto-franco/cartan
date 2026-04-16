@@ -7,6 +7,7 @@ use crate::{error::HomogError, tensor::TensorOrder};
 use alloc::sync::Arc;
 
 pub mod opts;
+pub mod lebedev;
 pub mod sphere;
 pub mod spheroid;
 pub mod crack;

@@ -25,5 +25,5 @@ pub use schemes::{
     Scheme, SchemeOpts, Effective,
     VoigtBound, ReussBound, Dilute, DiluteStress,
     MoriTanaka, SelfConsistent, AsymmetricSc,
-    Maxwell, PonteCastanedaWillis, Differential,
+    Maxwell, PonteCastanedaWillis, Differential, DifferentialCompliance,
 };
