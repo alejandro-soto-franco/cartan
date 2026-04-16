@@ -286,11 +286,12 @@ fn a5_full_field_cross_check() {
         name: "MATRIX".into(), shape: Arc::new(Sphere),
         property: Order2::scalar(K0), fraction: 1.0 - phi_surrogate,
     });
-    // 100:1 contrast keeps Jacobi-CG in range. True void limit (10^6) falls
-    // back through the LU path at the cost of peak memory ~O(N^6).
+    // v1.2 activates the true 10^6 void-limit contrast (was 100:1 in v1.1).
+    // The new solve ladder (Jacobi-PCG -> ILU(0)-PCG -> dense LU) keeps the
+    // ill-conditioned periodic system tractable.
     rve.add_phase(Phase {
         name: "INCLUSION".into(), shape: Arc::new(Sphere),
-        property: Order2::scalar(K0 * 1.0e-2), fraction: phi_surrogate,
+        property: Order2::scalar(K0 * 1.0e-6), fraction: phi_surrogate,
     });
     rve.set_matrix("MATRIX");
 
