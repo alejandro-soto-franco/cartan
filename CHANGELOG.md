@@ -6,7 +6,50 @@ All notable changes to cartan are documented here.
 
 ## [Unreleased]
 
-### Added
+### Added — v1.3 (full-field enhancements)
+
+- **DifferentialCompliance scheme** (`cartan-homog::schemes`): Norris-Davies
+  dual variant of the differential scheme, integrating `dS*/df` on compliance.
+  Physically preferred for soft inclusions (dry-pore, crack limit). The primal
+  `Differential` and dual `DifferentialCompliance` are both exposed; the 0.008%
+  gap vs ECHOES's DIFF is a primal-vs-dual formulation choice (Milton 2002
+  Ch. 10.12), not a bug.
+- **Lebedev quadrature for anisotropic-reference Hill tensor** (`cartan-homog::shapes::lebedev`):
+  degree-14 grid on S² (exact up to degree-3 spherical harmonics). `Sphere::hill`
+  now falls through to Lebedev when the reference is not isotropic; previously
+  returned an error. Closes Task 28 from the v1 spec.
+- **μCT voxel import for FullField** (`cartan-homog::fullfield::voxelize`):
+  `load_voxel_raw_u8(path, N)` reads N³ u8 phase-id binary files (Digital
+  Porous Media Portal / Imperial College Berea / NIST CBT convention);
+  `FullField::homogenize_voxel(voxel, props)` runs the cell problem directly
+  on voxel-tagged tets.
+- **Two-level aggregation AMG preconditioner** (`cartan-homog::fullfield::solver`):
+  strong-connection graph → greedy aggregation → piecewise-constant prolongation
+  → Galerkin coarse operator → cached LU factor. V-cycle with damped Jacobi
+  pre/post-smoother. `solve_with_fallback` now escalates
+  `Jacobi-PCG → ILU(0)-PCG → AMG-PCG → dense LU`.
+- **Conforming red (1-to-8) tet refinement** (`cartan-remesh::primitives_3d`):
+  `red_refine_tets_uniform` bisects all 6 edges per tet, produces 8 sub-tets
+  via the Bey decomposition. Edge midpoints are shared across adjacent tets
+  (HashMap cache), so the refined mesh is conforming. Complements the v1.2
+  non-conforming barycentric refinement.
+
+### Added — v1.2 (full-field v1.2)
+
+- 3D tet-mesh barycentric refinement in `cartan-remesh::primitives_3d` (non-conforming).
+- Periodic BCs for the full-field cell problem (slave→master DOF elimination, gauge-vertex anchor).
+- Dense LU fallback (`solve_dense_lu`) + ILU(0) preconditioner for the solver ladder.
+- Macroscale slab Darcy solver (`cartan-homog::fullfield::macroscale`).
+- Hausdorff gate for adaptive-refinement vs analytic transition-layer sets.
+
+### Added — v1.1 (full-field v1)
+
+- Full-field DEC cell-problem solver for Order2 RVEs (`cartan-homog::fullfield`).
+- Kuhn-triangulated periodic cube mesh builder.
+- P1-FEM stiffness + RHS assembly; volume-averaged effective tensor.
+- Reliability indicator `d_AI(C_MF, C_FF)` via affine-invariant SPD distance.
+
+### Added — v1 (homogenisation foundation)
 
 - **cartan-homog** (new crate): mean-field and full-field homogenisation of
   random media on SPD manifolds, generic over tensor order (Order2 = 3×3
