@@ -2,20 +2,38 @@ schema_version: 1
 tensor_orders: [O2, O4]
 schemes: [VOIGT, REUSS, DIL, MT, SC, MAX, DIFF]
 
-# Microstructure families. Each expands into one fixture per (order, scheme, fraction).
+# Microstructure families. Each expands into one fixture per (order, scheme, parameter).
 microstructures:
   - id: iso_matrix_spheres
     matrix: iso
-    inclusion: sphere
+    inclusion: {kind: sphere}
     fractions: [0.05, 0.20, 0.40]
 
-# Cases listed here also get written to the committed basic subset.
+  - id: iso_matrix_prolate_10
+    matrix: iso
+    inclusion: {kind: spheroid, aspect: 10.0}
+    fractions: [0.10, 0.30]
+
+  - id: iso_matrix_oblate_01
+    matrix: iso
+    inclusion: {kind: spheroid, aspect: 0.1}
+    fractions: [0.10, 0.30]
+
+  - id: iso_matrix_penny_cracks
+    matrix: iso
+    inclusion: {kind: crack}
+    # Crack density used as fraction proxy for v1 (Kachanov dilute limit).
+    densities: [0.10, 0.30]
+
 basic_subset_case_ids:
+  - o2_voigt_iso_matrix_spheres_phi=0.20
+  - o2_reuss_iso_matrix_spheres_phi=0.20
+  - o2_dil_iso_matrix_spheres_phi=0.05
   - o2_mt_iso_matrix_spheres_phi=0.05
   - o2_mt_iso_matrix_spheres_phi=0.20
   - o2_mt_iso_matrix_spheres_phi=0.40
-  - o2_dil_iso_matrix_spheres_phi=0.05
-  - o2_voigt_iso_matrix_spheres_phi=0.20
-  - o2_reuss_iso_matrix_spheres_phi=0.20
-  - o4_mt_iso_matrix_spheres_phi=0.20
+  - o2_mt_iso_matrix_prolate_10_phi=0.10
+  - o2_mt_iso_matrix_oblate_01_phi=0.10
+  - o2_mt_iso_matrix_penny_cracks_rho=0.10
   - o4_dil_iso_matrix_spheres_phi=0.05
+  - o4_mt_iso_matrix_spheres_phi=0.20
