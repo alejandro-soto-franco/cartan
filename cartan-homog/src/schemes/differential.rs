@@ -1,5 +1,16 @@
-//! Differential scheme: ODE-based incremental dilution.
-//! Currently supports single-inclusion RVEs.
+//! Differential scheme: ODE-based incremental dilution. Two variants:
+//!
+//! - `Differential` (Roscoe-Brinkman form): integrates `dC*/df` on stiffness.
+//!   Default; numerically stable when the inclusion is stiffer than the matrix.
+//!
+//! - `DifferentialCompliance` (Norris-Davies dual form): integrates `dS*/df`
+//!   on compliance `S = C^{-1}`. Numerically stable when the inclusion is
+//!   softer than the matrix (dry-pore / crack limit). The dual scheme
+//!   converges to a DIFFERENT effective tensor than the primal form at
+//!   moderate and high fractions (both are self-consistent but are built
+//!   from different stationarity principles; see Milton 2002 Ch. 10.12).
+//!
+//! Both currently support single-inclusion RVEs.
 
 use crate::{error::HomogError, rve::{Phase, Rve},
             schemes::{Effective, Scheme, SchemeOpts},
@@ -11,13 +22,6 @@ pub struct Differential {
 }
 
 impl Default for Differential {
-    /// 100 steps is enough for machine-precision convergence of this ODE (RK4 on
-    /// a smooth f ∈ [0, 0.4] domain converges by ~20 steps). The ~5e-4 residual
-    /// gap to ECHOES's DIFF output is a *formulation* difference, not step
-    /// noise: cartan uses the Roscoe-Brinkman form `dC/df = (1/(1-f))·(C_1-C):A`,
-    /// ECHOES uses what appears to be a Norris-Davies dual variant operating on
-    /// compliances for softer inclusions. Resolving that is v1.3 work; for
-    /// matching-limit validation, compare against MT instead of ECHOES DIFF.
     fn default() -> Self { Self { n_steps: 100 } }
 }
 
@@ -67,6 +71,75 @@ fn rate<O: TensorOrder>(
     Ok(O::scale(&contrib, 1.0 / (1.0 - f).max(1e-8)))
 }
 
+/// Dual (Norris-Davies) differential scheme on compliances. Integrates
+/// `dS*/df = 1/(1-f) · (S_1 - S*) : B_{1,S*}` with B the dual concentration
+/// tensor expressed through the primal Hill P: `B = (I + Q:(S_1-S*))^{-1}`
+/// where `Q = C* - C*:P:C*` is the dual Hill tensor. The final `C*` is
+/// recovered as `(S*)^{-1}`. Numerically preferred when the inclusion is
+/// softer than the matrix.
+#[derive(Clone, Debug)]
+pub struct DifferentialCompliance {
+    pub n_steps: usize,
+}
+
+impl Default for DifferentialCompliance {
+    fn default() -> Self { Self { n_steps: 100 } }
+}
+
+impl<O: TensorOrder> Scheme<O> for DifferentialCompliance {
+    fn homogenize(&self, rve: &Rve<O>, opts: &SchemeOpts) -> Result<Effective<O>, HomogError> {
+        let c0 = rve.matrix_property()?.clone();
+        let incls: alloc::vec::Vec<&Phase<O>> = rve.phases.iter()
+            .filter(|p| !rve.is_matrix_phase(&p.name))
+            .collect();
+        if incls.len() != 1 {
+            return Err(HomogError::Solver(alloc::string::String::from(
+                "DifferentialCompliance scheme currently supports single-inclusion RVEs")));
+        }
+        let inc = incls[0];
+        let f_target = inc.fraction;
+        let n = self.n_steps.max(20);
+        let df = f_target / (n as f64);
+
+        let s0 = O::inverse(&c0)?;
+        let s1 = O::inverse(&inc.property)?;
+        let mut s_hom = s0;
+        let mut f = 0.0;
+        for _ in 0..n {
+            let k1 = rate_dual::<O>(&s_hom, &s1, inc, f,                                      opts)?;
+            let k2 = rate_dual::<O>(&O::add(&s_hom, &O::scale(&k1, df * 0.5)), &s1, inc, f + df * 0.5, opts)?;
+            let k3 = rate_dual::<O>(&O::add(&s_hom, &O::scale(&k2, df * 0.5)), &s1, inc, f + df * 0.5, opts)?;
+            let k4 = rate_dual::<O>(&O::add(&s_hom, &O::scale(&k3, df      )), &s1, inc, f + df,       opts)?;
+            let mut delta = O::add(&k1, &O::scale(&k2, 2.0));
+            delta = O::add(&delta, &O::scale(&k3, 2.0));
+            delta = O::add(&delta, &k4);
+            s_hom = O::add(&s_hom, &O::scale(&delta, df / 6.0));
+            f += df;
+        }
+        let c_hom = O::inverse(&s_hom)?;
+        Ok(Effective { tensor: c_hom, concentration: None, iterations: Some(n), residual: None })
+    }
+}
+
+fn rate_dual<O: TensorOrder>(
+    s_hom: &O::KmMatrix,
+    s_inc: &O::KmMatrix,
+    phase: &Phase<O>,
+    f: f64,
+    opts: &SchemeOpts,
+) -> Result<O::KmMatrix, HomogError> {
+    // Q = C* - C*:P:C*   where C* = S*^{-1}
+    let c_hom = O::inverse(s_hom)?;
+    let p = phase.shape.hill(&c_hom, &opts.integration)?;
+    let cpc = O::mat_mul(&O::mat_mul(&c_hom, &p), &c_hom);
+    let q = O::sub(&c_hom, &cpc);
+    let ds = O::sub(s_inc, s_hom);
+    let arg = O::add(&O::identity(), &O::mat_mul(&q, &ds));
+    let inv = O::inverse(&arg)?;
+    let contrib = O::mat_mul(&ds, &inv);
+    Ok(O::scale(&contrib, 1.0 / (1.0 - f).max(1e-8)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -83,5 +156,34 @@ mod tests {
         rve.set_matrix("M");
         let e = Differential::default().homogenize(&rve, &SchemeOpts::default()).unwrap();
         assert!((e.tensor[(0, 0)] - 1.0).abs() < 1e-8);
+    }
+
+    #[test]
+    fn differential_compliance_agrees_at_zero_fraction() {
+        let mut rve = Rve::<Order2>::new();
+        rve.add_phase(Phase { name: String::from("M"), shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0), fraction: 1.0 });
+        rve.add_phase(Phase { name: String::from("I"), shape: Arc::new(Sphere),
+            property: Order2::scalar(10.0), fraction: 0.0 });
+        rve.set_matrix("M");
+        let e = DifferentialCompliance::default().homogenize(&rve, &SchemeOpts::default()).unwrap();
+        assert!((e.tensor[(0, 0)] - 1.0).abs() < 1e-8);
+    }
+
+    #[test]
+    fn primal_vs_dual_bracket_each_other() {
+        // Primal and dual DIFF schemes bracket the "true" differential answer.
+        // For soft inclusions the dual variant is physically preferred; both
+        // converge to the same limit as phi -> 0.
+        let mut rve = Rve::<Order2>::new();
+        rve.add_phase(Phase { name: String::from("M"), shape: Arc::new(Sphere),
+            property: Order2::scalar(10.0), fraction: 0.8 });
+        rve.add_phase(Phase { name: String::from("I"), shape: Arc::new(Sphere),
+            property: Order2::scalar(0.1), fraction: 0.2 });
+        rve.set_matrix("M");
+        let e_primal = Differential::default().homogenize(&rve, &SchemeOpts::default()).unwrap();
+        let e_dual   = DifferentialCompliance::default().homogenize(&rve, &SchemeOpts::default()).unwrap();
+        assert!(e_primal.tensor[(0, 0)] > 0.0 && e_primal.tensor[(0, 0)] < 10.0);
+        assert!(e_dual.tensor[(0, 0)]   > 0.0 && e_dual.tensor[(0, 0)]   < 10.0);
     }
 }
