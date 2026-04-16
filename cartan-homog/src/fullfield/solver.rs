@@ -211,8 +211,186 @@ pub fn solve_dense_lu(a: &CsMat<f64>, b: &DVector<f64>) -> Result<DVector<f64>, 
         "dense LU solve failed: matrix is singular or near-singular")))
 }
 
-/// Solve ladder: Jacobi-PCG -> ILU(0)-PCG -> dense LU.
-/// Each step is tried in turn with the given `tol`/`max_iter` for the CG passes.
+/// Two-level aggregation AMG + Jacobi smoother + dense-LU coarse solve.
+///
+/// Aggregation: each vertex seeds a coarse aggregate; strongly-connected
+/// (|A[i,j]| > θ·sqrt(A[i,i]·A[j,j])) unassigned neighbours join.
+/// Prolongation: piecewise-constant (P[i,k] = 1 if vertex i in aggregate k).
+/// Coarse operator: A_c = P^T A P (Galerkin).
+/// V-cycle: one Jacobi pre-smooth, restrict to coarse, direct-solve coarse,
+/// interpolate back, correct, one Jacobi post-smooth.
+pub struct Amg {
+    /// Fine-level matrix (sparse).
+    pub a_fine: CsMat<f64>,
+    /// Coarse-level LU factorisation, precomputed once in `build` and reused
+    /// across every `apply` call. Reconstructing the factor per V-cycle was
+    /// the v1.3 AMG performance bug that made CI hang on the capstone test.
+    pub a_coarse_lu: nalgebra::LU<f64, nalgebra::Dyn, nalgebra::Dyn>,
+    /// Prolongation P : coarse -> fine, stored row-wise (row = fine vertex,
+    /// single non-zero column = aggregate id).
+    pub aggregate_of: Vec<usize>,
+    pub n_fine: usize,
+    pub n_coarse: usize,
+    /// Fine diagonal (cached for Jacobi smoother).
+    pub diag_fine: DVector<f64>,
+}
+
+impl Amg {
+    pub fn build(a: &CsMat<f64>, theta: f64) -> Self {
+        let n = a.rows();
+
+        // Fine diagonal.
+        let mut diag_fine = DVector::<f64>::zeros(n);
+        for (&val, (i, j)) in a.iter() {
+            if i == j { diag_fine[i] += val; }
+        }
+
+        // Strong-connection graph (Ruge-Stüben style).
+        use alloc::collections::BTreeMap;
+        let mut strong: alloc::vec::Vec<alloc::vec::Vec<usize>> = alloc::vec![alloc::vec::Vec::new(); n];
+        // Collect off-diagonal entries per row then filter by strength criterion.
+        let mut row_map: alloc::vec::Vec<BTreeMap<usize, f64>> = alloc::vec![BTreeMap::new(); n];
+        for (&val, (i, j)) in a.iter() {
+            if i != j {
+                *row_map[i].entry(j).or_insert(0.0) += val;
+            }
+        }
+        for i in 0..n {
+            let da = diag_fine[i].abs().max(1e-30);
+            for (&j, &aij) in &row_map[i] {
+                let db = diag_fine[j].abs().max(1e-30);
+                if aij.abs() > theta * (da * db).sqrt() {
+                    strong[i].push(j);
+                }
+            }
+        }
+
+        // Greedy aggregation: walk vertices, seed aggregates from unassigned ones,
+        // add strongly-connected unassigned neighbours.
+        let mut aggregate_of: Vec<usize> = alloc::vec![usize::MAX; n];
+        let mut n_coarse = 0;
+        for i in 0..n {
+            if aggregate_of[i] != usize::MAX { continue; }
+            let agg = n_coarse;
+            n_coarse += 1;
+            aggregate_of[i] = agg;
+            for &j in &strong[i] {
+                if aggregate_of[j] == usize::MAX {
+                    aggregate_of[j] = agg;
+                }
+            }
+        }
+
+        // Build P^T A P densely (coarse dimensions are small by construction),
+        // then factor once so `apply` can reuse the LU across V-cycle calls.
+        let mut a_coarse = DMatrix::<f64>::zeros(n_coarse, n_coarse);
+        for (&val, (i, j)) in a.iter() {
+            let ki = aggregate_of[i];
+            let kj = aggregate_of[j];
+            a_coarse[(ki, kj)] += val;
+        }
+        let a_coarse_lu = a_coarse.lu();
+
+        Amg {
+            a_fine: a.clone(),
+            a_coarse_lu,
+            aggregate_of,
+            n_fine: n,
+            n_coarse,
+            diag_fine,
+        }
+    }
+
+    /// Apply M^{-1} r via one V-cycle (preconditioner application).
+    pub fn apply(&self, r: &DVector<f64>) -> DVector<f64> {
+        let mut x = DVector::<f64>::zeros(self.n_fine);
+        let n = self.n_fine;
+
+        // Pre-smooth: Jacobi step.
+        for _ in 0..1 {
+            let mut ax = DVector::<f64>::zeros(n);
+            for (&val, (i, j)) in self.a_fine.iter() {
+                ax[i] += val * x[j];
+            }
+            let res = r - &ax;
+            for i in 0..n {
+                if self.diag_fine[i].abs() > 1e-30 {
+                    x[i] += 0.6 * res[i] / self.diag_fine[i];  // damped Jacobi
+                }
+            }
+        }
+
+        // Residual at fine level.
+        let mut ax = DVector::<f64>::zeros(n);
+        for (&val, (i, j)) in self.a_fine.iter() { ax[i] += val * x[j]; }
+        let residual_fine = r - ax;
+
+        // Restrict to coarse.
+        let mut residual_coarse = DVector::<f64>::zeros(self.n_coarse);
+        for i in 0..n {
+            residual_coarse[self.aggregate_of[i]] += residual_fine[i];
+        }
+
+        // Direct-solve A_c · e_c = r_c using the pre-factored LU (cached in `build`).
+        let e_coarse = self.a_coarse_lu.solve(&residual_coarse)
+            .unwrap_or_else(|| DVector::zeros(self.n_coarse));
+
+        // Prolong coarse correction back to fine and apply.
+        for i in 0..n {
+            x[i] += e_coarse[self.aggregate_of[i]];
+        }
+
+        // Post-smooth: one more Jacobi step.
+        let mut ax = DVector::<f64>::zeros(n);
+        for (&val, (i, j)) in self.a_fine.iter() { ax[i] += val * x[j]; }
+        let res = r - &ax;
+        for i in 0..n {
+            if self.diag_fine[i].abs() > 1e-30 {
+                x[i] += 0.6 * res[i] / self.diag_fine[i];
+            }
+        }
+        x
+    }
+}
+
+/// AMG-preconditioned conjugate gradient.
+pub fn pcg_amg(
+    a: &CsMat<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+) -> Result<(DVector<f64>, usize, f64), HomogError> {
+    let amg = Amg::build(a, 0.25);
+    let n = b.len();
+    let apply_a = |v: &DVector<f64>| -> DVector<f64> {
+        let mut out = DVector::<f64>::zeros(v.len());
+        for (&val, (i, j)) in a.iter() { out[i] += val * v[j]; }
+        out
+    };
+    let mut x = DVector::<f64>::zeros(n);
+    let mut r = b - apply_a(&x);
+    let b_norm = b.norm().max(1e-30);
+    let mut z = amg.apply(&r);
+    let mut p = z.clone();
+    let mut rz_old = r.dot(&z);
+    for iter in 0..max_iter {
+        let ap = apply_a(&p);
+        let pap = p.dot(&ap);
+        if pap.abs() < 1e-30 { break; }
+        let alpha = rz_old / pap;
+        x += alpha * &p;
+        r -= alpha * &ap;
+        let rel = r.norm() / b_norm;
+        if rel < tol { return Ok((x, iter + 1, rel)); }
+        z = amg.apply(&r);
+        let rz_new = r.dot(&z);
+        let beta = rz_new / rz_old;
+        p = &z + beta * &p;
+        rz_old = rz_new;
+    }
+    let final_residual = (b - apply_a(&x)).norm() / b_norm;
+    Err(HomogError::DidNotConverge { iters: max_iter, residual: final_residual })
+}
+
+/// Solve ladder: Jacobi-PCG -> ILU(0)-PCG -> AMG-PCG -> dense LU.
+/// Each step is tried in turn with the given `tol`/`max_iter`.
 pub fn solve_with_fallback(
     a: &CsMat<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
 ) -> Result<(DVector<f64>, usize, f64), HomogError> {
@@ -222,6 +400,11 @@ pub fn solve_with_fallback(
         Err(e) => return Err(e),
     }
     match pcg_ilu0(a, b, tol, max_iter) {
+        Ok(t) => return Ok(t),
+        Err(HomogError::DidNotConverge { .. }) => {}
+        Err(e) => return Err(e),
+    }
+    match pcg_amg(a, b, tol, max_iter) {
         Ok(t) => Ok(t),
         Err(HomogError::DidNotConverge { iters, residual }) => {
             let x = solve_dense_lu(a, b)?;
@@ -250,6 +433,30 @@ mod tests {
         assert!((x[0] - 1.0).abs() < 1e-10);
         assert!((x[1] - 2.0).abs() < 1e-10);
         assert!((x[2] - 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn amg_solves_5_point_laplacian() {
+        // Classic 5-point 2D Laplacian: tridiagonal SPD with positive diagonal,
+        // negative off-diagonals. AMG should converge in few iterations.
+        let n_side = 6;
+        let n = n_side * n_side;
+        let mut tri = TriMat::<f64>::new((n, n));
+        for j in 0..n_side {
+            for i in 0..n_side {
+                let k = j * n_side + i;
+                tri.add_triplet(k, k, 4.0);
+                if i > 0         { tri.add_triplet(k, k - 1, -1.0); }
+                if i < n_side - 1 { tri.add_triplet(k, k + 1, -1.0); }
+                if j > 0         { tri.add_triplet(k, k - n_side, -1.0); }
+                if j < n_side - 1 { tri.add_triplet(k, k + n_side, -1.0); }
+            }
+        }
+        let a = tri.to_csc();
+        let b = DVector::from_vec(alloc::vec![1.0; n]);
+        let (_x, iters, res) = pcg_amg(&a, &b, 1e-10, 200).unwrap();
+        assert!(res < 1e-8, "AMG-PCG residual {res}");
+        assert!(iters < n, "AMG-PCG should take fewer than n iterations: got {iters}");
     }
 
     #[test]
