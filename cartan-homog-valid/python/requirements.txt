@@ -1,0 +1,7 @@
+numpy<2
+pyyaml>=6
+# ECHOES wheel: install manually from Zenodo DOI 10.5281/zenodo.14959866.
+# For python 3.12, use echoes-1.0-cp312-cp312-linux_x86_64.whl:
+#   curl -L "https://zenodo.org/api/records/14959866/files/echoes-1.0-cp312-cp312-linux_x86_64.whl/content" \
+#       -o echoes-1.0-cp312-cp312-linux_x86_64.whl
+#   pip install echoes-1.0-cp312-cp312-linux_x86_64.whl

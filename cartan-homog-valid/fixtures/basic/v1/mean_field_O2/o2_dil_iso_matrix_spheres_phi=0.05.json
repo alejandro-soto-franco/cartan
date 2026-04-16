@@ -1,0 +1,11 @@
+{
+  "case_id": "o2_dil_iso_matrix_spheres_phi=0.05",
+  "tensor_order": 2,
+  "scheme": "DIL",
+  "tolerance_tier": "exact",
+  "echoes_version": "1.0.0",
+  "echoes_commit": "zenodo:10.5281/zenodo.14959866",
+  "provenance": {
+    "generated_at": "2026-04-16T13:43:28.409315+00:00"
+  }
+}
