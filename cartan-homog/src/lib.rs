@@ -1,19 +1,17 @@
 //! Mean-field and full-field homogenisation of random media, generic over tensor order.
-//!
-//! See `docs/superpowers/specs/2026-04-16-cartan-echoes-validation.md` for design.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
 
 pub mod error;
+pub mod tensor;
+pub mod kelvin_mandel;
+pub mod shapes;
 
 pub use error::HomogError;
+pub use tensor::{Order2, Order4, TensorOrder};
+pub use shapes::{Shape, Sphere, Spheroid, PennyCrack, Ellipsoid, SphereNLayers, IntegrationOpts, UserInclusion};
 
-// Modules below are declared as they land in Phases 2-10. Task boundary markers:
-//   Phase 2 (traits):   tensor, kelvin_mandel
-//   Phase 3 (shapes):   shapes
-//   Phase 4 (rve):      rve
-//   Phase 5 (schemes):  schemes
-//   Phase 8 (γ):        stochastic (feature = "stochastic")
-//   Phase 9 (β):        fullfield  (feature = "full-field")
+// Modules that land in later phases:
+//   Phase 4 rve, Phase 5 schemes, Phase 8 stochastic, Phase 9 fullfield
