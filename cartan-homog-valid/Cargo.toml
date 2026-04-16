@@ -10,8 +10,11 @@ publish = false
 
 [features]
 default = []
-full-field  = ["cartan-homog/full-field"]
-stochastic  = ["cartan-homog/stochastic"]
+full-field = ["cartan-homog/full-field"]
+stochastic = ["cartan-homog/stochastic"]
+
+# When running capstone tests gated on full-field, enable the feature on
+# cartan-homog transitively via this crate's features.
 
 [dependencies]
 cartan-homog     = { path = "../cartan-homog",     version = "0.5" }
