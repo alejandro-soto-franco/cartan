@@ -222,8 +222,10 @@ pub fn solve_dense_lu(a: &CsMat<f64>, b: &DVector<f64>) -> Result<DVector<f64>, 
 pub struct Amg {
     /// Fine-level matrix (sparse).
     pub a_fine: CsMat<f64>,
-    /// Coarse-level matrix (dense for small coarse problems).
-    pub a_coarse_dense: DMatrix<f64>,
+    /// Coarse-level LU factorisation, precomputed once in `build` and reused
+    /// across every `apply` call. Reconstructing the factor per V-cycle was
+    /// the v1.3 AMG performance bug that made CI hang on the capstone test.
+    pub a_coarse_lu: nalgebra::LU<f64, nalgebra::Dyn, nalgebra::Dyn>,
     /// Prolongation P : coarse -> fine, stored row-wise (row = fine vertex,
     /// single non-zero column = aggregate id).
     pub aggregate_of: Vec<usize>,
@@ -279,17 +281,19 @@ impl Amg {
             }
         }
 
-        // Build P^T A P densely (coarse dimensions are small by construction).
+        // Build P^T A P densely (coarse dimensions are small by construction),
+        // then factor once so `apply` can reuse the LU across V-cycle calls.
         let mut a_coarse = DMatrix::<f64>::zeros(n_coarse, n_coarse);
         for (&val, (i, j)) in a.iter() {
             let ki = aggregate_of[i];
             let kj = aggregate_of[j];
             a_coarse[(ki, kj)] += val;
         }
+        let a_coarse_lu = a_coarse.lu();
 
         Amg {
             a_fine: a.clone(),
-            a_coarse_dense: a_coarse,
+            a_coarse_lu,
             aggregate_of,
             n_fine: n,
             n_coarse,
@@ -327,9 +331,8 @@ impl Amg {
             residual_coarse[self.aggregate_of[i]] += residual_fine[i];
         }
 
-        // Direct-solve A_c · e_c = r_c on the coarse grid.
-        let lu = self.a_coarse_dense.clone().lu();
-        let e_coarse = lu.solve(&residual_coarse)
+        // Direct-solve A_c · e_c = r_c using the pre-factored LU (cached in `build`).
+        let e_coarse = self.a_coarse_lu.solve(&residual_coarse)
             .unwrap_or_else(|| DVector::zeros(self.n_coarse));
 
         // Prolong coarse correction back to fine and apply.
