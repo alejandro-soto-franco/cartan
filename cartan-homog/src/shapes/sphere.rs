@@ -8,13 +8,11 @@ use crate::{error::HomogError, kelvin_mandel::iso_detect_order2,
 pub struct Sphere;
 
 impl Shape<Order2> for Sphere {
-    fn hill(&self, c_ref: &Km3, _opts: &IntegrationOpts) -> Result<Km3, HomogError> {
+    fn hill(&self, c_ref: &Km3, opts: &IntegrationOpts) -> Result<Km3, HomogError> {
         let (avg, aniso) = iso_detect_order2(c_ref);
         if aniso > 1e-8 {
-            return Err(HomogError::Geometry(
-                alloc::string::String::from(
-                    "Sphere::hill (Order2) closed form requires isotropic reference; \
-                     Lebedev fallback lands in Task 28")));
+            // Anisotropic-reference branch (v1.3): Lebedev quadrature.
+            return crate::shapes::lebedev::hill_order2_anisotropic(c_ref, opts.lebedev_degree);
         }
         if avg <= 0.0 { return Err(HomogError::NotPositiveDefinite); }
         Ok(Km3::identity() * (1.0 / (3.0 * avg)))
@@ -67,9 +65,13 @@ mod tests {
     }
 
     #[test]
-    fn hill_sphere_iso_order2_rejects_anisotropic_ref() {
+    fn hill_sphere_iso_order2_anisotropic_ref_uses_lebedev() {
+        // v1.3: anisotropic reference no longer rejected; falls through to
+        // Lebedev quadrature and produces an SPD Hill tensor.
         let c_ref = crate::kelvin_mandel::ti_order2(10.0, 1.0);
-        assert!(<Sphere as Shape<Order2>>::hill(&Sphere, &c_ref, &IntegrationOpts::default()).is_err());
+        let p = <Sphere as Shape<Order2>>::hill(&Sphere, &c_ref, &IntegrationOpts::default()).unwrap();
+        let eig = p.symmetric_eigen();
+        assert!(eig.eigenvalues.iter().all(|v| *v > 0.0));
     }
 
     #[test]
