@@ -13,6 +13,8 @@ pub mod voxelize;
 pub mod mesh;
 pub mod cell_problem;
 pub mod solver;
+pub mod macroscale;
+pub mod hausdorff;
 
 pub use mesh::{PeriodicCubeMeshBuilder, PeriodicCubeMeshBuilderOpts, partition_boundary};
 pub use voxelize::CentredInclusion;
