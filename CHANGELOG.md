@@ -4,6 +4,49 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **cartan-homog** (new crate): mean-field and full-field homogenisation of
+  random media on SPD manifolds, generic over tensor order (Order2 = 3×3
+  conductivity, Order4 = 6×6 Kelvin-Mandel stiffness).
+  - `TensorOrder` trait with `spd_geodesic_step` delegating to `cartan-manifolds::Spd<N>`.
+  - Shape catalog: `Sphere`, `Spheroid`, `PennyCrack`, `Ellipsoid` (Carlson RD),
+    `SphereNLayers` (Herve-Zaoui). `UserInclusion = Arc<dyn Shape<O>>`.
+  - 10 schemes matching ECHOES's feature set: `VoigtBound`, `ReussBound`,
+    `Dilute`, `DiluteStress`, `MoriTanaka`, `SelfConsistent` (SPD-geodesic
+    fixed-point), `AsymmetricSc`, `Maxwell`, `PonteCastanedaWillis`, `Differential`.
+  - `--features stochastic`: `WishartRveEnsemble` with Karcher-mean aggregation
+    via affine-invariant SPD metric.
+  - `--features full-field` (β scaffold): `FullField<O>`, `PeriodicCubeMeshBuilder`,
+    voxelize/mesh/cell_problem/solver module tree, `reliability_indicator_order2`.
+    Full DEC cell-problem assembly is v1.1.
+
+- **cartan-homog-valid** (new crate, unpublished): ECHOES-backed numerical
+  validation harness.
+  - Fixture loader with `CARTAN_HOMOG_FIXTURES_DIR` env var for external sets
+    (default = in-repo `fixtures/basic/`).
+  - `assert_spd_close_o2!` / `assert_spd_close_o4!` macros using affine-invariant
+    SPD distance with 4-tier tolerance ladder (exact/tight/iterative/qsens).
+  - Python generator (`cartan-homog-valid/python/generate_fixtures.py`) drives
+    ECHOES via its wheel (Zenodo DOI 10.5281/zenodo.14959866) and emits NPZ + JSON
+    meta pairs per test case.
+  - 8-case committed basic fixture set (3 fractions × 7 schemes × 2 orders for
+    iso-matrix spheres subset), 42-case extended set at
+    `/run/media/alejandrosotofranco/ASF-EX2/cartan/homog-fixtures/v1/`.
+  - Integration test: all 8 basic cases agree with ECHOES to `d_AI < 2.5e-15`.
+  - Capstone fractured-sandstone pipeline test: 7 depths, Mori-Tanaka with
+    depth-varying penny-crack density, crack-induced anisotropy verified,
+    JSON report emitted.
+
+### Changed
+
+- Workspace members include `cartan-homog` and `cartan-homog-valid`.
+- `cartan/Cargo.toml` version pins bumped 0.4 → 0.5 to match workspace.
+
+---
+
 ## [0.5.0] - 2026-04-14
 
 ### Added
