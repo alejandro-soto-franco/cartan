@@ -12,7 +12,7 @@ mod stochastic;
 /// cartan: Riemannian geometry, manifold optimization, and geodesic computation.
 #[pymodule]
 fn cartan(m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add("__version__", "0.1.7")?;
+    m.add("__version__", "0.5.0")?;
     error::register(m)?;
     manifolds::register(m)?;
     optim::register(m)?;
