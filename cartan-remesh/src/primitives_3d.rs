@@ -14,6 +14,7 @@
 use cartan_dec::Mesh;
 use cartan_manifolds::euclidean::Euclidean;
 use nalgebra::Vector3;
+use std::collections::HashMap;
 
 use crate::error::RemeshError;
 
@@ -79,6 +80,63 @@ pub fn indicator_flags<F: Fn(Vector3<f64>) -> f64>(
                   + mesh.vertices[tet[2]] + mesh.vertices[tet[3]]) / 4.0;
         indicator_fn(bary).abs() > threshold
     }).collect()
+}
+
+/// Conforming red (1-to-8) refinement: uniformly subdivide every flagged tet
+/// into 8 sub-tets by bisecting all 6 edges. Edge midpoints are shared across
+/// adjacent tets, so the resulting mesh is **conforming** (no hanging nodes)
+/// provided you refine every tet sharing any flagged edge. For safety, v1.3
+/// requires `flags` to flag *all* tets uniformly; adaptive red-green with
+/// closure is v1.4 work.
+///
+/// 8-sub-tet Bey decomposition: 4 corner tets + 4 octahedral tets from
+/// splitting the midpoint-octahedron along the m₀₁-m₂₃ diagonal.
+pub fn red_refine_tets_uniform(
+    mesh: &mut Mesh<Euclidean<3>, 4, 3>,
+) -> Result<(), RemeshError> {
+    let old_verts = mesh.vertices.clone();
+    let old_simplices = mesh.simplices.clone();
+    let mut verts = old_verts.clone();
+
+    // Edge midpoint cache: (min_idx, max_idx) -> new vertex index.
+    let mut mid_cache: HashMap<(usize, usize), usize> = HashMap::new();
+    let mut midpoint = |a: usize, b: usize, verts: &mut Vec<Vector3<f64>>| -> usize {
+        let key = (a.min(b), a.max(b));
+        if let Some(&idx) = mid_cache.get(&key) { return idx; }
+        let m = (old_verts[a] + old_verts[b]) * 0.5;
+        let new_idx = verts.len();
+        verts.push(m);
+        mid_cache.insert(key, new_idx);
+        new_idx
+    };
+
+    let mut new_simplices = Vec::with_capacity(old_simplices.len() * 8);
+    for tet in &old_simplices {
+        let v = *tet;
+        let m01 = midpoint(v[0], v[1], &mut verts);
+        let m02 = midpoint(v[0], v[2], &mut verts);
+        let m03 = midpoint(v[0], v[3], &mut verts);
+        let m12 = midpoint(v[1], v[2], &mut verts);
+        let m13 = midpoint(v[1], v[3], &mut verts);
+        let m23 = midpoint(v[2], v[3], &mut verts);
+
+        // 4 corner tets: each original vertex + 3 adjacent edge midpoints.
+        new_simplices.push([v[0], m01, m02, m03]);
+        new_simplices.push([v[1], m01, m12, m13]);
+        new_simplices.push([v[2], m02, m12, m23]);
+        new_simplices.push([v[3], m03, m13, m23]);
+
+        // 4 octahedral tets: split {m01, m02, m03, m12, m13, m23} along m01-m23.
+        new_simplices.push([m01, m02, m03, m23]);
+        new_simplices.push([m01, m02, m12, m23]);
+        new_simplices.push([m01, m03, m13, m23]);
+        new_simplices.push([m01, m12, m13, m23]);
+    }
+
+    mesh.vertices = verts;
+    mesh.simplices = new_simplices;
+    mesh.rebuild_topology();
+    Ok(())
 }
 
 /// Convenience: iterate barycentric refinement up to `depth` passes, applying
@@ -162,5 +220,30 @@ mod tests {
         let n = refine_to_depth(&mut mesh, 2, |_| 1.0, 0.5).unwrap();
         assert_eq!(n, 1 + 4);
         assert_eq!(mesh.n_simplices(), 16);
+    }
+
+    #[test]
+    fn red_refine_preserves_total_volume() {
+        // 1-to-8 refinement on a unit tet should preserve total volume.
+        let mut mesh = unit_tet();
+        let manifold = Euclidean::<3>;
+        let v_orig: f64 = (0..mesh.n_simplices())
+            .map(|s| mesh.simplex_volume(&manifold, s))
+            .sum();
+        red_refine_tets_uniform(&mut mesh).unwrap();
+        let v_new: f64 = (0..mesh.n_simplices())
+            .map(|s| mesh.simplex_volume(&manifold, s))
+            .sum();
+        assert_eq!(mesh.n_simplices(), 8);
+        assert!((v_new - v_orig).abs() / v_orig.max(1e-30) < 1e-10,
+                "total volume changed: {v_orig} -> {v_new}");
+    }
+
+    #[test]
+    fn red_refine_produces_10_vertices_from_one_tet() {
+        // 4 original + 6 midpoints = 10 vertices after one red pass.
+        let mut mesh = unit_tet();
+        red_refine_tets_uniform(&mut mesh).unwrap();
+        assert_eq!(mesh.n_vertices(), 10);
     }
 }
