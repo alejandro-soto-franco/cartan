@@ -7,7 +7,7 @@
 
 use cartan_core::bundle::{CovLaplacian, EdgeTransport3D};
 
-/// Build an [`EdgeTransport3D`] and [`CovLaplacian`] from a 3D periodic
+/// Build an `EdgeTransport3D` and `CovLaplacian` from a 3D periodic
 /// Cartesian grid.
 ///
 /// The grid has `nx * ny * nz` vertices with spacing `dx` and periodic
