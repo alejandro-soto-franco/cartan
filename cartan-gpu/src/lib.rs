@@ -3,8 +3,10 @@
 //! See the crate-level docs for the architecture overview. This crate is
 //! pre-release; the public API will stabilize once cartan-em v0.1 ships.
 
-pub mod error;
+pub mod buffer;
 pub mod device;
+pub mod error;
 
+pub use buffer::GpuBuffer;
 pub use device::Device;
 pub use error::GpuError;
