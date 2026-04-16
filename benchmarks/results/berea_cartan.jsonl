@@ -1,0 +1,9 @@
+{"meta":{"phi":0.195,"K_mineral":39.75,"mu_mineral":31.34,"K_measured_drained":6.6,"K_fem_arns_2002":13,"hs_lower":0.000010632475732846018,"hs_upper":26.991872410929865}}
+{"scheme":"VOIGT","k_eff":31.998750195,"mu_eff":25.228700194999995,"in_hs":false,"delta_vs_measured_pct":384.8295484090909,"ns":70}
+{"scheme":"REUSS","k_eff":0.000005128204595619455,"mu_eff":0.000005128204452701622,"in_hs":false,"delta_vs_measured_pct":-99.99992229993038,"ns":571}
+{"scheme":"DIL","k_eff":24.625293798445018,"mu_eff":19.05603368183205,"in_hs":true,"delta_vs_measured_pct":273.11051209765185,"ns":431}
+{"scheme":"DILD","k_eff":28.79400382020134,"mu_eff":22.515045808453866,"in_hs":false,"delta_vs_measured_pct":336.2727851545658,"ns":932}
+{"scheme":"MT","k_eff":26.991872410929858,"mu_eff":21.077346390586957,"in_hs":true,"delta_vs_measured_pct":308.9677638019675,"ns":671}
+{"scheme":"SC","k_eff":24.52384856072491,"mu_eff":19.072872504914727,"in_hs":true,"delta_vs_measured_pct":271.5734630412866,"ns":97943}
+{"scheme":"MAX","k_eff":26.99187241092986,"mu_eff":21.077346390586957,"in_hs":true,"delta_vs_measured_pct":308.9677638019677,"ns":862}
+{"scheme":"DIFF","k_eff":26.001113747982796,"mu_eff":20.270126212502294,"in_hs":true,"delta_vs_measured_pct":293.9562689088303,"ns":154109}
