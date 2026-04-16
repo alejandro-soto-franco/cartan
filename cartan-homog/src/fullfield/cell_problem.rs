@@ -109,8 +109,8 @@ pub fn assemble_rhs(
     b
 }
 
-/// Apply homogeneous Dirichlet BCs (χ = 0 on boundary vertices) by zeroing their
-/// rows/cols in the sparse matrix and setting A[b, b] = 1, b[b] = 0.
+/// Apply homogeneous Dirichlet BCs (`χ = 0` on boundary vertices) by zeroing their
+/// rows/cols in the sparse matrix and setting `A[b, b] = 1`, `b[b] = 0`.
 pub fn apply_dirichlet_zero(
     a: &mut sprs::CsMat<f64>, b: &mut nalgebra::DVector<f64>, boundary: &[usize],
 ) {
@@ -134,7 +134,7 @@ pub fn apply_dirichlet_zero(
 /// Apply periodic BCs to the cell-problem system by eliminating slave DOFs.
 ///
 /// For each `(slave, master)` pair: fold the slave row and column into the master,
-/// then pin the slave to an identity row (χ[slave] = χ[master] post-solve). After
+/// then pin the slave to an identity row (`χ[slave] = χ[master]` post-solve). After
 /// the solve, the caller should copy `chi[master]` into `chi[slave]`.
 ///
 /// Additionally anchors one vertex (the "gauge vertex") to χ = 0 to remove the
@@ -188,8 +188,9 @@ pub fn expand_periodic(chi: &mut nalgebra::DVector<f64>, pairs: &[(usize, usize)
     }
 }
 
-/// Volume-averaged effective tensor column:
-///   K_eff[:, e_dir] = Σ_tets K_tet · (e_dir + Σ_a χ[tet[a]] · ∇φ_a) · vol_tet / total_vol.
+/// Volume-averaged effective tensor column.
+///
+/// `K_eff[:, e_dir] = Σ_tets K_tet · (e_dir + Σ_a χ[tet[a]] · ∇φ_a) · vol_tet / total_vol`.
 pub fn effective_column(
     mesh: &Mesh<Euclidean<3>, 4, 3>, td: &TetData,
     chi: &nalgebra::DVector<f64>, e_dir: usize,

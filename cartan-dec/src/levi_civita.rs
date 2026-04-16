@@ -1,7 +1,7 @@
 //! Construct discrete Levi-Civita connections from mesh geometry.
 //!
 //! Wraps [`ConnectionAngles`] into [`EdgeTransport2D`] (SO(2) rotation matrices)
-//! for use with the generic [`CovLaplacian`] from cartan-core.
+//! for use with the generic `CovLaplacian` from cartan-core.
 //!
 //! For 2-manifolds, the connection angle alpha at each edge gives the SO(2)
 //! rotation matrix `[[cos(alpha), -sin(alpha)], [sin(alpha), cos(alpha)]]`.
@@ -19,8 +19,8 @@ use crate::mesh::Mesh;
 /// Uses [`ConnectionAngles::from_mesh`] to compute the Levi-Civita connection,
 /// then converts each scalar angle to a 2x2 rotation matrix.
 ///
-/// The resulting transport, combined with [`CovLaplacian`], recovers the same
-/// covariant Laplacian as [`BochnerLaplacian`] when applied to `U1Spin2` sections.
+/// The resulting transport, combined with `CovLaplacian`, recovers the same
+/// covariant Laplacian as the Bochner Laplacian when applied to `U1Spin2` sections.
 pub fn levi_civita_2d<M: Manifold>(
     mesh: &Mesh<M, 3, 2>,
     manifold: &M,

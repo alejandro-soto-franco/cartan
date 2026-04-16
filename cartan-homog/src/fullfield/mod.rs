@@ -71,8 +71,8 @@ impl<O: TensorOrder> FullField<O> {
 
 impl FullField<Order2> {
     /// Homogenise a 2-phase isotropic RVE (matrix + single inclusion kind) via
-    /// a full-field cell-problem solve. For this v1 we accept any Rve<Order2>
-    /// whose phase properties are isotropic scalar tensors (k·I) and the first
+    /// a full-field cell-problem solve. For this v1 we accept any `Rve<Order2>`
+    /// whose phase properties are isotropic scalar tensors (`k·I`) and the first
     /// phase is the matrix.
     ///
     /// The inclusion is rasterised as a centred spherical region of volume
