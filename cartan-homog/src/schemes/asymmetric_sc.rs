@@ -18,11 +18,14 @@ impl<O: TensorOrder> Scheme<O> for AsymmetricSc {
             let mut acc = c0.clone();
             for ph in &rve.phases {
                 if rve.is_matrix_phase(&ph.name) { continue; }
-                let dc = O::sub(&ph.property, &c_hom);
+                // A_r = (I + P(C^ASC) : (C_r - C^ASC))^{-1}  — concentration tensor
+                // contribution = (C_r - C_0) : A_r           — contrast is matrix-relative
+                let dc_hom = O::sub(&ph.property, &c_hom);
+                let dc_matrix = O::sub(&ph.property, &c0);
                 let p = ph.shape.hill(&c_hom, &opts.integration)?;
-                let arg = O::add(&O::identity(), &O::mat_mul(&p, &dc));
-                let inv = O::inverse(&arg)?;
-                let contrib = O::scale(&O::mat_mul(&dc, &inv), ph.fraction);
+                let arg = O::add(&O::identity(), &O::mat_mul(&p, &dc_hom));
+                let a_r = O::inverse(&arg)?;
+                let contrib = O::scale(&O::mat_mul(&dc_matrix, &a_r), ph.fraction);
                 acc = O::add(&acc, &contrib);
             }
             let c_next = if opts.spd_iteration {
