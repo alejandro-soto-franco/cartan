@@ -18,7 +18,7 @@ pub use mori_tanaka::MoriTanaka;
 pub use self_consistent::SelfConsistent;
 pub use asymmetric_sc::AsymmetricSc;
 pub use maxwell_pcw::{Maxwell, PonteCastanedaWillis};
-pub use differential::Differential;
+pub use differential::{Differential, DifferentialCompliance};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SchemeOpts {
