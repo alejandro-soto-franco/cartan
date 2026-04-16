@@ -24,14 +24,14 @@ impl PennyCrack {
 
 impl Shape<Order2> for PennyCrack {
     fn hill(&self, c_ref: &Km3, opts: &IntegrationOpts) -> Result<Km3, HomogError> {
-        let sph = Spheroid::new(self.normal.clone(), self.tiny_aspect);
+        let sph = Spheroid::new(self.normal, self.tiny_aspect);
         <Spheroid as Shape<Order2>>::hill(&sph, c_ref, opts)
     }
 }
 
 impl Shape<Order4> for PennyCrack {
     fn hill(&self, c_ref: &Km6, opts: &IntegrationOpts) -> Result<Km6, HomogError> {
-        let sph = Spheroid::new(self.normal.clone(), self.tiny_aspect);
+        let sph = Spheroid::new(self.normal, self.tiny_aspect);
         <Spheroid as Shape<Order4>>::hill(&sph, c_ref, opts)
     }
 }
