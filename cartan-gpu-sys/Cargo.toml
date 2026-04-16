@@ -8,10 +8,11 @@ license.workspace = true
 repository.workspace = true
 keywords = ["cryo-em", "fft", "vulkan", "vkfft", "ffi"]
 categories = ["external-ffi-bindings", "science"]
+links = "vkfft"
 
 [build-dependencies]
 cc = "1.1"
-bindgen = "0.70"
+bindgen = "0.71"
 pkg-config = "0.3"
 
 [lib]
