@@ -1,0 +1,8 @@
+{"scheme": "VOIGT", "k_eff": 31.998750195, "mu_eff": 25.228700194999995, "ns": 3692.0, "library": "echoes"}
+{"scheme": "REUSS", "k_eff": 5.1282045956194565e-06, "mu_eff": 5.128204452701622e-06, "ns": 6152.0, "library": "echoes"}
+{"scheme": "DIL", "k_eff": 24.625293798445018, "mu_eff": 19.05603368183205, "ns": 19011.0, "library": "echoes"}
+{"scheme": "DILD", "k_eff": 28.79400382020134, "mu_eff": 22.51504580845387, "ns": 23624.0, "library": "echoes"}
+{"scheme": "MT", "k_eff": 26.991872410929858, "mu_eff": 21.077346390586957, "ns": 25904.0, "library": "echoes"}
+{"scheme": "SC", "k_eff": 24.523848560844783, "mu_eff": 19.072872505011407, "ns": 392399.0, "library": "echoes"}
+{"scheme": "MAX", "k_eff": 26.991872410929858, "mu_eff": 21.077346390586957, "ns": 26389.0, "library": "echoes"}
+{"scheme": "DIFF", "k_eff": 25.998848059861093, "mu_eff": 20.268179229141158, "ns": 4321274.0, "library": "echoes"}
