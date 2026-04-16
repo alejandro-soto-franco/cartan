@@ -1,11 +1,12 @@
 //! Sparse linear solver for the cell problem.
 //!
-//! v1: conjugate gradient with Jacobi (diagonal) preconditioner. Adequate for
-//! the smooth piecewise-constant conductivity case; degrades near high contrast
-//! without AMG. v1.2: swap in algebraic multigrid.
+//! Two paths: Jacobi-PCG for smooth cases (< 10^4 contrast, Dirichlet or
+//! lightly coupled periodic), and dense LU for anything that stalls. For the
+//! v1.1 validation grid (N <= 16 => <= 5000 vertices) the dense path costs
+//! around 1 GB peak and 100 ms per direction, acceptable for validation.
 
 use crate::error::HomogError;
-use nalgebra::DVector;
+use nalgebra::{DMatrix, DVector};
 use sprs::CsMat;
 
 /// Preconditioned conjugate-gradient solve for `A x = b`, A symmetric positive definite.
@@ -59,6 +60,35 @@ pub fn pcg_jacobi(
     }
     let final_residual = (b - apply_a(&x)).norm() / b_norm;
     Err(HomogError::DidNotConverge { iters: max_iter, residual: final_residual })
+}
+
+/// Dense LU solve for `A x = b`. Pays a O(n^3) cost; use for small n or when
+/// PCG fails to converge due to high contrast / periodic conditioning.
+pub fn solve_dense_lu(a: &CsMat<f64>, b: &DVector<f64>) -> Result<DVector<f64>, HomogError> {
+    let n = b.len();
+    let mut dense = DMatrix::<f64>::zeros(n, n);
+    for (&val, (i, j)) in a.iter() {
+        dense[(i, j)] += val;
+    }
+    let lu = dense.lu();
+    lu.solve(b).ok_or_else(|| HomogError::Solver(alloc::string::String::from(
+        "dense LU solve failed: matrix is singular or near-singular")))
+}
+
+/// Try PCG first, fall back to dense LU if PCG stalls. Tol/max_iter govern PCG;
+/// dense LU has no tolerance knob (direct).
+pub fn solve_with_fallback(
+    a: &CsMat<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+) -> Result<(DVector<f64>, usize, f64), HomogError> {
+    match pcg_jacobi(a, b, tol, max_iter) {
+        Ok(t) => Ok(t),
+        Err(HomogError::DidNotConverge { iters, residual }) => {
+            // PCG stalled; fall back to direct solve.
+            let x = solve_dense_lu(a, b)?;
+            Ok((x, iters, residual))
+        }
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]

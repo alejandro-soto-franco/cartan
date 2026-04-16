@@ -131,6 +131,63 @@ pub fn apply_dirichlet_zero(
     *a = tri.to_csc();
 }
 
+/// Apply periodic BCs to the cell-problem system by eliminating slave DOFs.
+///
+/// For each `(slave, master)` pair: fold the slave row and column into the master,
+/// then pin the slave to an identity row (χ[slave] = χ[master] post-solve). After
+/// the solve, the caller should copy `chi[master]` into `chi[slave]`.
+///
+/// Additionally anchors one vertex (the "gauge vertex") to χ = 0 to remove the
+/// constant-null-space mode. By convention we pick vertex 0.
+pub fn apply_periodic(
+    a: &mut sprs::CsMat<f64>,
+    b: &mut nalgebra::DVector<f64>,
+    pairs: &[(usize, usize)],
+    gauge_vertex: usize,
+) {
+    use alloc::collections::BTreeMap;
+    // slave -> master lookup.
+    let mut master_of: BTreeMap<usize, usize> = BTreeMap::new();
+    for &(s, m) in pairs { master_of.insert(s, m); }
+
+    let n = a.rows();
+    let mut tri = TriMat::<f64>::new((n, n));
+    // First pass: fold every (i, j) entry to its canonical (master(i), master(j)).
+    for (&val, (i, j)) in a.iter() {
+        let mi = *master_of.get(&i).unwrap_or(&i);
+        let mj = *master_of.get(&j).unwrap_or(&j);
+        tri.add_triplet(mi, mj, val);
+    }
+    // Fold the RHS b similarly (rows only).
+    let mut b_new = nalgebra::DVector::<f64>::zeros(n);
+    for i in 0..n {
+        let mi = *master_of.get(&i).unwrap_or(&i);
+        b_new[mi] += b[i];
+    }
+    // Pin each slave row to identity: χ[slave] - χ[master] = 0.
+    // Implement by inserting (slave, slave) = 1, (slave, master) = -1, b[slave] = 0.
+    for (&s, &m) in &master_of {
+        tri.add_triplet(s, s, 1.0);
+        tri.add_triplet(s, m, -1.0);
+        b_new[s] = 0.0;
+    }
+    // Pin gauge vertex: χ[gauge] = 0.
+    // Zero its master-row columns and rewrite as identity. Cheapest path: add a
+    // large diagonal penalty on (gauge, gauge) so the Lagrange condition dominates.
+    tri.add_triplet(gauge_vertex, gauge_vertex, 1e20);
+    b_new[gauge_vertex] = 0.0;
+
+    *a = tri.to_csc();
+    *b = b_new;
+}
+
+/// Copy master solution values into their paired slaves (post-solve fix-up).
+pub fn expand_periodic(chi: &mut nalgebra::DVector<f64>, pairs: &[(usize, usize)]) {
+    for &(s, m) in pairs {
+        chi[s] = chi[m];
+    }
+}
+
 /// Volume-averaged effective tensor column:
 ///   K_eff[:, e_dir] = Σ_tets K_tet · (e_dir + Σ_a χ[tet[a]] · ∇φ_a) · vol_tet / total_vol.
 pub fn effective_column(
