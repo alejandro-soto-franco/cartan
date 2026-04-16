@@ -1,0 +1,32 @@
+[package]
+name = "cartan-homog-valid"
+description = "ECHOES-backed numerical validation of cartan-homog; not published"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+default = []
+full-field  = ["cartan-homog/full-field"]
+stochastic  = ["cartan-homog/stochastic"]
+
+[dependencies]
+cartan-homog     = { path = "../cartan-homog",     version = "0.5" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.5" }
+cartan-core      = { path = "../cartan-core",      version = "0.5" }
+cartan-dec       = { path = "../cartan-dec",       version = "0.5" }
+cartan-remesh    = { path = "../cartan-remesh",    version = "0.5" }
+nalgebra    = { workspace = true }
+ndarray     = { version = "0.16" }
+ndarray-npy = { version = "0.9" }
+serde       = { workspace = true, features = ["derive", "std"], default-features = false }
+serde_json  = { workspace = true, features = ["std"] }
+serde_yaml  = { version = "0.9" }
+toml        = { version = "0.8" }
+
+[dev-dependencies]
+approx = { workspace = true }
+rand   = { workspace = true, features = ["small_rng"] }
