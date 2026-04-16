@@ -1,11 +1,11 @@
 {
-  "case_id": "o2_mt_iso_matrix_spheres_phi=0.05",
+  "case_id": "o2_mt_iso_matrix_prolate_10_phi=0.10",
   "tensor_order": 2,
   "scheme": "MT",
   "tolerance_tier": "tight",
   "echoes_version": "1.0.0",
   "echoes_commit": "zenodo:10.5281/zenodo.14959866",
   "provenance": {
-    "generated_at": "2026-04-16T13:59:00.915565+00:00"
+    "generated_at": "2026-04-16T13:59:00.972116+00:00"
   }
 }
