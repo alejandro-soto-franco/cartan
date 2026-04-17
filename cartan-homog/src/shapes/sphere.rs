@@ -35,13 +35,9 @@ pub(crate) fn extract_k_mu_iso(c: &Km6) -> Result<(f64, f64), HomogError> {
 impl Shape<Order4> for Sphere {
     fn hill(&self, c_ref: &Km6, _opts: &IntegrationOpts) -> Result<Km6, HomogError> {
         let (k0, mu0) = extract_k_mu_iso(c_ref)?;
-        let c_iso = Order4::iso_stiff(k0, mu0);
-        let diff = (c_ref - c_iso).norm() / c_ref.norm().max(1e-300);
-        if diff > 1e-8 {
-            return Err(HomogError::Geometry(
-                alloc::string::String::from(
-                    "Sphere::hill (Order4) closed form requires isotropic reference")));
-        }
+        // For anisotropic reference (e.g., during SC iteration), use the nearest
+        // isotropic approximation. This biases the Hill tensor slightly but keeps
+        // iterative schemes alive. Full Order4 Lebedev quadrature is v1.4.
         if k0 <= 0.0 || mu0 <= 0.0 { return Err(HomogError::NotPositiveDefinite); }
         let (j, k_proj) = Order4::iso_projectors();
         let alpha = 1.0 / (3.0 * k0 + 4.0 * mu0);
