@@ -24,7 +24,8 @@ Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev)
 - **Geodesic tools**: `cartan-geo` provides parameterized geodesics, curvature queries, and Jacobi field integration
 - **Fiber bundles**: `Fiber` trait with frame-first SO(d) transport, `CovLaplacian` generic over any fiber type. Built-in fibers: `U1Spin2` (nematics on surfaces), `NematicFiber3D` (3D Q-tensors), `TangentFiber<D>`
 - **DEC layer**: `cartan-dec` discretizes covariant differential operators on simplicial meshes for PDE solvers, with complex line bundle sections for k-atic fields, extrinsic Killing operator, and augmented Lagrangian Stokes solver
-- **Adaptive remeshing**: `cartan-remesh` provides split, collapse, flip, shift, and curvature-CFL-driven adaptive refinement
+- **Adaptive remeshing**: `cartan-remesh` provides split, collapse, flip, shift, and curvature-CFL-driven adaptive refinement for 2D triangle meshes, plus conforming red (1-to-8) and barycentric refinement for 3D tet meshes
+- **Homogenisation**: `cartan-homog` implements the full microscopic-to-macroscopic pipeline from the [RVE-to-mesh blog post](https://sotofranco.dev/blog/posts/rve-to-mesh-pipeline): 10 mean-field schemes (Voigt, Reuss, Dilute, DiluteStress, Mori-Tanaka, Self-Consistent with SPD-geodesic iteration, Asymmetric SC, Maxwell, PCW, Differential + compliance dual), a full-field DEC cell-problem solver with periodic BCs, 4-tier solver ladder (Jacobi, ILU(0), AMG, dense LU), Lebedev quadrature for anisotropic references, voxel import for micro-CT data, and Wishart stochastic ensembles. Validated against [ECHOES](https://jfbarthelemy.github.io/echoes/) to d_AI < 3e-15 on 84 cases spanning 4 shapes, 10 schemes, and 2 tensor orders. 200x median speedup over ECHOES per call. All interaction-corrected schemes respect Hashin-Shtrikman bounds.
 - **Stochastic analysis**: `cartan-stochastic` provides orthonormal frame bundle primitives, horizontal lift, Stratonovich development (Eells-Elworthy-Malliavin BM on `M`), and the Wishart SPD diffusion. Foundation for downstream Bismut-Elworthy-Li Greeks work
 - **Python bindings**: `cartan-py` exposes the full library to Python via PyO3 with numpy interop
 
@@ -82,8 +83,10 @@ cartan-manifolds    concrete manifold implementations (8 manifolds + FrameField3
 cartan-optim        Riemannian optimization: RGD, RCG, RTR, Frechet mean
 cartan-geo          geodesic curves, curvature queries, Jacobi fields
 cartan-dec          discrete exterior calculus, line bundles, extrinsic operators, Stokes solver
-cartan-remesh       adaptive remeshing: split, collapse, flip, shift, curvature-CFL driver
+cartan-remesh       adaptive remeshing (2D: split/collapse/flip/shift/CFL; 3D: barycentric + red)
 cartan-stochastic   orthonormal frame bundle, horizontal lift, Stratonovich development, Wishart SDE
+cartan-homog        mean-field + full-field homogenisation, ECHOES-validated, SPD-manifold-native
+cartan-homog-valid  ECHOES fixture validation harness + capstone pipeline test (not published)
 cartan-py           Python bindings via PyO3 (pip install cartan)
 ```
 
