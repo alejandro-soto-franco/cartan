@@ -11,9 +11,9 @@ categories = ["mathematics", "science"]
 
 [dependencies]
 cartan-core = { path = "../cartan-core", version = "0.5.0" }
-nalgebra.workspace = true
-rand.workspace = true
-rand_distr.workspace = true
+nalgebra = { workspace = true, features = ["std"] }
+rand = { workspace = true, features = ["std"] }
+rand_distr = { workspace = true, features = ["std"] }
 thiserror.workspace = true
 
 [dev-dependencies]
