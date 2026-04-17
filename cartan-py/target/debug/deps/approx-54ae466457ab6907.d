@@ -1,9 +1,0 @@
-/home/alejandrosotofranco/cartan/cartan-py/target/debug/deps/approx-54ae466457ab6907.d: /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/lib.rs /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/abs_diff_eq.rs /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/relative_eq.rs /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/ulps_eq.rs /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/macros.rs
-
-/home/alejandrosotofranco/cartan/cartan-py/target/debug/deps/libapprox-54ae466457ab6907.rmeta: /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/lib.rs /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/abs_diff_eq.rs /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/relative_eq.rs /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/ulps_eq.rs /home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/macros.rs
-
-/home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/lib.rs:
-/home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/abs_diff_eq.rs:
-/home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/relative_eq.rs:
-/home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/ulps_eq.rs:
-/home/alejandrosotofranco/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/approx-0.5.1/src/macros.rs:
