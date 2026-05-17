@@ -28,7 +28,7 @@ fn hello_compute_shader_adds_one() {
     kernel.dispatch(&dev, &buf, (n as u32).div_ceil(64), 1, 1);
 
     let out = buf.to_vec(&dev).unwrap();
-    for i in 0..n {
-        assert_eq!(out[i], (i as f32) + 1.0, "mismatch at {i}: got {}", out[i]);
+    for (i, &v) in out.iter().enumerate().take(n) {
+        assert_eq!(v, (i as f32) + 1.0, "mismatch at {i}: got {v}");
     }
 }
