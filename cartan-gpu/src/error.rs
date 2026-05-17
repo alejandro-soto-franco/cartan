@@ -33,6 +33,9 @@ pub enum GpuError {
 
     #[error("backend mismatch: the buffer was allocated for a different backend than the engine running it")]
     BackendMismatch,
+
+    #[error("Vulkan and CUDA devices are not on the same physical GPU (vk={vk:02x?} cuda={cuda:02x?})")]
+    GpuUuidMismatch { vk: [u8; 16], cuda: [u8; 16] },
 }
 
 #[cfg(test)]

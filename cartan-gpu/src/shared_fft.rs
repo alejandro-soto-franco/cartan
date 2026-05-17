@@ -43,6 +43,11 @@ impl SharedFftBuffer {
     ) -> Result<Self, GpuError> {
         use wgpu::hal::api::Vulkan;
 
+        // Same-physical-GPU gate. Cross-GPU imports either fail at the
+        // driver level or silently produce non-shared mappings; reject
+        // before either of those bites us.
+        check_same_gpu(vk_dev, cuda_ctx)?;
+
         let size_bytes = (len_complex * core::mem::size_of::<Complex32>()) as u64;
 
         let (ash_device, ash_instance) = unsafe {
@@ -209,4 +214,24 @@ impl Drop for SharedFftBuffer {
             self.ash_device.free_memory(self.vk_memory, None);
         }
     }
+}
+
+/// Compare the Vulkan device UUID against the CUDA context's device UUID.
+///
+/// Reaches for the CUDA UUID through a fresh [`crate::CudaDevice`] view
+/// (cheap clone of the `Arc<CudaContext>`); used by both
+/// [`SharedFftBuffer::new`] and [`crate::SharedMemory::new`].
+pub(crate) fn check_same_gpu(
+    vk_dev: &Device,
+    cuda_ctx: &Arc<CudaContext>,
+) -> Result<(), GpuError> {
+    let vk_uuid = vk_dev.vulkan_device_uuid()?;
+    let cu_uuid = crate::cuda::CudaDevice { ctx: cuda_ctx.clone() }.uuid()?;
+    if vk_uuid != cu_uuid {
+        return Err(GpuError::GpuUuidMismatch {
+            vk: vk_uuid,
+            cuda: cu_uuid,
+        });
+    }
+    Ok(())
 }
