@@ -3,7 +3,7 @@
 //! The `Fft` trait is the seam that lets us swap VkFFT for a future pure-Rust
 //! backend without cartan-em churn. v0.1 ships one backend: `VkFftBackend`.
 
-use crate::{Device, GpuBuffer, GpuError};
+use crate::{GpuBuffer, GpuError};
 use num_complex::Complex32;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -12,11 +12,21 @@ pub enum FftDirection {
     Inverse,
 }
 
+/// Backend-agnostic FFT operations.
+///
+/// `Buffer` is the backend-specific Complex32 storage type. Each backend
+/// constructor takes a device once and captures whatever wgpu/cudarc
+/// handles it needs, so call-site code is uniform across backends.
+///
+/// Semantic guarantee: forward then inverse is identity on every backend.
+/// The Vulkan path achieves this via VkFFT's `cfg.normalize = 1`; the CUDA
+/// path explicitly post-scales by `1/N` with cuBLAS `cublasSscal_v2`.
 pub trait Fft {
+    type Buffer;
+
     fn fft_1d(
         &mut self,
-        dev: &Device,
-        buf: &GpuBuffer<Complex32>,
+        buf: &mut Self::Buffer,
         n: u32,
         batch: u32,
         direction: FftDirection,
@@ -24,8 +34,7 @@ pub trait Fft {
 
     fn fft_2d(
         &mut self,
-        dev: &Device,
-        buf: &GpuBuffer<Complex32>,
+        buf: &mut Self::Buffer,
         nx: u32,
         ny: u32,
         batch: u32,
@@ -34,8 +43,7 @@ pub trait Fft {
 
     fn fft_3d(
         &mut self,
-        dev: &Device,
-        buf: &GpuBuffer<Complex32>,
+        buf: &mut Self::Buffer,
         nx: u32,
         ny: u32,
         nz: u32,
@@ -89,6 +97,8 @@ mod vkfft_impl {
         fence: ash::vk::Fence,
         ash_device: ash::Device,
         ash_instance: ash::Instance,
+        wgpu_device: wgpu::Device,
+        wgpu_queue: wgpu::Queue,
     }
 
     impl Drop for VkFftBackend {
@@ -151,6 +161,8 @@ mod vkfft_impl {
                 fence,
                 ash_device,
                 ash_instance,
+                wgpu_device: dev.wgpu_device().clone(),
+                wgpu_queue: dev.wgpu_queue().clone(),
             })
         }
 
@@ -182,7 +194,6 @@ mod vkfft_impl {
 
         fn create_fft_buffer(
             &self,
-            dev: &crate::Device,
             size_bytes: u64,
         ) -> Result<(ash::vk::Buffer, wgpu::Buffer), GpuError> {
             use wgpu::hal::api::Vulkan;
@@ -239,7 +250,7 @@ mod vkfft_impl {
             };
 
             let wgpu_buffer = unsafe {
-                dev.wgpu_device().create_buffer_from_hal::<Vulkan>(
+                self.wgpu_device.create_buffer_from_hal::<Vulkan>(
                     hal_buffer,
                     &wgpu::BufferDescriptor {
                         label: Some("cartan-gpu::fft::internal"),
@@ -262,7 +273,6 @@ mod vkfft_impl {
 
         fn get_or_create_plan(
             &mut self,
-            dev: &crate::Device,
             key: PlanKey,
         ) -> Result<&mut VkFftPlan, GpuError> {
             if self.plans.contains_key(&key) {
@@ -277,7 +287,7 @@ mod vkfft_impl {
             };
             let size_bytes = total_elements * std::mem::size_of::<Complex32>() as u64;
 
-            let (vk_buffer, wgpu_buffer) = self.create_fft_buffer(dev, size_bytes)?;
+            let (vk_buffer, wgpu_buffer) = self.create_fft_buffer(size_bytes)?;
 
             use ash::vk::Handle;
             let mut plan = Box::new(VkFftPlan {
@@ -320,12 +330,11 @@ mod vkfft_impl {
 
         fn launch(
             &mut self,
-            dev: &crate::Device,
             key: PlanKey,
             buf: &GpuBuffer<Complex32>,
             direction: FftDirection,
         ) -> Result<(), GpuError> {
-            let _ = self.get_or_create_plan(dev, key)?;
+            let _ = self.get_or_create_plan(key)?;
 
             use ash::vk::Handle;
             let plan = self.plans.get(&key).unwrap();
@@ -337,7 +346,7 @@ mod vkfft_impl {
 
             // wgpu copy-in: user buffer -> internal FFT buffer.
             {
-                let mut encoder = dev.wgpu_device().create_command_encoder(
+                let mut encoder = self.wgpu_device.create_command_encoder(
                     &wgpu::CommandEncoderDescriptor { label: Some("fft_copy_in") },
                 );
                 unsafe {
@@ -349,8 +358,8 @@ mod vkfft_impl {
                         plan_size_bytes,
                     );
                 }
-                dev.wgpu_queue().submit(std::iter::once(encoder.finish()));
-                dev.wgpu_device()
+                self.wgpu_queue.submit(std::iter::once(encoder.finish()));
+                self.wgpu_device
                     .poll(wgpu::PollType::wait_indefinitely())
                     .ok();
             }
@@ -382,7 +391,7 @@ mod vkfft_impl {
 
             // wgpu copy-out: internal FFT buffer -> user buffer.
             {
-                let mut encoder = dev.wgpu_device().create_command_encoder(
+                let mut encoder = self.wgpu_device.create_command_encoder(
                     &wgpu::CommandEncoderDescriptor { label: Some("fft_copy_out") },
                 );
                 unsafe {
@@ -394,8 +403,8 @@ mod vkfft_impl {
                         plan_size_bytes,
                     );
                 }
-                dev.wgpu_queue().submit(std::iter::once(encoder.finish()));
-                dev.wgpu_device()
+                self.wgpu_queue.submit(std::iter::once(encoder.finish()));
+                self.wgpu_device
                     .poll(wgpu::PollType::wait_indefinitely())
                     .ok();
             }
@@ -405,17 +414,17 @@ mod vkfft_impl {
     }
 
     impl Fft for VkFftBackend {
+        type Buffer = GpuBuffer<Complex32>;
+
         fn fft_1d(
             &mut self,
-            dev: &crate::Device,
-            buf: &GpuBuffer<Complex32>,
+            buf: &mut Self::Buffer,
             n: u32,
             batch: u32,
             direction: FftDirection,
         ) -> Result<(), GpuError> {
             assert_eq!(buf.len() as u32, n * batch);
             self.launch(
-                dev,
                 PlanKey { nx: n, ny: 1, nz: 1, batch, dim: 1 },
                 buf,
                 direction,
@@ -424,8 +433,7 @@ mod vkfft_impl {
 
         fn fft_2d(
             &mut self,
-            dev: &crate::Device,
-            buf: &GpuBuffer<Complex32>,
+            buf: &mut Self::Buffer,
             nx: u32,
             ny: u32,
             batch: u32,
@@ -433,7 +441,6 @@ mod vkfft_impl {
         ) -> Result<(), GpuError> {
             assert_eq!(buf.len() as u32, nx * ny * batch);
             self.launch(
-                dev,
                 PlanKey { nx, ny, nz: 1, batch, dim: 2 },
                 buf,
                 direction,
@@ -442,8 +449,7 @@ mod vkfft_impl {
 
         fn fft_3d(
             &mut self,
-            dev: &crate::Device,
-            buf: &GpuBuffer<Complex32>,
+            buf: &mut Self::Buffer,
             nx: u32,
             ny: u32,
             nz: u32,
@@ -451,7 +457,6 @@ mod vkfft_impl {
         ) -> Result<(), GpuError> {
             assert_eq!(buf.len() as u32, nx * ny * nz);
             self.launch(
-                dev,
                 PlanKey { nx, ny, nz, batch: 1, dim: 3 },
                 buf,
                 direction,
