@@ -237,6 +237,3 @@ mod tests {
         assert!((total - 1.0).abs() < 1e-12, "unit cube volume should be 1, got {total}");
     }
 }
-
-#[cfg(test)]
-use nalgebra::DVector;
