@@ -44,6 +44,7 @@ pub struct CuFftBackend {
     stream: Arc<CudaStream>,
     plans: HashMap<PlanKey, CudaFft>,
     blas: CudaBlas,
+    device: CudaDevice,
 }
 
 impl CuFftBackend {
@@ -56,7 +57,15 @@ impl CuFftBackend {
             stream,
             plans: HashMap::new(),
             blas,
+            device: dev.clone(),
         })
+    }
+
+    /// Borrow the [`crate::CudaDevice`] this backend was created against.
+    /// Used by [`crate::UniBuffer::from_slice`] to allocate
+    /// backend-matched buffers without threading the device around.
+    pub fn device(&self) -> &CudaDevice {
+        &self.device
     }
 
     fn get_or_create_plan(&mut self, key: PlanKey) -> Result<&CudaFft, GpuError> {
