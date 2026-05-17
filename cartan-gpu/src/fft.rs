@@ -61,18 +61,23 @@ mod vkfft_impl {
 
     struct VkFftPlan {
         app: sys::VkFFTApplication,
+        /// Heap-pinned backing for the pointer-to-handle fields that VkFFT
+        /// references throughout `app`'s lifetime. Must be dropped after
+        /// `cartan_vkfft_delete(&mut app)` so VkFFT never reads freed memory.
+        backing: Box<sys::CartanVkFftBacking>,
         vk_buffer: ash::vk::Buffer,
-        vk_memory: ash::vk::DeviceMemory,
         wgpu_buffer: wgpu::Buffer,
         size_bytes: u64,
     }
 
     impl VkFftPlan {
-        fn destroy(&mut self, ash_device: &ash::Device) {
+        /// Tear down VkFFT-side resources. The VkBuffer + DeviceMemory are
+        /// owned by `wgpu_buffer` (via `Buffer::from_raw_managed`) and will
+        /// be destroyed when this struct drops — destroying them here would
+        /// double-free and segfault at process teardown.
+        fn destroy(&mut self, _ash_device: &ash::Device) {
             unsafe {
                 sys::cartan_vkfft_delete(&mut self.app as *mut _);
-                ash_device.destroy_buffer(self.vk_buffer, None);
-                ash_device.free_memory(self.vk_memory, None);
             }
         }
     }
@@ -179,8 +184,7 @@ mod vkfft_impl {
             &self,
             dev: &crate::Device,
             size_bytes: u64,
-        ) -> Result<(ash::vk::Buffer, ash::vk::DeviceMemory, wgpu::Buffer), GpuError> {
-            use ash::vk::Handle;
+        ) -> Result<(ash::vk::Buffer, wgpu::Buffer), GpuError> {
             use wgpu::hal::api::Vulkan;
 
             let vk_buffer = unsafe {
@@ -248,7 +252,12 @@ mod vkfft_impl {
                 )
             };
 
-            Ok((vk_buffer, vk_memory, wgpu_buffer))
+            // `vk_memory` is now owned by `wgpu_buffer` via Buffer::from_raw_managed
+            // and will be freed when the wgpu::Buffer drops. We deliberately do not
+            // keep a separate handle on the Rust side to avoid accidental double-free.
+            let _ = vk_memory;
+
+            Ok((vk_buffer, wgpu_buffer))
         }
 
         fn get_or_create_plan(
@@ -268,50 +277,38 @@ mod vkfft_impl {
             };
             let size_bytes = total_elements * std::mem::size_of::<Complex32>() as u64;
 
-            let (vk_buffer, vk_memory, wgpu_buffer) =
-                self.create_fft_buffer(dev, size_bytes)?;
+            let (vk_buffer, wgpu_buffer) = self.create_fft_buffer(dev, size_bytes)?;
 
             use ash::vk::Handle;
-            let mut phys_dev = self.handles.physical_device;
-            let mut device = self.handles.device;
-            let mut queue = self.handles.queue;
-            let mut fence = self.fence.as_raw();
-            let mut pool = self.command_pool.as_raw();
-            let mut buf_handle = vk_buffer.as_raw();
-            let mut buf_size = size_bytes;
-
-            let mut cfg: sys::VkFFTConfiguration = unsafe { std::mem::zeroed() };
-            cfg.FFTdim = key.dim as u64;
-            cfg.size[0] = key.nx as u64;
-            if key.dim >= 2 {
-                cfg.size[1] = key.ny as u64;
-            }
-            if key.dim >= 3 {
-                cfg.size[2] = key.nz as u64;
-            }
-            if key.dim == 1 {
-                cfg.numberBatches = key.batch as u64;
-            }
-
-            cfg.physicalDevice = &mut phys_dev as *mut u64 as *mut _;
-            cfg.device = &mut device as *mut u64 as *mut _;
-            cfg.queue = &mut queue as *mut u64 as *mut _;
-            cfg.fence = &mut fence as *mut u64 as *mut _;
-            cfg.commandPool = &mut pool as *mut u64 as *mut _;
-            cfg.isCompilerInitialized = 0;
-            cfg.bufferSize = &mut buf_size as *mut u64;
-            cfg.buffer = &mut buf_handle as *mut u64 as *mut _;
-            cfg.bufferNum = 1;
-
             let mut plan = Box::new(VkFftPlan {
                 app: unsafe { std::mem::zeroed() },
+                backing: Box::new(unsafe { std::mem::zeroed() }),
                 vk_buffer,
-                vk_memory,
                 wgpu_buffer,
                 size_bytes,
             });
-            let result =
-                unsafe { sys::cartan_vkfft_init(&mut plan.app as *mut _, cfg) };
+
+            // The shim writes into `plan.backing` so the pointer-to-handle
+            // fields VkFFT stores in `plan.app` remain valid for the full
+            // lifetime of the plan, not just this call.
+            let result = unsafe {
+                sys::cartan_vkfft_plan(
+                    &mut plan.app as *mut _,
+                    &mut *plan.backing as *mut _,
+                    self.handles.physical_device,
+                    self.handles.device,
+                    self.handles.queue,
+                    self.command_pool.as_raw(),
+                    self.fence.as_raw(),
+                    plan.vk_buffer.as_raw(),
+                    size_bytes,
+                    key.dim as u32,
+                    key.nx as u64,
+                    key.ny as u64,
+                    key.nz as u64,
+                    key.batch as u64,
+                )
+            };
             if result != 0 {
                 plan.destroy(&self.ash_device);
                 return Err(GpuError::VkFftError(result as i32));
@@ -328,24 +325,29 @@ mod vkfft_impl {
             buf: &GpuBuffer<Complex32>,
             direction: FftDirection,
         ) -> Result<(), GpuError> {
-            // Ensure plan exists (creates on first call for this key)
             let _ = self.get_or_create_plan(dev, key)?;
 
-            // Extract plan fields we need; avoids holding &mut self across the unsafe block.
             use ash::vk::Handle;
             let plan = self.plans.get(&key).unwrap();
             let plan_size_bytes = plan.size_bytes;
             let plan_vk_buffer_raw = plan.vk_buffer.as_raw();
-            let plan_app_ptr = &plan.app as *const sys::VkFFTApplication as *mut sys::VkFFTApplication;
+            let plan_app_ptr =
+                &plan.app as *const sys::VkFFTApplication as *mut sys::VkFFTApplication;
             let plan_wgpu_buffer_ptr = &plan.wgpu_buffer as *const wgpu::Buffer;
 
-            // Copy from user's buffer to internal FFT buffer
+            // wgpu copy-in: user buffer -> internal FFT buffer.
             {
                 let mut encoder = dev.wgpu_device().create_command_encoder(
                     &wgpu::CommandEncoderDescriptor { label: Some("fft_copy_in") },
                 );
                 unsafe {
-                    encoder.copy_buffer_to_buffer(buf.raw(), 0, &*plan_wgpu_buffer_ptr, 0, plan_size_bytes);
+                    encoder.copy_buffer_to_buffer(
+                        buf.raw(),
+                        0,
+                        &*plan_wgpu_buffer_ptr,
+                        0,
+                        plan_size_bytes,
+                    );
                 }
                 dev.wgpu_queue().submit(std::iter::once(encoder.finish()));
                 dev.wgpu_device()
@@ -353,80 +355,44 @@ mod vkfft_impl {
                     .ok();
             }
 
-            eprintln!("[cartan-gpu] FFT launch: key={:?} buf_handle={:#x} size={}", key, plan_vk_buffer_raw, plan_size_bytes);
-
-            // Ensure all wgpu work (copy-in) is complete before VkFFT touches the buffer.
+            // Drain everything previously submitted to the shared queue so VkFFT
+            // sees a quiesced buffer when it allocates its descriptor sets.
             unsafe {
                 let queue = ash::vk::Queue::from_raw(self.handles.queue);
                 self.ash_device.queue_wait_idle(queue).ok();
             }
 
-            // VkFFT dispatch: allocate cmd buf, record, submit, wait, free.
-            // VkFFTAppend only records commands; we manage the command buffer.
-            unsafe {
-                use ash::vk::Handle;
-
-                let alloc_info = ash::vk::CommandBufferAllocateInfo::default()
-                    .command_pool(self.command_pool)
-                    .level(ash::vk::CommandBufferLevel::PRIMARY)
-                    .command_buffer_count(1);
-                let cmd_bufs = self.ash_device.allocate_command_buffers(&alloc_info)
-                    .map_err(|e| GpuError::ShaderCompilation {
-                        msg: format!("allocate_command_buffers: {e:?}"),
-                    })?;
-                let cmd_buf = cmd_bufs[0];
-
-                let begin_info = ash::vk::CommandBufferBeginInfo::default()
-                    .flags(ash::vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-                self.ash_device.begin_command_buffer(cmd_buf, &begin_info)
-                    .map_err(|e| GpuError::ShaderCompilation {
-                        msg: format!("begin_command_buffer: {e:?}"),
-                    })?;
-
-                let mut cmd_buf_raw = cmd_buf.as_raw();
-                let mut buf_handle = plan_vk_buffer_raw;
-                let mut params: sys::VkFFTLaunchParams = std::mem::zeroed();
-                params.commandBuffer = &mut cmd_buf_raw as *mut u64 as *mut _;
-                params.buffer = &mut buf_handle as *mut u64 as *mut _;
-
-                let inverse = matches!(direction, FftDirection::Inverse) as i32;
-                let code = sys::cartan_vkfft_append(
+            // Single FFI call: shim allocates a command buffer from our pool,
+            // records VkFFTAppend, submits, waits on our fence, and frees.
+            let inverse = matches!(direction, FftDirection::Inverse) as i32;
+            let code = unsafe {
+                sys::cartan_vkfft_exec(
                     plan_app_ptr,
+                    self.handles.device,
+                    self.handles.queue,
+                    self.command_pool.as_raw(),
+                    self.fence.as_raw(),
+                    plan_vk_buffer_raw,
                     inverse,
-                    &mut params as *mut _,
-                );
-                if code != 0 {
-                    return Err(GpuError::VkFftError(code as i32));
-                }
-
-                self.ash_device.end_command_buffer(cmd_buf)
-                    .map_err(|e| GpuError::ShaderCompilation {
-                        msg: format!("end_command_buffer: {e:?}"),
-                    })?;
-
-                let submit_info = ash::vk::SubmitInfo::default()
-                    .command_buffers(&cmd_bufs);
-                let queue = ash::vk::Queue::from_raw(self.handles.queue);
-                self.ash_device.reset_fences(&[self.fence]).ok();
-                self.ash_device.queue_submit(queue, &[submit_info], self.fence)
-                    .map_err(|e| GpuError::ShaderCompilation {
-                        msg: format!("queue_submit: {e:?}"),
-                    })?;
-                self.ash_device.wait_for_fences(&[self.fence], true, u64::MAX)
-                    .map_err(|e| GpuError::ShaderCompilation {
-                        msg: format!("wait_for_fences: {e:?}"),
-                    })?;
-
-                self.ash_device.free_command_buffers(self.command_pool, &cmd_bufs);
+                )
+            };
+            if code != 0 {
+                return Err(GpuError::VkFftError(code as i32));
             }
 
-            // Copy result back from internal buffer to user's buffer
+            // wgpu copy-out: internal FFT buffer -> user buffer.
             {
                 let mut encoder = dev.wgpu_device().create_command_encoder(
                     &wgpu::CommandEncoderDescriptor { label: Some("fft_copy_out") },
                 );
                 unsafe {
-                    encoder.copy_buffer_to_buffer(&*plan_wgpu_buffer_ptr, 0, buf.raw(), 0, plan_size_bytes);
+                    encoder.copy_buffer_to_buffer(
+                        &*plan_wgpu_buffer_ptr,
+                        0,
+                        buf.raw(),
+                        0,
+                        plan_size_bytes,
+                    );
                 }
                 dev.wgpu_queue().submit(std::iter::once(encoder.finish()));
                 dev.wgpu_device()
