@@ -262,3 +262,132 @@ impl Fft for CuFftBackend {
         )
     }
 }
+
+/// FFT operations against a [`crate::SharedFftBuffer`] — the memory is
+/// shared with Vulkan, so we operate on the raw `CUdeviceptr` from the
+/// imported mapping directly. cuFFT's safe wrapper requires
+/// `DevicePtrMut<float2>`, which `MappedBuffer` does not implement; we
+/// bypass through `cudarc::cufft::sys::cufftExecC2C`.
+#[cfg(target_os = "linux")]
+impl CuFftBackend {
+    pub fn fft_1d_shared(
+        &mut self,
+        buf: &mut crate::SharedFftBuffer,
+        n: u32,
+        batch: u32,
+        direction: FftDirection,
+    ) -> Result<(), GpuError> {
+        assert_eq!(buf.len() as u32, n * batch);
+        self.launch_shared(
+            buf,
+            PlanKey {
+                nx: n as i32,
+                ny: 1,
+                nz: 1,
+                batch: batch as i32,
+                dim: 1,
+            },
+            direction,
+        )
+    }
+
+    pub fn fft_2d_shared(
+        &mut self,
+        buf: &mut crate::SharedFftBuffer,
+        nx: u32,
+        ny: u32,
+        batch: u32,
+        direction: FftDirection,
+    ) -> Result<(), GpuError> {
+        assert_eq!(buf.len() as u32, nx * ny * batch);
+        self.launch_shared(
+            buf,
+            PlanKey {
+                nx: nx as i32,
+                ny: ny as i32,
+                nz: 1,
+                batch: batch as i32,
+                dim: 2,
+            },
+            direction,
+        )
+    }
+
+    pub fn fft_3d_shared(
+        &mut self,
+        buf: &mut crate::SharedFftBuffer,
+        nx: u32,
+        ny: u32,
+        nz: u32,
+        direction: FftDirection,
+    ) -> Result<(), GpuError> {
+        assert_eq!(buf.len() as u32, nx * ny * nz);
+        self.launch_shared(
+            buf,
+            PlanKey {
+                nx: nx as i32,
+                ny: ny as i32,
+                nz: nz as i32,
+                batch: 1,
+                dim: 3,
+            },
+            direction,
+        )
+    }
+
+    fn launch_shared(
+        &mut self,
+        buf: &crate::SharedFftBuffer,
+        key: PlanKey,
+        direction: FftDirection,
+    ) -> Result<(), GpuError> {
+        let _ = self.get_or_create_plan(key)?;
+        let plan = self.plans.get(&key).unwrap();
+
+        use cudarc::cufft::sys;
+        // CUFFT_FORWARD = -1, CUFFT_INVERSE = 1 (constant from cuFFT C API).
+        let cu_dir = match direction {
+            FftDirection::Forward => -1,
+            FftDirection::Inverse => 1,
+        };
+        let raw_ptr = buf.cuda_ptr() as *mut sys::cufftComplex;
+
+        // In-place exec: same pointer for input and output. cuFFT
+        // supports this directly.
+        let status = unsafe { sys::cufftExecC2C(plan.handle(), raw_ptr, raw_ptr, cu_dir) };
+        if status != sys::cufftResult_t::CUFFT_SUCCESS {
+            return Err(GpuError::CudaError(format!("cufftExecC2C: {status:?}")));
+        }
+
+        // Normalise inverse on-device to match the trait's identity
+        // semantics. cublasSscal_v2 over the (2N) f32 view of the
+        // complex buffer is the cheapest device-side scale.
+        if matches!(direction, FftDirection::Inverse) {
+            let count_f32 = (buf.len() * 2) as i32;
+            let scale = 1.0_f32 / (key.transform_size() as f32);
+            let raw_f32 = buf.cuda_ptr() as *mut f32;
+            let status = unsafe {
+                cublas::sys::cublasSscal_v2(
+                    *self.blas.handle(),
+                    count_f32,
+                    &scale as *const f32,
+                    raw_f32,
+                    1,
+                )
+            };
+            if status != cublas::sys::cublasStatus_t::CUBLAS_STATUS_SUCCESS {
+                return Err(GpuError::CudaError(format!(
+                    "cublasSscal_v2 (shared): {status:?}"
+                )));
+            }
+        }
+
+        // Wait for the FFT (and scaling) to retire so the buffer is
+        // safe to hand back to Vulkan or the host.
+        self.stream
+            .synchronize()
+            .map_err(|e| GpuError::CudaError(format!("shared sync: {e:?}")))?;
+
+        Ok(())
+    }
+}

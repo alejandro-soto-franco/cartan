@@ -40,3 +40,8 @@ pub use uni::{UniBuffer, UniFftBackend};
 pub mod shared_memory;
 #[cfg(all(feature = "vkfft", feature = "cufft", target_os = "linux"))]
 pub use shared_memory::SharedMemory;
+
+#[cfg(all(feature = "vkfft", feature = "cufft", target_os = "linux"))]
+pub mod shared_fft;
+#[cfg(all(feature = "vkfft", feature = "cufft", target_os = "linux"))]
+pub use shared_fft::SharedFftBuffer;
