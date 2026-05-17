@@ -472,6 +472,89 @@ mod vkfft_impl {
             )
         }
     }
+
+    /// FFT operations against a [`crate::SharedFftBuffer`] — the memory
+    /// is shared with CUDA so no copy in/out is needed; VkFFT writes
+    /// the result directly into the same allocation cuFFT will read.
+    #[cfg(all(feature = "cufft", target_os = "linux"))]
+    impl VkFftBackend {
+        pub fn fft_1d_shared(
+            &mut self,
+            buf: &mut crate::SharedFftBuffer,
+            n: u32,
+            batch: u32,
+            direction: FftDirection,
+        ) -> Result<(), GpuError> {
+            assert_eq!(buf.len() as u32, n * batch);
+            self.launch_shared(buf, PlanKey { nx: n, ny: 1, nz: 1, batch, dim: 1 }, direction)
+        }
+
+        pub fn fft_2d_shared(
+            &mut self,
+            buf: &mut crate::SharedFftBuffer,
+            nx: u32,
+            ny: u32,
+            batch: u32,
+            direction: FftDirection,
+        ) -> Result<(), GpuError> {
+            assert_eq!(buf.len() as u32, nx * ny * batch);
+            self.launch_shared(buf, PlanKey { nx, ny, nz: 1, batch, dim: 2 }, direction)
+        }
+
+        pub fn fft_3d_shared(
+            &mut self,
+            buf: &mut crate::SharedFftBuffer,
+            nx: u32,
+            ny: u32,
+            nz: u32,
+            direction: FftDirection,
+        ) -> Result<(), GpuError> {
+            assert_eq!(buf.len() as u32, nx * ny * nz);
+            self.launch_shared(buf, PlanKey { nx, ny, nz, batch: 1, dim: 3 }, direction)
+        }
+
+        /// Run VkFFT on a caller-provided VkBuffer. Plan cache is shared
+        /// with the normal `GpuBuffer<Complex32>` path — VkFFT accepts a
+        /// buffer override at exec time via `VkFFTLaunchParams.buffer`,
+        /// which our shim wires through.
+        fn launch_shared(
+            &mut self,
+            buf: &crate::SharedFftBuffer,
+            key: PlanKey,
+            direction: FftDirection,
+        ) -> Result<(), GpuError> {
+            let _ = self.get_or_create_plan(key)?;
+            let plan = self.plans.get(&key).unwrap();
+            let plan_app_ptr =
+                &plan.app as *const sys::VkFFTApplication as *mut sys::VkFFTApplication;
+
+            use ash::vk::Handle;
+
+            // Drain the queue so any prior CUDA writes via the imported
+            // memory are visible before VkFFT issues descriptor updates.
+            unsafe {
+                let queue = ash::vk::Queue::from_raw(self.handles.queue);
+                self.ash_device.queue_wait_idle(queue).ok();
+            }
+
+            let inverse = matches!(direction, FftDirection::Inverse) as i32;
+            let code = unsafe {
+                sys::cartan_vkfft_exec(
+                    plan_app_ptr,
+                    self.handles.device,
+                    self.handles.queue,
+                    self.command_pool.as_raw(),
+                    self.fence.as_raw(),
+                    buf.vk_buffer().as_raw(),
+                    inverse,
+                )
+            };
+            if code != 0 {
+                return Err(GpuError::VkFftError(code as i32));
+            }
+            Ok(())
+        }
+    }
 }
 
 #[cfg(feature = "vkfft")]
