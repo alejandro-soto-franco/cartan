@@ -30,6 +30,9 @@ pub enum GpuError {
 
     #[error("CUDA driver error: {0}")]
     CudaError(String),
+
+    #[error("backend mismatch: the buffer was allocated for a different backend than the engine running it")]
+    BackendMismatch,
 }
 
 #[cfg(test)]

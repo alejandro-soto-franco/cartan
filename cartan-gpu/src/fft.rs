@@ -99,6 +99,7 @@ mod vkfft_impl {
         ash_instance: ash::Instance,
         wgpu_device: wgpu::Device,
         wgpu_queue: wgpu::Queue,
+        device: crate::Device,
     }
 
     impl Drop for VkFftBackend {
@@ -163,7 +164,15 @@ mod vkfft_impl {
                 ash_instance,
                 wgpu_device: dev.wgpu_device().clone(),
                 wgpu_queue: dev.wgpu_queue().clone(),
+                device: dev.clone(),
             })
+        }
+
+        /// Borrow the [`crate::Device`] this backend was created against.
+        /// Used by [`crate::UniBuffer::from_slice`] to allocate
+        /// backend-matched buffers without threading the device around.
+        pub fn device(&self) -> &crate::Device {
+            &self.device
         }
 
         fn find_memory_type(
