@@ -35,3 +35,8 @@ pub use cufft::CuFftBackend;
 pub mod uni;
 #[cfg(any(feature = "vkfft", feature = "cufft"))]
 pub use uni::{UniBuffer, UniFftBackend};
+
+#[cfg(all(feature = "vkfft", feature = "cufft", target_os = "linux"))]
+pub mod shared_memory;
+#[cfg(all(feature = "vkfft", feature = "cufft", target_os = "linux"))]
+pub use shared_memory::SharedMemory;
