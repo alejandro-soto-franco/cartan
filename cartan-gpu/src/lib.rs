@@ -29,4 +29,4 @@ pub use cuda::CudaDevice;
 #[cfg(feature = "cufft")]
 pub use cuda_buffer::CudaBuffer;
 #[cfg(feature = "cufft")]
-pub use cufft::{CuFft, CuFftBackend};
+pub use cufft::CuFftBackend;

@@ -1,33 +1,22 @@
 //! cuFFT-backed FFT implementation.
 //!
-//! Parallel to [`crate::fft::VkFftBackend`] but operating on CUDA-resident
-//! [`crate::CudaBuffer`]s instead of wgpu's [`crate::GpuBuffer`].
-//!
-//! ## Trait split, not unification
-//!
-//! The Vulkan and CUDA paths cannot share a single `Fft` trait because
-//! their buffer types (`GpuBuffer<Complex32>` vs `CudaBuffer`) sit in
-//! disjoint memory spaces. Mirroring the API surface keeps callers
-//! recognisable without forcing a generic trait that would require
-//! external-memory interop just to type-check.
-//!
-//! ## Normalization
-//!
-//! cuFFT does not normalize inverse transforms. Calling
-//! `fft.fft_1d(&mut buf, n, 1, Inverse)` after a Forward leaves `buf`
-//! holding `N * input`; the caller scales by `1/N` if they want identity
-//! semantics. This matches NVIDIA's native convention.
+//! Implements the same backend-agnostic [`crate::Fft`] trait as
+//! [`crate::fft::VkFftBackend`] but with `CudaBuffer` as the associated
+//! [`crate::Fft::Buffer`] type. Forward then inverse is identity on both
+//! backends; the cuFFT inverse is post-scaled by `1/N` with
+//! `cublasSscal_v2` since cuFFT does not auto-normalise.
 
 #![cfg(feature = "cufft")]
 
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use cudarc::cublas::{self, CudaBlas};
 use cudarc::cufft::sys::{cufftType, float2};
 use cudarc::cufft::{CudaFft, FftDirection as CuFftDirection};
-use cudarc::driver::{CudaSlice, CudaStream};
+use cudarc::driver::{CudaSlice, CudaStream, DevicePtrMut};
 
-use crate::{CudaBuffer, CudaDevice, FftDirection, GpuError};
+use crate::{CudaBuffer, CudaDevice, Fft, FftDirection, GpuError};
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 struct PlanKey {
@@ -38,44 +27,87 @@ struct PlanKey {
     dim: u8,
 }
 
+impl PlanKey {
+    /// Per-transform size (the divisor for inverse normalisation).
+    fn transform_size(&self) -> u64 {
+        match self.dim {
+            1 => self.nx as u64,
+            2 => self.nx as u64 * self.ny as u64,
+            3 => self.nx as u64 * self.ny as u64 * self.nz as u64,
+            _ => unreachable!(),
+        }
+    }
+}
+
 /// cuFFT-backed FFT engine bound to a single CUDA stream.
-///
-/// Plans are cached by shape, mirroring [`crate::fft::VkFftBackend`].
 pub struct CuFftBackend {
     stream: Arc<CudaStream>,
     plans: HashMap<PlanKey, CudaFft>,
+    blas: CudaBlas,
 }
 
 impl CuFftBackend {
     /// Construct a backend on the device's default stream.
     pub fn new(dev: &CudaDevice) -> Result<Self, GpuError> {
         let stream = dev.cuda_context().default_stream();
+        let blas = CudaBlas::new(stream.clone())
+            .map_err(|e| GpuError::CudaError(format!("CudaBlas::new: {e:?}")))?;
         Ok(Self {
             stream,
             plans: HashMap::new(),
+            blas,
         })
     }
 
     fn get_or_create_plan(&mut self, key: PlanKey) -> Result<&CudaFft, GpuError> {
         if !self.plans.contains_key(&key) {
-            let plan = match key.dim {
-                1 => CudaFft::plan_1d(
+            let plan = match (key.dim, key.batch) {
+                // Simple plans cover the unbatched cases.
+                (1, _) => CudaFft::plan_1d(
                     key.nx,
                     cufftType::CUFFT_C2C,
                     key.batch,
                     self.stream.clone(),
                 ),
-                2 => CudaFft::plan_2d(
+                (2, 1) => CudaFft::plan_2d(
                     key.nx,
                     key.ny,
                     cufftType::CUFFT_C2C,
                     self.stream.clone(),
                 ),
-                3 => CudaFft::plan_3d(
+                (3, 1) => CudaFft::plan_3d(
                     key.nx,
                     key.ny,
                     key.nz,
                     cufftType::CUFFT_C2C,
+                    self.stream.clone(),
+                ),
+                // Batched 2D goes through plan_many; cuFFT has no plan_2d
+                // overload taking batch. Layout is contiguous: each transform
+                // occupies nx*ny consecutive complex elements.
+                (2, _) => CudaFft::plan_many(
+                    &[key.nx, key.ny],
+                    None,
+                    1,
+                    key.nx * key.ny,
+                    None,
+                    1,
+                    key.nx * key.ny,
+                    cufftType::CUFFT_C2C,
+                    key.batch,
+                    self.stream.clone(),
+                ),
+                // Batched 3D also goes through plan_many.
+                (3, _) => CudaFft::plan_many(
+                    &[key.nx, key.ny, key.nz],
+                    None,
+                    1,
+                    key.nx * key.ny * key.nz,
+                    None,
+                    1,
+                    key.nx * key.ny * key.nz,
+                    cufftType::CUFFT_C2C,
+                    key.batch,
                     self.stream.clone(),
                 ),
                 _ => unreachable!(),
@@ -84,6 +116,34 @@ impl CuFftBackend {
             self.plans.insert(key, plan);
         }
         Ok(self.plans.get(&key).unwrap())
+    }
+
+    /// In-place scale of a `CudaSlice<float2>` by a real scalar via
+    /// `cublasSscal_v2`. Reinterprets the buffer as 2N f32s — cuBLAS
+    /// applies the same scalar to both real and imaginary parts, which
+    /// is equivalent to a real-valued complex scale.
+    fn scale_inplace(
+        &self,
+        slice: &mut CudaSlice<float2>,
+        scale: f32,
+    ) -> Result<(), GpuError> {
+        let count_f32 = (slice.len() * 2) as i32;
+        let (ptr, _record) = slice.device_ptr_mut(&self.stream);
+        let status = unsafe {
+            cublas::sys::cublasSscal_v2(
+                *self.blas.handle(),
+                count_f32,
+                &scale as *const f32,
+                ptr as *mut f32,
+                1,
+            )
+        };
+        if status != cublas::sys::cublasStatus_t::CUBLAS_STATUS_SUCCESS {
+            return Err(GpuError::CudaError(format!(
+                "cublasSscal_v2: {status:?}"
+            )));
+        }
+        Ok(())
     }
 
     fn launch(
@@ -95,9 +155,6 @@ impl CuFftBackend {
         let _ = self.get_or_create_plan(key)?;
         let plan = self.plans.get(&key).unwrap();
 
-        // cuFFT's exec_c2c needs two distinct DevicePtrMut. Allocate a
-        // scratch output, exec, then swap so the caller's buffer ends up
-        // holding the result while the previous contents drop on `scratch`.
         let mut scratch: CudaSlice<float2> = self
             .stream
             .alloc_zeros::<float2>(buf.len())
@@ -110,8 +167,15 @@ impl CuFftBackend {
         plan.exec_c2c(&mut buf.slice, &mut scratch, cu_dir)
             .map_err(|e| GpuError::CudaError(format!("cuFFT exec_c2c: {e:?}")))?;
 
-        // Synchronize so the FFT result is visible before the caller does
-        // anything else on the host (e.g. immediate to_vec).
+        // Normalise inverse on-device so the trait's forward∘inverse=identity
+        // semantics hold regardless of backend. Done before swap so we operate
+        // on the FFT output (currently in `scratch`).
+        if matches!(direction, FftDirection::Inverse) {
+            let n = key.transform_size() as f32;
+            self.scale_inplace(&mut scratch, 1.0 / n)?;
+        }
+
+        // Synchronise so any host-side reads of buf see the FFT result.
         self.stream
             .synchronize()
             .map_err(|e| GpuError::CudaError(format!("cuFFT sync: {e:?}")))?;
@@ -121,40 +185,9 @@ impl CuFftBackend {
     }
 }
 
-/// FFT operations against a CUDA-resident buffer.
-///
-/// Parallels [`crate::fft::Fft`] for the Vulkan/wgpu side. Kept as a
-/// separate trait because the buffer type cannot be unified across
-/// disjoint memory spaces without external-memory interop.
-pub trait CuFft {
-    fn fft_1d(
-        &mut self,
-        buf: &mut CudaBuffer,
-        n: u32,
-        batch: u32,
-        direction: FftDirection,
-    ) -> Result<(), GpuError>;
+impl Fft for CuFftBackend {
+    type Buffer = CudaBuffer;
 
-    fn fft_2d(
-        &mut self,
-        buf: &mut CudaBuffer,
-        nx: u32,
-        ny: u32,
-        batch: u32,
-        direction: FftDirection,
-    ) -> Result<(), GpuError>;
-
-    fn fft_3d(
-        &mut self,
-        buf: &mut CudaBuffer,
-        nx: u32,
-        ny: u32,
-        nz: u32,
-        direction: FftDirection,
-    ) -> Result<(), GpuError>;
-}
-
-impl CuFft for CuFftBackend {
     fn fft_1d(
         &mut self,
         buf: &mut CudaBuffer,
@@ -185,16 +218,13 @@ impl CuFft for CuFftBackend {
         direction: FftDirection,
     ) -> Result<(), GpuError> {
         assert_eq!(buf.len() as u32, nx * ny * batch);
-        // cuFFT's plan_2d does not take a batch; for batched 2D we'd need
-        // plan_many. For v0.1 we accept batch == 1 only on this path.
-        assert_eq!(batch, 1, "2D batched FFT requires plan_many; not yet wired");
         self.launch(
             buf,
             PlanKey {
                 nx: nx as i32,
                 ny: ny as i32,
                 nz: 1,
-                batch: 1,
+                batch: batch as i32,
                 dim: 2,
             },
             direction,
