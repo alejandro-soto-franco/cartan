@@ -97,6 +97,7 @@ fn main() {
         )
         .allowlist_type("VkFFTApplication")
         .allowlist_type("VkFFTResult.*")
+        .allowlist_type("CartanVkFftBacking")
         .allowlist_function("cartan_vkfft_.*")
         .layout_tests(false)
         .derive_default(true)

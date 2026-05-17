@@ -25,10 +25,27 @@ int cartan_vkfft_version(void);
 
 void cartan_vkfft_delete(VkFFTApplication* app);
 
+/* Persistent backing storage for the pointer-to-handle fields that VkFFT
+ * references throughout the lifetime of a VkFFTApplication. The caller
+ * must keep this struct alive (heap-pinned) until cartan_vkfft_delete
+ * returns. Using stack locals here causes VkFFT to dereference invalid
+ * addresses inside vkUpdateDescriptorSets at the first append. */
+typedef struct CartanVkFftBacking {
+    uint64_t phys;          /* VkPhysicalDevice */
+    uint64_t device;        /* VkDevice */
+    uint64_t queue;         /* VkQueue */
+    uint64_t pool;          /* VkCommandPool */
+    uint64_t fence;         /* VkFence */
+    uint64_t buffer;        /* VkBuffer */
+    uint64_t buffer_size;   /* size in bytes */
+} CartanVkFftBacking;
+
 /* Create a 1D/2D/3D FFT plan. All handles are passed as raw uint64_t values.
+ * `backing` is caller-owned storage that must outlive `app`.
  * Returns VKFFT_SUCCESS (0) on success, nonzero VkFFTResult on failure. */
 int cartan_vkfft_plan(
     VkFFTApplication* app,         /* out: zeroed VkFFTApplication to initialize */
+    CartanVkFftBacking* backing,   /* caller-allocated, must outlive `app` */
     uint64_t physical_device,      /* VkPhysicalDevice handle */
     uint64_t device,               /* VkDevice handle */
     uint64_t queue,                /* VkQueue handle */
