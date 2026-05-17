@@ -10,6 +10,8 @@ pub mod fft;
 pub mod kernel;
 #[cfg(feature = "vkfft")]
 pub mod hal_vulkan;
+#[cfg(feature = "cuda")]
+pub mod cuda;
 
 pub use buffer::GpuBuffer;
 pub use device::Device;
@@ -18,3 +20,5 @@ pub use fft::{Fft, FftDirection};
 pub use kernel::Kernel;
 #[cfg(feature = "vkfft")]
 pub use fft::VkFftBackend;
+#[cfg(feature = "cuda")]
+pub use cuda::CudaDevice;
