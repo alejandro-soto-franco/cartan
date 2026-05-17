@@ -45,6 +45,31 @@ Lebedev quadrature (degree 14) for Sphere Hill tensor in anisotropic reference m
 - Macroscale slab Darcy solver with anisotropic per-tet permeability
 - Hausdorff gate for refinement-vs-analytic validation
 
+## Spectral full-field solver (`--features gpu-fft`)
+
+Alternative to the FEM full-field path: Moulinec-Suquet fixed-point
+iteration on the periodic gradient field, driven by `cartan-gpu`'s FFT
+backend (VkFFT on Vulkan, with cuFFT as an opt-in alternative through
+the same trait):
+
+- `SpectralFullField::new(resolution).homogenize_voxel(&grid, &k_per_phase)`
+  accepts any `VoxelGrid` the FEM path already produces.
+- Three forward FFTs and three inverse FFTs per iteration (one per
+  polarisation component), wired through the unified
+  `cartan_gpu::Fft` trait.
+- Reference medium κ⁰ defaults to the arithmetic mean of κ across
+  voxels; convergence is the relative RMS change of the strain field.
+- DC coefficient is pinned so the macroscopic mean of ε matches the
+  applied unit gradient exactly after each inverse FFT, compensating
+  for VkFFT's unnormalised-forward / normalised-inverse convention.
+- Order2 only in v0.1; Order4 (elasticity) adds a 4th-order Green's
+  operator and six polarisation components per direction, on the
+  follow-up list.
+
+Validation today is the homogeneous-medium invariant (`κ_eff = κ·I`
+to within numerical zero); cross-validation against the FEM path on
+heterogeneous media is in progress.
+
 ## Stochastic ensembles (`--features stochastic`)
 
 `WishartRveEnsemble`: perturb one phase's property along a Wishart SDE trajectory (via `cartan-stochastic`), sample N realisations through any scheme, aggregate with the Karcher (Frechet) mean on `Spd<N>`.
