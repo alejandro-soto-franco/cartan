@@ -15,9 +15,13 @@ pub mod cell_problem;
 pub mod solver;
 pub mod macroscale;
 pub mod hausdorff;
+#[cfg(feature = "gpu-fft")]
+pub mod spectral;
 
 pub use mesh::{PeriodicCubeMeshBuilder, PeriodicCubeMeshBuilderOpts, partition_boundary};
 pub use voxelize::{CentredInclusion, VoxelGrid, load_voxel_raw_u8, voxelize_centred};
+#[cfg(feature = "gpu-fft")]
+pub use spectral::SpectralFullField;
 
 use nalgebra::{DVector, Matrix3};
 
