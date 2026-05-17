@@ -8,13 +8,12 @@ members = [
     "cartan-geo",
     "cartan-dec",
     "cartan-remesh",
-    "cartan-gpu-sys",
     "cartan-stochastic",
     "cartan-homog",
     "cartan-homog-valid",
     "benchmarks/rust",
 ]
-exclude = ["experiments", "cartan-py"]
+exclude = ["experiments", "cartan-py", "cartan-gpu", "cartan-gpu-sys"]
 
 [workspace.package]
 version = "0.5.0"
