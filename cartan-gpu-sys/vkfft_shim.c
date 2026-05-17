@@ -18,6 +18,7 @@ void cartan_vkfft_delete(VkFFTApplication* app) {
 
 int cartan_vkfft_plan(
     VkFFTApplication* app,
+    CartanVkFftBacking* backing,
     uint64_t physical_device,
     uint64_t device,
     uint64_t queue,
@@ -31,12 +32,15 @@ int cartan_vkfft_plan(
     uint64_t size_z,
     uint64_t batch)
 {
-    VkPhysicalDevice vk_phys   = (VkPhysicalDevice)(uintptr_t)physical_device;
-    VkDevice         vk_device = (VkDevice)(uintptr_t)device;
-    VkQueue          vk_queue  = (VkQueue)(uintptr_t)queue;
-    VkCommandPool    vk_pool   = (VkCommandPool)(uintptr_t)command_pool;
-    VkFence          vk_fence  = (VkFence)(uintptr_t)fence;
-    VkBuffer         vk_buf    = (VkBuffer)(uintptr_t)buffer;
+    /* Write handles into caller-owned backing so VkFFT's pointer fields
+     * stay valid for the full app lifetime, not just this call. */
+    backing->phys        = physical_device;
+    backing->device      = device;
+    backing->queue       = queue;
+    backing->pool        = command_pool;
+    backing->fence       = fence;
+    backing->buffer      = buffer;
+    backing->buffer_size = buffer_size_bytes;
 
     VkFFTConfiguration cfg = {0};
     cfg.FFTdim = dim;
@@ -45,17 +49,26 @@ int cartan_vkfft_plan(
     if (dim >= 3) cfg.size[2] = size_z;
     if (dim == 1) cfg.numberBatches = batch;
 
-    cfg.physicalDevice = &vk_phys;
-    cfg.device         = &vk_device;
-    cfg.queue          = &vk_queue;
-    cfg.commandPool    = &vk_pool;
-    cfg.fence          = &vk_fence;
+    /* Vulkan dispatchable handles (VkPhysicalDevice, VkDevice, VkQueue) and
+     * non-dispatchable handles (VkCommandPool, VkFence, VkBuffer) are all
+     * 8 bytes on 64-bit Linux. Casting through a uint64_t backing field is
+     * safe under the same alignment. */
+    cfg.physicalDevice = (VkPhysicalDevice*)&backing->phys;
+    cfg.device         = (VkDevice*)&backing->device;
+    cfg.queue          = (VkQueue*)&backing->queue;
+    cfg.commandPool    = (VkCommandPool*)&backing->pool;
+    cfg.fence          = (VkFence*)&backing->fence;
 
-    cfg.buffer         = &vk_buf;
-    cfg.bufferSize     = &buffer_size_bytes;
+    cfg.buffer         = (VkBuffer*)&backing->buffer;
+    cfg.bufferSize     = &backing->buffer_size;
     cfg.bufferNum      = 1;
 
     cfg.isCompilerInitialized = 0;
+
+    /* Normalize the inverse so forward then inverse is identity. Without
+     * this VkFFT returns N*input from the inverse and round-trip tests
+     * fail by exactly the FFT size. */
+    cfg.normalize = 1;
 
     return (int)initializeVkFFT(app, cfg);
 }
