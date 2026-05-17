@@ -5,6 +5,11 @@
 use crate::GpuError;
 
 /// Owned GPU device. Held for the lifetime of a cartan-gpu session.
+///
+/// All wgpu fields are reference-counted internally so `Clone` is cheap;
+/// useful for stashing a device alongside backend objects that need to
+/// allocate buffers later without re-receiving the device by reference.
+#[derive(Clone)]
 pub struct Device {
     pub(crate) instance: wgpu::Instance,
     pub(crate) adapter: wgpu::Adapter,

@@ -16,6 +16,7 @@ use crate::GpuError;
 /// Mirrors the role of [`crate::Device`] for the Vulkan/wgpu path. Held for
 /// the lifetime of a CUDA-side cartan-gpu session; clones share the same
 /// underlying CUDA context via `Arc`.
+#[derive(Clone)]
 pub struct CudaDevice {
     pub(crate) ctx: Arc<CudaContext>,
 }
