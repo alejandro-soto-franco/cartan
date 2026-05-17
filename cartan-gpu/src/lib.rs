@@ -12,6 +12,10 @@ pub mod kernel;
 pub mod hal_vulkan;
 #[cfg(feature = "cuda")]
 pub mod cuda;
+#[cfg(feature = "cufft")]
+pub mod cuda_buffer;
+#[cfg(feature = "cufft")]
+pub mod cufft;
 
 pub use buffer::GpuBuffer;
 pub use device::Device;
@@ -22,3 +26,7 @@ pub use kernel::Kernel;
 pub use fft::VkFftBackend;
 #[cfg(feature = "cuda")]
 pub use cuda::CudaDevice;
+#[cfg(feature = "cufft")]
+pub use cuda_buffer::CudaBuffer;
+#[cfg(feature = "cufft")]
+pub use cufft::{CuFft, CuFftBackend};
