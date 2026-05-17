@@ -60,6 +60,17 @@ impl CudaDevice {
     pub fn total_memory_bytes(&self) -> Result<usize, GpuError> {
         self.ctx.total_mem().map_err(map_cuda_err)
     }
+
+    /// 16-byte CUDA device UUID. Used to gate cross-API memory imports
+    /// against the same-physical-GPU requirement: importing memory from
+    /// a different GPU than CUDA is bound to either fails or silently
+    /// produces non-shared mappings.
+    pub fn uuid(&self) -> Result<[u8; 16], GpuError> {
+        let cu_uuid = self.ctx.uuid().map_err(map_cuda_err)?;
+        // CUuuid is `struct { bytes: [c_char; 16] }`; reinterpret to u8.
+        let bytes: [u8; 16] = unsafe { core::mem::transmute(cu_uuid.bytes) };
+        Ok(bytes)
+    }
 }
 
 fn map_cuda_err<E: std::fmt::Display>(e: E) -> GpuError {

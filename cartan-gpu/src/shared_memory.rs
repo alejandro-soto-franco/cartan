@@ -59,6 +59,9 @@ impl SharedMemory {
     ) -> Result<Self, GpuError> {
         use wgpu::hal::api::Vulkan;
 
+        // Same-physical-GPU gate (see `shared_fft::check_same_gpu`).
+        crate::shared_fft::check_same_gpu(vk_dev, cuda_ctx)?;
+
         // 1. Raw ash::Device + ash::Instance from wgpu-hal.
         let (ash_device, ash_instance) = unsafe {
             let hal_device = vk_dev
