@@ -107,6 +107,52 @@ fn cufft_2d_batched() {
     assert!(linf < 1e-5, "2D batched L-inf = {linf}");
 }
 
+/// Non-power-of-2 size. cuFFT handles arbitrary sizes via mixed-radix
+/// decomposition; this confirms our wiring passes the size through
+/// without forcing a 2^k constraint anywhere.
+#[test]
+fn cufft_1d_non_power_of_two() {
+    let Some(dev) = open_cuda_or_skip() else { return };
+    let mut fft = CuFftBackend::new(&dev).expect("cuFFT backend");
+
+    let n = 1000u32; // not a power of 2 and not a prime — mixed radix territory
+    let host: Vec<Complex32> = (0..n)
+        .map(|i| Complex32::new((i as f32 * 0.013).sin(), (i as f32 * 0.027).cos()))
+        .collect();
+    let mut buf = CudaBuffer::from_slice(&dev, &host).expect("upload");
+
+    fft.fft_1d(&mut buf, n, 1, FftDirection::Forward).unwrap();
+    fft.fft_1d(&mut buf, n, 1, FftDirection::Inverse).unwrap();
+
+    let back = buf.to_vec().expect("download");
+    let linf = host
+        .iter()
+        .zip(back.iter())
+        .map(|(a, b)| (a - b).norm())
+        .fold(0.0f32, f32::max);
+    assert!(linf < 1e-5, "1D non-POT (n={n}) L-inf = {linf}");
+}
+
+/// Repeatedly allocate, transform, and drop a buffer + plan to surface
+/// GPU-memory leaks. Failure mode is an out-of-memory `CudaError` long
+/// before the loop finishes.
+#[test]
+fn cufft_alloc_exec_drop_stress() {
+    let Some(dev) = open_cuda_or_skip() else { return };
+    let mut fft = CuFftBackend::new(&dev).expect("cuFFT backend");
+
+    for iter in 0..32 {
+        let n = 256u32 + (iter * 16); // vary the size so plan cache doesn't trivially absorb
+        let host: Vec<Complex32> =
+            (0..n).map(|i| Complex32::new(i as f32, 0.0)).collect();
+        let mut buf = CudaBuffer::from_slice(&dev, &host).expect("upload");
+        fft.fft_1d(&mut buf, n, 1, FftDirection::Forward).unwrap();
+        fft.fft_1d(&mut buf, n, 1, FftDirection::Inverse).unwrap();
+        // buf and the per-size plan-cache entry live until next iteration's
+        // alloc. After 32 iterations we expect no driver-level OOM.
+    }
+}
+
 #[test]
 fn cufft_3d_forward_then_inverse_is_identity() {
     let Some(dev) = open_cuda_or_skip() else { return };
