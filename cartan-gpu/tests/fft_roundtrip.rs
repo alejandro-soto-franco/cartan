@@ -19,15 +19,15 @@ fn fft_1d_forward_then_inverse_is_identity_up_to_1e5() {
     let host: Vec<Complex32> = (0..n)
         .map(|i| Complex32::new((i as f32).sin(), (i as f32 * 0.3).cos()))
         .collect();
-    let buf = GpuBuffer::<Complex32>::from_slice(
+    let mut buf = GpuBuffer::<Complex32>::from_slice(
         &dev,
         &host,
         wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
     )
     .unwrap();
 
-    fft.fft_1d(&dev, &buf, n, 1, FftDirection::Forward).unwrap();
-    fft.fft_1d(&dev, &buf, n, 1, FftDirection::Inverse).unwrap();
+    fft.fft_1d(&mut buf, n, 1, FftDirection::Forward).unwrap();
+    fft.fft_1d(&mut buf, n, 1, FftDirection::Inverse).unwrap();
     let back = buf.to_vec(&dev).unwrap();
 
     let linf = host
@@ -51,15 +51,15 @@ fn fft_2d_forward_then_inverse_is_identity() {
     let host: Vec<Complex32> = (0..(nx * ny))
         .map(|i| Complex32::new((i as f32).sin(), (i as f32 * 0.7).cos()))
         .collect();
-    let buf = GpuBuffer::<Complex32>::from_slice(
+    let mut buf = GpuBuffer::<Complex32>::from_slice(
         &dev,
         &host,
         wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
     )
     .unwrap();
 
-    fft.fft_2d(&dev, &buf, nx, ny, 1, FftDirection::Forward).unwrap();
-    fft.fft_2d(&dev, &buf, nx, ny, 1, FftDirection::Inverse).unwrap();
+    fft.fft_2d(&mut buf, nx, ny, 1, FftDirection::Forward).unwrap();
+    fft.fft_2d(&mut buf, nx, ny, 1, FftDirection::Inverse).unwrap();
     let back = buf.to_vec(&dev).unwrap();
 
     let linf = host.iter().zip(back.iter()).map(|(a, b)| (a - b).norm()).fold(0.0, f32::max);
@@ -79,15 +79,15 @@ fn fft_3d_forward_then_inverse_is_identity() {
     let host: Vec<Complex32> = (0..(nx * ny * nz))
         .map(|i| Complex32::new((i as f32).sin(), (i as f32 * 1.1).cos()))
         .collect();
-    let buf = GpuBuffer::<Complex32>::from_slice(
+    let mut buf = GpuBuffer::<Complex32>::from_slice(
         &dev,
         &host,
         wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_SRC | wgpu::BufferUsages::COPY_DST,
     )
     .unwrap();
 
-    fft.fft_3d(&dev, &buf, nx, ny, nz, FftDirection::Forward).unwrap();
-    fft.fft_3d(&dev, &buf, nx, ny, nz, FftDirection::Inverse).unwrap();
+    fft.fft_3d(&mut buf, nx, ny, nz, FftDirection::Forward).unwrap();
+    fft.fft_3d(&mut buf, nx, ny, nz, FftDirection::Inverse).unwrap();
     let back = buf.to_vec(&dev).unwrap();
 
     let linf = host.iter().zip(back.iter()).map(|(a, b)| (a - b).norm()).fold(0.0, f32::max);
