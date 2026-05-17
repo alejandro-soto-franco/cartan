@@ -7,7 +7,7 @@
 [package]
 name = "cartan-gpu-sys"
 description = "Raw FFI bindings to VkFFT (vendored). Internal to the cartan-gpu stack."
-version = "0.5.0"
+version = "0.5.1"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
