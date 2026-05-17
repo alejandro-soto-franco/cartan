@@ -1,5 +1,6 @@
 use std::env;
 use std::path::PathBuf;
+use std::process::Command;
 
 fn main() {
     println!("cargo:rerun-if-changed=wrapper.h");
@@ -13,9 +14,6 @@ fn main() {
         .probe("vulkan")
         .expect("Vulkan SDK (vulkan-headers + vulkan-loader-devel) not found via pkg-config");
 
-    // VkFFT's runtime shader compilation path depends on glslang's C interface.
-    // Fedora puts the header at /usr/include/glslang/Include/glslang_c_interface.h
-    // but VkFFT includes it unprefixed. Add the Include subdir to the search path.
     let glslang_include_candidates = [
         PathBuf::from("/usr/include/glslang/Include"),
         PathBuf::from("/usr/local/include/glslang/Include"),
@@ -27,31 +25,64 @@ fn main() {
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    // The shim lives in the crate root so wrapper.h is on a relative path
-    // from it; it defines the cartan_vkfft_* extern-C wrappers that re-export
-    // VkFFT's static-inline API as real symbols.
-    let mut build = cc::Build::new();
-    build
-        .file("vkfft_shim.c")
-        .include(".")
-        .include("vendor/VkFFT")
-        .include(&vkfft_include)
-        .include(glslang_include)
-        .define("VKFFT_BACKEND", "0")
-        .flag_if_supported("-std=c11")
-        .flag_if_supported("-Wno-unused-parameter")
-        .flag_if_supported("-Wno-sign-compare")
-        .flag_if_supported("-Wno-deprecated-declarations")
-        .flag_if_supported("-Wno-unused-variable")
-        .flag_if_supported("-Wno-unused-function")
-        .flag_if_supported("-Wno-implicit-function-declaration")
-        .warnings(false);
+    // Step 1: compile vkfft_shim.c to an object file.
+    let obj_path = out_dir.join("vkfft_shim.o");
+    let mut include_args: Vec<String> = vec![
+        "-I.".into(),
+        format!("-Ivendor/VkFFT"),
+        format!("-I{}", vkfft_include.display()),
+        format!("-I{}", glslang_include.display()),
+        "-DVKFFT_BACKEND=0".into(),
+    ];
     for p in &vulkan_include.include_paths {
-        build.include(p);
+        include_args.push(format!("-I{}", p.display()));
     }
-    build.compile("vkfft");
 
-    // Bindgen with a minimal allowlist so we don't churn on VkFFT's large internal surface.
+    let status = Command::new("cc")
+        .args(&["-c", "-fPIC", "-O2", "-std=c11"])
+        .args(&include_args)
+        .args(&["-w"]) // suppress warnings
+        .arg("vkfft_shim.c")
+        .arg("-o")
+        .arg(&obj_path)
+        .status()
+        .expect("failed to run cc");
+    assert!(status.success(), "cc failed to compile vkfft_shim.c");
+
+    // Step 2: link the .o + static glslang + dynamic SPIRV-Tools + vulkan
+    // into a single shared library. This resolves all C++ symbols at .so
+    // link time, avoiding ABI mismatch when the Rust binary loads.
+    let lib_path = out_dir.join("libvkfft_bundle.so");
+    let status = Command::new("c++")
+        .arg("-shared")
+        .arg("-fPIC")
+        .arg(&obj_path)
+        .arg("-o")
+        .arg(&lib_path)
+        // Static glslang libs (absorbed into the .so)
+        .args(&["-Wl,--whole-archive", "-Wl,--allow-multiple-definition"])
+        .args(&[
+            "-lglslang",
+            "-lMachineIndependent",
+            "-lGenericCodeGen",
+            "-lOSDependent",
+            "-lSPIRV",
+            "-lglslang-default-resource-limits",
+        ])
+        .args(&["-Wl,--no-whole-archive"])
+        // Dynamic deps
+        .args(&["-lSPIRV-Tools-shared", "-lSPIRV-Tools-opt", "-lvulkan"])
+        .arg(format!("-L/usr/lib64"))
+        .status()
+        .expect("failed to run c++ for shared lib");
+    assert!(status.success(), "c++ failed to create libvkfft_bundle.so");
+
+    // Tell cargo to link our shared lib and embed rpath so the runtime linker finds it
+    println!("cargo:rustc-link-search=native={}", out_dir.display());
+    println!("cargo:rustc-link-lib=dylib=vkfft_bundle");
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", out_dir.display());
+
+    // Bindgen
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
         .clang_arg("-Ivendor/VkFFT")
@@ -64,9 +95,7 @@ fn main() {
                 .iter()
                 .map(|p| format!("-I{}", p.display())),
         )
-        .allowlist_type("VkFFTConfiguration")
         .allowlist_type("VkFFTApplication")
-        .allowlist_type("VkFFTLaunchParams")
         .allowlist_type("VkFFTResult.*")
         .allowlist_function("cartan_vkfft_.*")
         .layout_tests(false)
