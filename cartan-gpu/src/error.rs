@@ -27,6 +27,9 @@ pub enum GpuError {
 
     #[error("operation requires raw Vulkan handles; adapter is not Vulkan")]
     VulkanHandlesUnavailable,
+
+    #[error("CUDA driver error: {0}")]
+    CudaError(String),
 }
 
 #[cfg(test)]
