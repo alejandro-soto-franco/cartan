@@ -20,11 +20,16 @@ homepage = "https://cartan.sotofranco.dev"
 [features]
 default = ["vkfft"]
 vkfft = ["dep:cartan-gpu-sys", "dep:ash"]
-# CUDA backend plumbing (Driver API only, no FFT yet). Pins cudarc to the
-# CUDA 13.1 ABI matching the development machine; swap the `cuda-13010`
-# feature for another `cuda-NNNNN` or `cuda-version-from-build-system` when
-# targeting a different CUDA installation.
+# CUDA backend plumbing (Driver API only). Pins cudarc to the CUDA 13.1
+# ABI matching the development machine; swap the `cuda-13010` feature for
+# another `cuda-NNNNN` or `cuda-version-from-build-system` when targeting
+# a different CUDA installation.
 cuda = ["dep:cudarc"]
+# cuFFT-backed FFT. Builds on `cuda` and pulls in cudarc's `cufft` feature.
+# Parallel to `vkfft` on the Vulkan side. Note: cuFFT does NOT auto-normalize
+# inverse transforms (unlike VkFFT with cfg.normalize=1); callers must scale
+# by 1/N after an Inverse — this matches cuFFT's native convention.
+cufft = ["cuda", "cudarc/cufft"]
 
 [dependencies]
 wgpu = { version = "29", default-features = false, features = ["vulkan", "wgsl"] }
