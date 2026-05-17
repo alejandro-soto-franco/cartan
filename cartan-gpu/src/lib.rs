@@ -30,3 +30,8 @@ pub use cuda::CudaDevice;
 pub use cuda_buffer::CudaBuffer;
 #[cfg(feature = "cufft")]
 pub use cufft::CuFftBackend;
+
+#[cfg(any(feature = "vkfft", feature = "cufft"))]
+pub mod uni;
+#[cfg(any(feature = "vkfft", feature = "cufft"))]
+pub use uni::{UniBuffer, UniFftBackend};
