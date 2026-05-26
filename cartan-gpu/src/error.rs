@@ -18,24 +18,6 @@ pub enum GpuError {
 
     #[error("shader module creation failed: {msg}")]
     ShaderCompilation { msg: String },
-
-    #[error("VkFFT error code {0}")]
-    VkFftError(i32),
-
-    #[error("feature `vkfft` not enabled at compile time")]
-    VkFftDisabled,
-
-    #[error("operation requires raw Vulkan handles; adapter is not Vulkan")]
-    VulkanHandlesUnavailable,
-
-    #[error("CUDA driver error: {0}")]
-    CudaError(String),
-
-    #[error("backend mismatch: the buffer was allocated for a different backend than the engine running it")]
-    BackendMismatch,
-
-    #[error("Vulkan and CUDA devices are not on the same physical GPU (vk={vk:02x?} cuda={cuda:02x?})")]
-    GpuUuidMismatch { vk: [u8; 16], cuda: [u8; 16] },
 }
 
 #[cfg(test)]
