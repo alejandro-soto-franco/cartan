@@ -1,4 +1,4 @@
-# Changelog — cartan-gpu
+# cartan-gpu Changelog
 
 ## [0.6.0] - 2026-05-26
 
