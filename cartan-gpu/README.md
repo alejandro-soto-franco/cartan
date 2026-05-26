@@ -1,166 +1,108 @@
 # cartan-gpu
 
-Portable GPU compute primitives for the cartan ecosystem.
+Portable wgpu-based GPU compute primitives for the cartan ecosystem.
 
 [![crates.io](https://img.shields.io/crates/v/cartan-gpu.svg)](https://crates.io/crates/cartan-gpu)
 [![docs.rs](https://docs.rs/cartan-gpu/badge.svg)](https://docs.rs/cartan-gpu)
 
 Part of the [cartan](https://crates.io/crates/cartan) workspace, but its own
-detached Cargo workspace because the build depends on C/C++ toolchains
-(VkFFT, glslang) and on optional CUDA / NVIDIA driver components.
+detached Cargo workspace so its wgpu/GPU build deps stay isolated from the rest
+of the stack.
 
 ## What this crate does
 
 `cartan-gpu` exposes a small, opinionated GPU surface to the rest of the
 cartan stack:
 
-- **Vulkan path** (always on): `wgpu` 29 device + queue + typed
-  `GpuBuffer<T>` storage, with a kernel-loading scaffold.
-- **VkFFT path** (`vkfft`, default on): 1D / 2D / 3D forward and inverse
-  FFTs through `VkFftBackend`, using a vendored VkFFT 1.3.4 submodule
-  for the actual GPU code.
-- **CUDA path** (`cuda`): `CudaDevice` over `cudarc` 0.19 (driver API
-  only — no FFT yet at this level).
-- **cuFFT path** (`cufft`): mirror of the VkFFT path on the CUDA side —
-  `CuFftBackend` over `cudarc::cufft`, with cuBLAS-based on-device
-  normalisation.
-- **Unified FFT trait**: both `VkFftBackend` and `CuFftBackend`
-  implement the same `Fft` trait with an associated `Buffer` type, so
-  call-site code is identical across backends.
-- **Runtime backend selection**: `UniFftBackend` + `UniBuffer` enum
-  dispatch let you defer the Vulkan-vs-CUDA choice to session start.
-- **Zero-copy interop** (`vkfft + cufft`, Linux): `SharedFftBuffer`
-  exports `VkDeviceMemory` via `VK_KHR_external_memory_fd` and imports
-  it into CUDA via `cuImportExternalMemory`, so VkFFT and cuFFT can
-  operate on the same physical bytes without any host roundtrip or
-  staging buffer.
+- **Device**: `wgpu` 29 adapter + device + queue, enforcing Vulkan backend.
+- **GpuBuffer\<T\>**: typed storage-buffer wrapper with upload (`from_slice`)
+  and synchronous readback (`to_vec`).
+- **Kernel**: minimal wgpu compute-pipeline scaffold (single storage buffer
+  at group 0 binding 0). Sufficient for proof-of-life shaders; richer bind
+  groups are wired in downstream crates.
 
-Forward-then-inverse is identity on every path: VkFFT uses
-`cfg.normalize = 1`, cuFFT post-scales by `1/N` with `cublasSscal_v2`.
+**FFT has moved to `gpufft`.** With the `fft` feature, `gpufft` is
+re-exported as `cartan_gpu::gpufft` for convenience. The `vulkan`, `cuda`,
+and `shared` features gate the corresponding gpufft backends.
 
-## Quick start (Vulkan FFT)
+## Quick start (wgpu compute)
 
 ```rust,no_run
-use cartan_gpu::{Device, Fft, FftDirection, GpuBuffer, VkFftBackend};
-use num_complex::Complex32;
+use cartan_gpu::{Device, GpuBuffer, Kernel};
 
 let dev = Device::new().unwrap();
-let mut fft = VkFftBackend::new(&dev).unwrap();
 
-let n = 1024_usize;
-let host: Vec<Complex32> = (0..n).map(|i| Complex32::new(i as f32, 0.0)).collect();
-let mut buf = GpuBuffer::<Complex32>::from_slice(
+let n = 512_usize;
+let host: Vec<f32> = (0..n).map(|i| i as f32).collect();
+let buf = GpuBuffer::<f32>::from_slice(
     &dev,
     &host,
     wgpu::BufferUsages::STORAGE
         | wgpu::BufferUsages::COPY_SRC
         | wgpu::BufferUsages::COPY_DST,
-).unwrap();
+)
+.unwrap();
 
-fft.fft_1d(&mut buf, n as u32, 1, FftDirection::Forward).unwrap();
-fft.fft_1d(&mut buf, n as u32, 1, FftDirection::Inverse).unwrap();
-let back = buf.to_vec(&dev).unwrap();
-// `back` equals `host` to within numerical precision.
+let kernel = Kernel::from_wgsl(&dev, "hello", include_str!("shaders/hello.wgsl"), "main").unwrap();
+kernel.dispatch(&dev, &buf, (n as u32).div_ceil(64), 1, 1);
+
+let out = buf.to_vec(&dev).unwrap();
 ```
 
-The cuFFT path has the same shape:
+## FFT (via gpufft)
+
+FFT was extracted to the standalone [`gpufft`](https://crates.io/crates/gpufft)
+crate in v0.6. Enable the `fft` (or `vulkan` / `cuda` / `shared`) feature to
+pull it in and access it as `cartan_gpu::gpufft`:
+
+```toml
+[dependencies]
+cartan-gpu = { version = "0.6", features = ["vulkan"] }
+```
 
 ```rust,no_run
-use cartan_gpu::{CuFftBackend, CudaBuffer, CudaDevice, Fft, FftDirection};
+use cartan_gpu::gpufft::{Direction, PlanDesc, vulkan::VulkanC2cPlan};
+use num_complex::Complex32;
 
-let cuda = CudaDevice::new().unwrap();
-let mut fft = CuFftBackend::new(&cuda).unwrap();
-let mut buf = CudaBuffer::from_slice(&cuda, &host).unwrap();
-fft.fft_1d(&mut buf, n as u32, 1, FftDirection::Forward).unwrap();
-fft.fft_1d(&mut buf, n as u32, 1, FftDirection::Inverse).unwrap();
-let back = buf.to_vec().unwrap();
+// gpufft owns device creation for FFT work; cartan_gpu::Device is for wgpu compute.
+let fft_dev = cartan_gpu::gpufft::vulkan::VulkanDevice::new().unwrap();
+let plan = VulkanC2cPlan::new(&fft_dev, PlanDesc { len: 1024, batch: 1 }).unwrap();
+// ... execute plan ...
 ```
 
-## Runtime backend selection
+### Migrating from cartan-gpu 0.5
 
-`UniFftBackend` lets a single call site work against either backend:
+| v0.5 (cartan-gpu) | v0.6 (gpufft) |
+|---|---|
+| `cartan_gpu::Fft` | `gpufft::Fft` |
+| `cartan_gpu::FftDirection` | `gpufft::Direction` |
+| `cartan_gpu::VkFftBackend` | `gpufft::vulkan::VulkanBackend` |
+| `cartan_gpu::CuFftBackend` | `gpufft::cuda::CudaBackend` |
+| `cartan_gpu::UniBuffer` | `gpufft::UniBuffer` |
+| `cartan_gpu::UniFftBackend` | `gpufft::UniFftBackend` |
+| `cartan_gpu::SharedMemory` | `gpufft::shared::SharedMemory` |
+| `cartan_gpu::SharedFftBuffer` | `gpufft::shared::SharedFftBuffer` |
 
-```rust,no_run
-use cartan_gpu::{Fft, FftDirection, UniBuffer, UniFftBackend};
-
-let engine = if std::env::var("USE_CUDA").is_ok() {
-    UniFftBackend::cuda(&cartan_gpu::CudaDevice::new().unwrap()).unwrap()
-} else {
-    UniFftBackend::vulkan(&cartan_gpu::Device::new().unwrap()).unwrap()
-};
-
-let mut buf = UniBuffer::from_slice(&engine, &host).unwrap();
-let mut engine = engine; // mut for the trait method
-engine.fft_1d(&mut buf, n as u32, 1, FftDirection::Forward).unwrap();
-```
-
-## Zero-copy Vulkan ↔ CUDA
-
-On Linux with `vkfft + cufft` enabled, a single GPU allocation is
-addressable from both APIs. The Vulkan VkFFT path writes, the CUDA cuFFT
-path reads, no host roundtrip:
-
-```rust,no_run
-use cartan_gpu::{CuFftBackend, CudaDevice, Device, FftDirection, SharedFftBuffer, VkFftBackend};
-
-let vk = Device::new().unwrap();
-let cuda = CudaDevice::new().unwrap();
-let mut vk_fft = VkFftBackend::new(&vk).unwrap();
-let mut cu_fft = CuFftBackend::new(&cuda).unwrap();
-
-let n = 1024_usize;
-let mut buf = SharedFftBuffer::new(&vk, cuda.cuda_context(), n).unwrap();
-buf.upload(&host).unwrap();
-
-vk_fft.fft_1d_shared(&mut buf, n as u32, 1, FftDirection::Forward).unwrap();
-cu_fft.fft_1d_shared(&mut buf, n as u32, 1, FftDirection::Inverse).unwrap();
-
-let back = buf.download().unwrap();
-// `back` ≈ `host`; the FFT data never touched the CPU between Vk and CUDA.
-```
-
-Verified on NVIDIA RTX 5060 Laptop (Blackwell SM 12.0, CUDA 13.1,
-driver 580.x): Vk Forward → CUDA Inverse round-trip L-inf = 9e-7.
-Cross-API memory sharing is gated by a same-GPU UUID match (Vulkan
-`VkPhysicalDeviceIDProperties.deviceUUID` vs CUDA `cuDeviceGetUuid`) so
-multi-GPU hosts can't silently fall into a broken non-shared mapping.
+Replace `device.plan_*` calls with `gpufft::{vulkan,cuda}::*Plan::new(&fft_dev, PlanDesc { ... })`.
 
 ## Features
 
-| Feature | Default | Pulls in | Notes |
-|---|---|---|---|
-| `vkfft` | yes | `cartan-gpu-sys`, `ash` 0.38 | Vulkan FFT via vendored VkFFT 1.3.4 |
-| `cuda` | no | `cudarc` 0.19 (driver) | `CudaDevice` only |
-| `cufft` | no | `cuda` + `cudarc/cufft` + `cudarc/cublas` | `CuFftBackend` |
+| Feature | Pulls in | Notes |
+|---|---|---|
+| `fft` | `gpufft` (no backends) | Re-exports gpufft |
+| `vulkan` | `fft` + `gpufft/vulkan` | Vulkan FFT backend |
+| `cuda` | `fft` + `gpufft/cuda` | CUDA FFT backend |
+| `shared` | `vulkan` + `cuda` + `gpufft/shared` | Zero-copy Vk↔CUDA (Linux) |
 
-The `cuda-NNNNN` ABI feature of cudarc is pinned to `cuda-13010` (CUDA
-13.1) at the cartan-gpu level; consumers on a different CUDA installation
-can patch the dep or switch to `cudarc/cuda-version-from-build-system`.
-
-## Tests + benchmark
+## Tests
 
 ```
-cargo test --features "vkfft cuda cufft" --tests
-cargo bench --features "vkfft cuda cufft" --bench fft_compare
+cargo test --no-default-features --tests
 ```
 
-On the development machine (RTX 5060), the bench at n=1024 shows
-rustfft ≈ 711 ns CPU, VkFFT ≈ 160 µs, cuFFT ≈ 24.5 µs. GPU backends are
-launch-overhead-dominated at small N and dominate sharply at larger N.
-
-## Known limits and follow-ups
-
-- The shared-memory path is Linux-only (uses `OPAQUE_FD`); Windows would
-  need a parallel `OPAQUE_WIN32` implementation.
-- Cross-backend handoff still uses CPU-side `queue_wait_idle` /
-  `stream.synchronize`. External-semaphore sync (importing a
-  `VkSemaphore` into CUDA as a `cuExternalSemaphore`) is the
-  perf-optimisation next step; the FFT compute cost dominates for any
-  reasonable problem size, so the CPU wait is correctness-good even if
-  not optimal.
-- 2D batched FFTs go through `plan_many` on the cuFFT side; the VkFFT
-  path supports batched 1D out of the box and would need additional
-  shim wiring for batched higher dims.
+The three remaining integration tests (`device_smoke`, `hello_shader`,
+`buffer_roundtrip`) exercise the wgpu compute layer. FFT tests live in
+`gpufft/tests/`.
 
 ## License
 
