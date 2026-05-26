@@ -13,7 +13,7 @@ members = [
     "cartan-homog-valid",
     "benchmarks/rust",
 ]
-exclude = ["experiments", "cartan-py", "cartan-gpu", "cartan-gpu-sys"]
+exclude = ["experiments", "cartan-py", "cartan-gpu"]
 
 [workspace.package]
 version = "0.5.1"
