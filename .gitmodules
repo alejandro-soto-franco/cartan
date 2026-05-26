@@ -1,3 +1,0 @@
-[submodule "cartan-gpu-sys/vendor/VkFFT"]
-	path = cartan-gpu-sys/vendor/VkFFT
-	url = https://github.com/DTolm/VkFFT.git
