@@ -1,52 +1,23 @@
-//! cartan-gpu: portable GPU compute primitives for the cartan ecosystem.
+//! cartan-gpu: portable wgpu-based GPU compute primitives for the cartan ecosystem.
 //!
-//! See the crate-level docs for the architecture overview. This crate is
-//! pre-release; the public API will stabilize once cartan-em v0.1 ships.
+//! v0.6 split: cartan-gpu provides Device + GpuBuffer + Kernel (wgpu compute);
+//! FFT lives in the separate `gpufft` crate. With the `fft` feature, gpufft
+//! is re-exported here for convenience.
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 pub mod buffer;
 pub mod device;
 pub mod error;
-pub mod fft;
 pub mod kernel;
-#[cfg(feature = "vkfft")]
-pub mod hal_vulkan;
-#[cfg(feature = "cuda")]
-pub mod cuda;
-#[cfg(feature = "cufft")]
-pub mod cuda_buffer;
-#[cfg(feature = "cufft")]
-pub mod cufft;
 
 pub use buffer::GpuBuffer;
 pub use device::Device;
 pub use error::GpuError;
-pub use fft::{Fft, FftDirection};
 pub use kernel::Kernel;
 
-/// Re-export of the underlying `wgpu` crate so downstream consumers
-/// don't need a separate `wgpu` dependency just to construct
-/// `BufferUsages` for [`GpuBuffer`].
 pub use wgpu;
-#[cfg(feature = "vkfft")]
-pub use fft::VkFftBackend;
-#[cfg(feature = "cuda")]
-pub use cuda::CudaDevice;
-#[cfg(feature = "cufft")]
-pub use cuda_buffer::CudaBuffer;
-#[cfg(feature = "cufft")]
-pub use cufft::CuFftBackend;
 
-#[cfg(any(feature = "vkfft", feature = "cufft"))]
-pub mod uni;
-#[cfg(any(feature = "vkfft", feature = "cufft"))]
-pub use uni::{UniBuffer, UniFftBackend};
-
-#[cfg(all(feature = "vkfft", feature = "cufft", target_os = "linux"))]
-pub mod shared_memory;
-#[cfg(all(feature = "vkfft", feature = "cufft", target_os = "linux"))]
-pub use shared_memory::SharedMemory;
-
-#[cfg(all(feature = "vkfft", feature = "cufft", target_os = "linux"))]
-pub mod shared_fft;
-#[cfg(all(feature = "vkfft", feature = "cufft", target_os = "linux"))]
-pub use shared_fft::SharedFftBuffer;
+#[cfg(feature = "fft")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fft")))]
+pub use gpufft;
