@@ -1,6 +1,5 @@
-//! Device - cartan-gpu's entry point. Wraps a `wgpu::Instance / Adapter / Device / Queue`,
-//! enforces Vulkan backend (required for VkFFT integration), and exposes handle
-//! accessors used internally by the FFT backend.
+//! Device - cartan-gpu's entry point. Wraps a `wgpu::Instance / Adapter / Device / Queue`
+//! and enforces Vulkan backend for compute work.
 
 use crate::GpuError;
 
@@ -64,35 +63,5 @@ impl Device {
 
     pub fn wgpu_queue(&self) -> &wgpu::Queue {
         &self.queue
-    }
-
-    /// Vulkan `VK_KHR_external_memory_capabilities` device UUID.
-    ///
-    /// Used to verify that a CUDA context bound for shared-memory
-    /// interop is bound to the same physical GPU as this Vulkan device.
-    /// Returns 16 bytes from `VkPhysicalDeviceIDProperties.deviceUUID`.
-    #[cfg(feature = "vkfft")]
-    pub fn vulkan_device_uuid(&self) -> Result<[u8; 16], GpuError> {
-        use ash::vk::Handle;
-        use wgpu::hal::api::Vulkan;
-
-        let handles = self.raw_vulkan()?;
-        let phys_dev = ash::vk::PhysicalDevice::from_raw(handles.physical_device);
-
-        // We need vkGetPhysicalDeviceProperties2 off the raw instance.
-        let ash_instance = unsafe {
-            let hal_instance = self
-                .instance
-                .as_hal::<Vulkan>()
-                .ok_or(GpuError::VulkanHandlesUnavailable)?;
-            hal_instance.shared_instance().raw_instance().clone()
-        };
-
-        let mut id_props = ash::vk::PhysicalDeviceIDProperties::default();
-        let mut props2 = ash::vk::PhysicalDeviceProperties2::default().push_next(&mut id_props);
-        unsafe {
-            ash_instance.get_physical_device_properties2(phys_dev, &mut props2);
-        }
-        Ok(id_props.device_uuid)
     }
 }
