@@ -18,7 +18,7 @@ Technical roadmap for `cartan-homog`, organised by milestone. Items marked (comm
 
 The gap between the 27 GPa sphere-pore prediction and the 6.6 GPa measured Berea stiffness is the central obstacle to commercial viability. Closing it requires full-field solves on real micro-CT data at production resolution.
 
-- [ ] **GPU-accelerated iterative solver**: target 256-cubed segmented micro-CT image (16M DOFs) in < 60 seconds on a single workstation GPU. The `cartan-gpu-sys` VkFFT work provides the FFT backend; the solver needs a GPU-resident CG with AMG V-cycle on the device. This is the critical-path item for competing with Avizo/PerGeos.
+- [ ] **GPU-accelerated iterative solver**: target 256-cubed segmented micro-CT image (16M DOFs) in < 60 seconds on a single workstation GPU. The `gpufft` crate provides the FFT backend; the solver needs a GPU-resident CG with AMG V-cycle on the device. This is the critical-path item for competing with Avizo/PerGeos.
 - [ ] **Parallel assembly via rayon**: the current P1-FEM stiffness assembly is sequential. With ~100M tets at 256-cubed, parallel assembly saves minutes.
 - [ ] **Image segmentation integration**: accept TIFF stacks and HDF5 volumes from standard micro-CT scanners (Bruker, Zeiss Xradia, Thermo Fisher). Phase segmentation (threshold, watershed, ML-based) as a preprocessing step, not in-library.
 - [ ] **Lab calibration workflow**: given measured K_eff from a core-plug experiment, invert for microstructural parameters (crack density, grain-contact compliance) that reproduce the measurement. Inverse homogenisation via cartan-optim on SPD(N).
