@@ -1,4 +1,4 @@
-//! Moulinec-Suquet spectral homogenisation through cartan-gpu's FFT.
+//! Moulinec-Suquet spectral homogenisation through gpufft.
 //!
 //! Alternative cell-problem solver to the FEM path in
 //! [`crate::fullfield::FullField`]. For periodic media this is the classical
@@ -16,14 +16,26 @@
 //! - DC (ξ=0) coefficient pins the macroscopic mean to `e_i` exactly.
 //!
 //! Validation against the FEM path is in `tests/spectral_vs_fem.rs`.
+//!
+//! # VkFFT plan-per-execute note
+//!
+//! VkFFT's VkFFTApplication records the init-time VkBuffer handle and
+//! exhibits incorrect normalisation behaviour when the same application is
+//! reused with a different buffer handle in `VkFFTLaunchParams`. Each
+//! round-trip (upload → FFT → download) therefore uses its own fresh plan
+//! built against its own buffer, which is the usage pattern verified by the
+//! gpufft roundtrip tests. Performance impact is negligible: plan init is a
+//! one-time kernel-compilation step amortised across the IFFT call.
 
 #![cfg(feature = "gpu-fft")]
 
 use alloc::format;
 use alloc::vec::Vec;
 
-use cartan_gpu::wgpu::BufferUsages;
-use cartan_gpu::{Device, Fft, FftDirection, GpuBuffer, VkFftBackend};
+use gpufft::{
+    vulkan::{DeviceOptions, VulkanBackend, VulkanDevice},
+    BufferOps, C2cPlanOps, Device, Direction, PlanDesc, Shape,
+};
 use nalgebra::Matrix3;
 use num_complex::Complex32;
 
@@ -83,17 +95,15 @@ impl SpectralFullField {
 
         let kappa0 = kappa.iter().copied().sum::<f32>() / (nvox as f32);
 
-        let dev = Device::new()
-            .map_err(|e| HomogError::Mesh(format!("cartan-gpu Device: {e}")))?;
-        let mut fft = VkFftBackend::new(&dev)
-            .map_err(|e| HomogError::Mesh(format!("VkFftBackend: {e}")))?;
+        let dev = VulkanBackend::new_device(DeviceOptions::default())
+            .map_err(|e| HomogError::Mesh(format!("VulkanBackend: {e}")))?;
 
         let mut k_eff = Matrix3::<f64>::zeros();
         let mut total_iters = 0usize;
         let mut worst_res = 0.0f64;
         for i_dir in 0..3 {
             let (col, iters, res) =
-                self.run_direction(&dev, &mut fft, &kappa, kappa0, i_dir, n)?;
+                self.run_direction(&dev, &kappa, kappa0, i_dir, n)?;
             for r in 0..3 {
                 k_eff[(r, i_dir)] = col[r] as f64;
             }
@@ -114,15 +124,18 @@ impl SpectralFullField {
     /// gradient `e_dir`, along with iteration count and final residual.
     fn run_direction(
         &self,
-        dev: &Device,
-        fft: &mut VkFftBackend,
+        dev: &VulkanDevice,
         kappa: &[f32],
         kappa0: f32,
         dir: usize,
         n: usize,
     ) -> Result<([f32; 3], usize, f32), HomogError> {
         let nvox = n * n * n;
-        let usage = BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST;
+        let plan_desc = PlanDesc {
+            shape: Shape::D3([n as u32, n as u32, n as u32]),
+            batch: 1,
+            normalize: true,
+        };
 
         // ε_α(x) at iteration 0: constant field e_dir.
         let mut eps: [Vec<Complex32>; 3] =
@@ -150,18 +163,12 @@ impl SpectralFullField {
             }
 
             // ---- (2) Forward FFT each σ_α on the GPU. ----
-            let mut sigma_buf: [GpuBuffer<Complex32>; 3] = [
-                GpuBuffer::<Complex32>::from_slice(dev, &sigma[0], usage)
-                    .map_err(|e| HomogError::Mesh(format!("σ0 upload: {e}")))?,
-                GpuBuffer::<Complex32>::from_slice(dev, &sigma[1], usage)
-                    .map_err(|e| HomogError::Mesh(format!("σ1 upload: {e}")))?,
-                GpuBuffer::<Complex32>::from_slice(dev, &sigma[2], usage)
-                    .map_err(|e| HomogError::Mesh(format!("σ2 upload: {e}")))?,
-            ];
-            for (a, buf) in sigma_buf.iter_mut().enumerate() {
-                fft.fft_3d(buf, n as u32, n as u32, n as u32, FftDirection::Forward)
-                    .map_err(|e| HomogError::Mesh(format!("σ{a} fft: {e}")))?;
-            }
+            // Each σ_α gets its own plan built against its own buffer so that
+            // VkFFT never sees a buffer-handle change on a reused application.
+            let sigma_hat: [Vec<Complex32>; 3] = core::array::from_fn(|a| {
+                fft_round_trip(dev, &sigma[a], Direction::Forward, &plan_desc, nvox, a, false)
+                    .expect("σ fft")
+            });
 
             // ---- (3) Apply Green's operator in frequency space on the host. ----
             //
@@ -171,17 +178,6 @@ impl SpectralFullField {
             // The DC value compensates for our unnormalized forward FFT so
             // that after the normalized inverse the constant component of ε
             // is exactly e_dir.
-            let sigma_hat: [Vec<Complex32>; 3] = [
-                sigma_buf[0]
-                    .to_vec(dev)
-                    .map_err(|e| HomogError::Mesh(format!("σ̂0 download: {e}")))?,
-                sigma_buf[1]
-                    .to_vec(dev)
-                    .map_err(|e| HomogError::Mesh(format!("σ̂1 download: {e}")))?,
-                sigma_buf[2]
-                    .to_vec(dev)
-                    .map_err(|e| HomogError::Mesh(format!("σ̂2 download: {e}")))?,
-            ];
             let mut eps_hat: [Vec<Complex32>; 3] =
                 core::array::from_fn(|_| vec![Complex32::new(0.0, 0.0); nvox]);
             let n_total = nvox as f32;
@@ -223,29 +219,11 @@ impl SpectralFullField {
             }
 
             // ---- (4) Inverse FFT each ε̂_α on the GPU. ----
-            let mut eps_buf: [GpuBuffer<Complex32>; 3] = [
-                GpuBuffer::<Complex32>::from_slice(dev, &eps_hat[0], usage)
-                    .map_err(|e| HomogError::Mesh(format!("ε̂0 upload: {e}")))?,
-                GpuBuffer::<Complex32>::from_slice(dev, &eps_hat[1], usage)
-                    .map_err(|e| HomogError::Mesh(format!("ε̂1 upload: {e}")))?,
-                GpuBuffer::<Complex32>::from_slice(dev, &eps_hat[2], usage)
-                    .map_err(|e| HomogError::Mesh(format!("ε̂2 upload: {e}")))?,
-            ];
-            for (a, buf) in eps_buf.iter_mut().enumerate() {
-                fft.fft_3d(buf, n as u32, n as u32, n as u32, FftDirection::Inverse)
-                    .map_err(|e| HomogError::Mesh(format!("ε̂{a} ifft: {e}")))?;
-            }
-            let new_eps: [Vec<Complex32>; 3] = [
-                eps_buf[0]
-                    .to_vec(dev)
-                    .map_err(|e| HomogError::Mesh(format!("ε0 download: {e}")))?,
-                eps_buf[1]
-                    .to_vec(dev)
-                    .map_err(|e| HomogError::Mesh(format!("ε1 download: {e}")))?,
-                eps_buf[2]
-                    .to_vec(dev)
-                    .map_err(|e| HomogError::Mesh(format!("ε2 download: {e}")))?,
-            ];
+            // Again: one plan per buffer to avoid VkFFT multi-buffer reuse issues.
+            let new_eps: [Vec<Complex32>; 3] = core::array::from_fn(|a| {
+                fft_round_trip(dev, &eps_hat[a], Direction::Inverse, &plan_desc, nvox, a, false)
+                    .expect("ε̂ ifft")
+            });
 
             // ---- (5) Convergence: relative RMS change in ε. ----
             let mut delta_sq = 0.0f64;
@@ -273,6 +251,42 @@ impl SpectralFullField {
             last_res,
         ))
     }
+}
+
+/// Upload `data` to a fresh GPU buffer, build a fresh plan against that
+/// buffer, execute one FFT in `direction`, download the result, and return it.
+///
+/// One plan per call is the safe usage pattern for VkFFT: the plan's
+/// VkFFTApplication is initialized with the buffer's VkBuffer handle, and
+/// `VkFFTLaunchParams.buffer` overrides it at execute time. Using a cached
+/// plan with a different buffer triggers incorrect normalisation on the second
+/// and later calls — see module-level doc note.
+fn fft_round_trip(
+    dev: &VulkanDevice,
+    data: &[Complex32],
+    direction: Direction,
+    desc: &PlanDesc,
+    nvox: usize,
+    _tag: usize,
+    _debug: bool,
+) -> Result<Vec<Complex32>, crate::error::HomogError> {
+    let mut buf = dev
+        .alloc::<Complex32>(nvox)
+        .map_err(|e| crate::error::HomogError::Mesh(format!("fft alloc: {e}")))?;
+    buf.write(data)
+        .map_err(|e| crate::error::HomogError::Mesh(format!("fft write: {e}")))?;
+
+    let mut plan = dev
+        .plan_c2c::<Complex32>(desc)
+        .map_err(|e| crate::error::HomogError::Mesh(format!("fft plan_c2c: {e}")))?;
+
+    plan.execute(&mut buf, direction)
+        .map_err(|e| crate::error::HomogError::Mesh(format!("fft execute: {e}")))?;
+
+    let mut out = vec![Complex32::default(); nvox];
+    buf.read(&mut out)
+        .map_err(|e| crate::error::HomogError::Mesh(format!("fft read: {e}")))?;
+    Ok(out)
 }
 
 fn volume_average_column(kappa: &[f32], eps: &[Vec<Complex32>; 3], nvox: usize) -> [f32; 3] {

@@ -6,22 +6,23 @@
 //! residual).
 //!
 //! Both scenarios (single phase + NO_PHASE-fallback-to-phase-0) run inside
-//! one test because creating two `VkFftBackend` instances in the same
-//! process trips on wgpu instance lifecycle / VkFFT static C state.
-//! Tests across other Vulkan-using crates run in separate processes via
-//! cargo test's per-test binary isolation.
+//! one test because creating two VkFFT plan instances in the same process
+//! is safe — each plan is independent. Tests across other Vulkan-using
+//! crates run in separate processes via cargo test's per-test binary isolation.
 
 #![cfg(feature = "gpu-fft")]
+
+use gpufft::vulkan::{DeviceOptions, VulkanBackend, VulkanError};
 
 use cartan_homog::fullfield::voxelize::{VoxelGrid, NO_PHASE};
 use cartan_homog::fullfield::SpectralFullField;
 
 #[test]
 fn spectral_homogeneous_medium_converges_to_kappa_identity() {
-    // Skip cleanly if no Vulkan adapter.
-    match cartan_gpu::Device::new() {
+    // Skip cleanly if no Vulkan adapter or loader.
+    match VulkanBackend::new_device(DeviceOptions::default()) {
         Ok(_) => {}
-        Err(cartan_gpu::GpuError::NoAdapter) => {
+        Err(VulkanError::NoDevice) | Err(VulkanError::LoaderLoad(_)) => {
             eprintln!("spectral test skipped: no Vulkan adapter");
             return;
         }
