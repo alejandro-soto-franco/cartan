@@ -8,7 +8,7 @@
 //!
 //! Only Order2 (scalar conductivity) is implemented here. The same scheme
 //! extends to Order4 (elasticity) with a 4th-order Green's operator and
-//! six fields per direction — left for follow-up work.
+//! six fields per direction. That extension is follow-up work.
 //!
 //! Numerics:
 //! - Reference medium is the arithmetic mean of κ over voxels.
