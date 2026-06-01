@@ -26,7 +26,7 @@ cartan-manifolds = { path = "../../cartan-manifolds", features = ["std"] }
 cartan-optim = { path = "../../cartan-optim", features = ["std"] }
 cartan-stochastic = { path = "../../cartan-stochastic" }
 cartan-homog = { path = "../../cartan-homog", features = ["full-field"] }
-nalgebra = { version = "0.33", features = ["std"] }
+nalgebra = { version = "0.35", features = ["std"] }
 rand = { version = "0.9", features = ["std_rng", "std"] }
 rand_distr = { version = "0.5", features = ["std"] }
 serde_json = { version = "1", features = ["std"] }
