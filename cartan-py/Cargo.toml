@@ -17,7 +17,7 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39", "multiple-pymethods"] }
 numpy = "0.23"
-nalgebra = { version = "0.33", features = ["std"] }
+nalgebra = { version = "0.35", features = ["std"] }
 cartan-core = { path = "../cartan-core", features = ["std"] }
 cartan-manifolds = { path = "../cartan-manifolds", features = ["std"] }
 cartan-optim = { path = "../cartan-optim", features = ["std"] }
