@@ -22,7 +22,7 @@ cartan-manifolds = { path = "../cartan-manifolds", version = "0.5", default-feat
 nalgebra = { workspace = true, features = ["libm"] }
 
 [dev-dependencies]
-rand = { workspace = true, features = ["std", "std_rng"] }
+rand = { workspace = true, features = ["std", "std_rng", "small_rng"] }
 approx = { workspace = true }
 cartan-stochastic = { path = "../cartan-stochastic", version = "0.5" }
 cartan-manifolds = { path = "../cartan-manifolds", version = "0.5", features = ["std"] }
