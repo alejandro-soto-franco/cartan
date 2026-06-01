@@ -22,11 +22,11 @@ std = ["alloc", "cartan-core/std", "cartan-manifolds/std", "cartan-optim/std", "
 alloc = ["cartan-core/alloc", "cartan-manifolds/alloc", "cartan-optim/alloc", "cartan-geo/alloc"]
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.5", default-features = false }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.5", default-features = false }
-cartan-optim = { path = "../cartan-optim", version = "0.5", default-features = false }
-cartan-geo = { path = "../cartan-geo", version = "0.5", default-features = false }
-cartan-dec = { path = "../cartan-dec", version = "0.5", optional = true }
+cartan-core = { path = "../cartan-core", version = "0.6", default-features = false }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.6", default-features = false }
+cartan-optim = { path = "../cartan-optim", version = "0.6", default-features = false }
+cartan-geo = { path = "../cartan-geo", version = "0.6", default-features = false }
+cartan-dec = { path = "../cartan-dec", version = "0.6", optional = true }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std_rng", "std"] }
