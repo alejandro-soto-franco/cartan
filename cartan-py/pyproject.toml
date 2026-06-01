@@ -23,3 +23,6 @@ dev = ["pytest", "hypothesis", "scipy>=1.7"]
 features = []
 manifest-path = "Cargo.toml"
 module-name = "cartan"
+
+[tool.pyrefly]
+# Enables full Pyrefly type checking; run with `uvc`. See ~/.claude/rules/pyrefly.md
