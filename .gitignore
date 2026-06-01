@@ -7,3 +7,5 @@ experiments/
 # PyO3 venv and dev artefacts
 cartan-py/.venv/
 **/Cargo.lock.bak
+/target
+cartan-py/uv.lock
