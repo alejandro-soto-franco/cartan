@@ -16,6 +16,7 @@
 //! | [`geodesic`] | `Geodesic<M>` -- parameterized geodesic, sampling, two-point construction |
 //! | [`curvature`] | `CurvatureQuery<M>` -- sectional, Ricci, scalar curvature at a point |
 //! | [`jacobi`] | `integrate_jacobi` -- RK4 Jacobi field ODE integration |
+//! | [`chern_simons`] | `U1Connection`, `Su2Connection` -- Chern-Simons 3-form density and box integration |
 //!
 //! ## no_std support
 //!
@@ -33,6 +34,8 @@
 extern crate alloc;
 
 pub mod curvature;
+#[cfg(feature = "alloc")]
+pub mod chern_simons;
 #[cfg(feature = "std")]
 pub mod disclination;
 pub mod geodesic;
@@ -40,6 +43,10 @@ pub mod geodesic;
 pub mod holonomy;
 pub mod jacobi;
 
+#[cfg(feature = "alloc")]
+pub use chern_simons::{
+    Su2Connection, U1Connection, cs_density_su2, cs_density_u1, integrate_cs_su2, integrate_cs_u1,
+};
 pub use curvature::{CurvatureQuery, scalar_at, sectional_at};
 #[cfg(feature = "std")]
 pub use disclination::{
