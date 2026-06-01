@@ -16,7 +16,7 @@ members = [
 exclude = ["experiments", "cartan-py", "cartan-gpu"]
 
 [workspace.package]
-version = "0.5.1"
+version = "0.6.0"
 edition = "2024"
 rust-version = "1.85"
 license = "MIT"
