@@ -89,6 +89,31 @@ impl ExteriorDerivative {
         Self { d: vec![d0, d1] }
     }
 
+    /// Build the exterior derivative of a 1-complex (a graph) from an edge list.
+    ///
+    /// A graph is a simplicial complex whose top cells are edges, so its only
+    /// nonzero exterior derivative is `d0`: the signed edge-vertex incidence of
+    /// shape `(n_edges, n_vertices)`. For edge `e = (i, j)`, `d0[e, i] = -1`
+    /// (tail) and `d0[e, j] = +1` (head).
+    ///
+    /// This is the operator a two-point-flux finite-volume scheme needs: with
+    /// per-edge weights `w` (for instance transmissibilities) the weighted graph
+    /// Laplacian is `L = d0^T diag(w) d0`. The simplex constructors above target
+    /// K-simplex complexes (triangles, tetrahedra) where boundary faces have
+    /// dimension K-1; a cell-adjacency graph has none of that structure and is
+    /// built directly here. The resulting operator chain has length one, so
+    /// `degree()` is 1, `check_exactness()` is trivially 0, and `d1()` is absent.
+    pub fn from_graph(n_vertices: usize, edges: &[(usize, usize)]) -> Self {
+        let mut tri = TriMat::new((edges.len(), n_vertices));
+        for (e, &(i, j)) in edges.iter().enumerate() {
+            tri.add_triplet(e, i, -1.0);
+            tri.add_triplet(e, j, 1.0);
+        }
+        Self {
+            d: vec![tri.to_csc()],
+        }
+    }
+
     /// Build dense d0 and d1 from a triangle mesh.
     ///
     /// Retained for testing and backward compatibility. Prefer `from_mesh_sparse`.
