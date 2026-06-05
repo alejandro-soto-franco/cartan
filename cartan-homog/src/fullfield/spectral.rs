@@ -17,8 +17,6 @@
 //!
 //! Validation against the FEM path is in `tests/spectral_vs_fem.rs`.
 
-#![cfg(feature = "gpu-fft")]
-
 use alloc::format;
 use alloc::vec::Vec;
 
@@ -149,8 +147,7 @@ impl SpectralFullField {
             // ---- (1) σ_α(x) = κ(x) ε_α(x) on the host. ----
             let mut sigma: [Vec<Complex32>; 3] =
                 core::array::from_fn(|_| vec![Complex32::new(0.0, 0.0); nvox]);
-            for x_idx in 0..nvox {
-                let k = kappa[x_idx];
+            for (x_idx, &k) in kappa.iter().enumerate() {
                 for a in 0..3 {
                     let e = eps[a][x_idx];
                     sigma[a][x_idx] = Complex32::new(k * e.re, k * e.im);
@@ -265,8 +262,8 @@ impl SpectralFullField {
 
 fn volume_average_column(kappa: &[f32], eps: &[Vec<Complex32>; 3], nvox: usize) -> [f32; 3] {
     let mut col = [0.0f64; 3];
-    for x_idx in 0..nvox {
-        let k = kappa[x_idx] as f64;
+    for (x_idx, &kappa_x) in kappa.iter().enumerate() {
+        let k = kappa_x as f64;
         for (a, c) in col.iter_mut().enumerate() {
             *c += k * (eps[a][x_idx].re as f64);
         }
