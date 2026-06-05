@@ -942,3 +942,30 @@ fn tet_mesh_k4_simplex_volume() {
         "standard tet volume: got {vol}, expected {expected}"
     );
 }
+
+#[test]
+fn from_graph_d0_is_signed_incidence_and_builds_graph_laplacian() {
+    // Path graph 0-1-2 with two edges. d0 is the 2 x 3 signed incidence.
+    let edges = [(0usize, 1usize), (1, 2)];
+    let ext = ExteriorDerivative::from_graph(3, &edges);
+    assert_eq!(ext.degree(), 1);
+    assert!(ext.check_exactness().abs() < 1e-15);
+
+    let d0 = ext.d0();
+    assert_eq!(d0.shape(), (2, 3));
+    assert_eq!(*d0.get(0, 0).unwrap(), -1.0);
+    assert_eq!(*d0.get(0, 1).unwrap(), 1.0);
+    assert_eq!(*d0.get(1, 1).unwrap(), -1.0);
+    assert_eq!(*d0.get(1, 2).unwrap(), 1.0);
+
+    // L = d0^T diag(w) d0 with unit weights is the graph Laplacian.
+    let d0t = d0.transpose_view().to_csc();
+    let l = &d0t * d0;
+    assert_eq!(*l.get(1, 1).unwrap(), 2.0); // middle vertex degree 2
+    assert_eq!(*l.get(0, 0).unwrap(), 1.0); // endpoint degree 1
+    assert_eq!(*l.get(0, 1).unwrap(), -1.0); // adjacency
+    for r in 0..3 {
+        let s: f64 = (0..3).map(|c| *l.get(r, c).unwrap_or(&0.0)).sum();
+        assert!(s.abs() < 1e-15, "row {r} of graph Laplacian must sum to 0");
+    }
+}
