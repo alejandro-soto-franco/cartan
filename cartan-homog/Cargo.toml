@@ -35,9 +35,9 @@ sprs       = { workspace = true, optional = true }
 rayon      = { workspace = true, optional = true }
 rand       = { workspace = true, optional = true, default-features = false }
 rand_distr = { workspace = true, optional = true, default-features = false }
-# Spectral FFT via gpufft. Vulkan backend is sufficient for Moulinec-Suquet.
-# Add gpufft/cuda or gpufft/shared as a downstream feature if needed.
-gpufft = { path = "../../gpufft/gpufft", version = "0.1", default-features = false, features = ["vulkan"], optional = true }
+# Spectral FFT via gpufft (published crate). Vulkan backend is sufficient for
+# Moulinec-Suquet. Add gpufft/cuda or gpufft/shared as a downstream feature if needed.
+gpufft = { version = "0.1", default-features = false, features = ["vulkan"], optional = true }
 num-complex = { version = "0.4", optional = true, default-features = false, features = ["std", "bytemuck"] }
 
 [dev-dependencies]
