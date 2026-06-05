@@ -26,8 +26,13 @@ jobs:
         run: cargo test -p cartan-homog-valid --features full-field,stochastic
       - name: Clippy (default features)
         run: cargo clippy --workspace -- -D warnings
-      - name: Clippy (all features)
-        run: cargo clippy --workspace --all-features -- -D warnings
+      # The gpu-fft feature pulls gpufft's Vulkan backend, which needs GPU/Vulkan
+      # system libraries a runner lacks, so CI lints the substantive features
+      # without it (the GPU path needs real hardware to exercise anyway).
+      - name: Clippy (cartan-homog full features)
+        run: cargo clippy -p cartan-homog --features full-field,stochastic -- -D warnings
+      - name: Clippy (cartan-homog-valid full features)
+        run: cargo clippy -p cartan-homog-valid --features full-field,stochastic -- -D warnings
 
   no-std-check:
     name: no_std + alloc build check
