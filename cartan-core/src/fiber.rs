@@ -21,6 +21,8 @@
 //! **positive-semidefinite** (positive at maxima). Physical equations use
 //! `-K * lap` for elastic smoothing.
 
+use crate::rotor::Rotor;
+
 /// A fiber type for a fiber bundle over a simplicial mesh.
 ///
 /// Each concrete fiber defines:
@@ -46,6 +48,18 @@ pub trait Fiber: Clone + Send + Sync + 'static {
     /// `rotation` is a d x d orthogonal matrix in row-major flat layout
     /// (length d*d). `d` is the dimension of the base manifold's tangent space.
     fn transport_by(rotation: &[f64], d: usize, element: &Self::Element) -> Self::Element;
+
+    /// Apply a rotor (geometric-algebra frame rotation) to a fiber element.
+    ///
+    /// Default bridges through `to_matrix` and `transport_by`, so every fiber
+    /// works without a native impl. Fibers override this where a rotor lowers
+    /// per-application flops (currently only `U1Spin2`).
+    fn transport_by_rotor(rotor: &Rotor, element: &Self::Element) -> Self::Element {
+        match rotor {
+            Rotor::R2(r) => Self::transport_by(&r.to_matrix(), 2, element),
+            Rotor::R3(r) => Self::transport_by(&r.to_matrix(), 3, element),
+        }
+    }
 }
 
 /// Component-wise operations on fiber elements.
@@ -149,6 +163,24 @@ impl Fiber for U1Spin2 {
         let sin_2t = 2.0 * sin_t * cos_t;
         let q1 = element[0];
         let q2 = element[1];
+        [cos_2t * q1 - sin_2t * q2, sin_2t * q1 + cos_2t * q2]
+    }
+
+    fn transport_by_rotor(rotor: &Rotor, element: &[f64; 2]) -> [f64; 2] {
+        let r = match rotor {
+            Rotor::R2(r) => r,
+            Rotor::R3(_) => {
+                debug_assert!(false, "U1Spin2 requires a 2D rotor");
+                return *element;
+            }
+        };
+        // Spin-2: rotate by 2*theta. From the half-angle rotor (c, s):
+        //   cos(theta) = c^2 - s^2, sin(theta) = 2 c s, then double again.
+        let cos_t = r.c * r.c - r.s * r.s;
+        let sin_t = 2.0 * r.s * r.c;
+        let cos_2t = cos_t * cos_t - sin_t * sin_t;
+        let sin_2t = 2.0 * sin_t * cos_t;
+        let (q1, q2) = (element[0], element[1]);
         [cos_2t * q1 - sin_2t * q2, sin_2t * q1 + cos_2t * q2]
     }
 }
@@ -267,5 +299,57 @@ impl FiberOps for NematicFiber3D {
         for t in target.iter_mut() {
             *t *= scale;
         }
+    }
+}
+
+#[cfg(test)]
+mod rotor_transport_tests {
+    use super::*;
+    use crate::rotor::{Rotor, Rotor2, Rotor3};
+
+    fn r3(angle: f64) -> Rotor3 {
+        // Rotation about a fixed oblique axis.
+        let u = {
+            let a = [0.3_f64, -0.7, 0.5];
+            let n = (a[0]*a[0] + a[1]*a[1] + a[2]*a[2]).sqrt();
+            [a[0]/n, a[1]/n, a[2]/n]
+        };
+        let (c, s) = (angle.cos(), angle.sin());
+        let t = 1.0 - c;
+        let (ux, uy, uz) = (u[0], u[1], u[2]);
+        let m = [
+            c + ux*ux*t,    ux*uy*t - uz*s, ux*uz*t + uy*s,
+            uy*ux*t + uz*s, c + uy*uy*t,    uy*uz*t - ux*s,
+            uz*ux*t - uy*s, uz*uy*t + ux*s, c + uz*uz*t,
+        ];
+        Rotor3::from_matrix(&m)
+    }
+
+    #[test]
+    fn u1spin2_rotor_matches_matrix() {
+        let rot = Rotor2::from_angle(0.83);
+        let elem = [0.4, -0.9];
+        let via_rotor = U1Spin2::transport_by_rotor(&Rotor::R2(rot), &elem);
+        let via_matrix = U1Spin2::transport_by(&rot.to_matrix(), 2, &elem);
+        assert!((via_rotor[0]-via_matrix[0]).abs() < 1e-12);
+        assert!((via_rotor[1]-via_matrix[1]).abs() < 1e-12);
+    }
+
+    #[test]
+    fn tangent3_rotor_matches_matrix() {
+        let rot = r3(1.1);
+        let elem = [1.0, -2.0, 0.5];
+        let via_rotor = TangentFiber::<3>::transport_by_rotor(&Rotor::R3(rot), &elem);
+        let via_matrix = TangentFiber::<3>::transport_by(&rot.to_matrix(), 3, &elem);
+        for k in 0..3 { assert!((via_rotor[k]-via_matrix[k]).abs() < 1e-12); }
+    }
+
+    #[test]
+    fn nematic3d_rotor_matches_matrix() {
+        let rot = r3(-0.6);
+        let elem = [0.2, -0.1, 0.05, 0.3, -0.15];
+        let via_rotor = NematicFiber3D::transport_by_rotor(&Rotor::R3(rot), &elem);
+        let via_matrix = NematicFiber3D::transport_by(&rot.to_matrix(), 3, &elem);
+        for k in 0..5 { assert!((via_rotor[k]-via_matrix[k]).abs() < 1e-12); }
     }
 }
