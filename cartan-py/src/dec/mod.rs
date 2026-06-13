@@ -10,6 +10,7 @@
 //! - `apply_scalar_advection`, `apply_vector_advection` — upwind advection
 //! - `apply_divergence`, `apply_tensor_divergence` — codifferential divergence
 
+pub mod line_bundle;
 pub mod mesh;
 pub mod operators;
 
@@ -19,5 +20,6 @@ use pyo3::types::PyModuleMethods;
 pub fn register(m: &pyo3::Bound<'_, pyo3::types::PyModule>) -> pyo3::PyResult<()> {
     m.add_class::<mesh::PyMesh>()?;
     operators::register(m)?;
+    line_bundle::register(m)?;
     Ok(())
 }
