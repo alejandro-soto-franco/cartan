@@ -42,6 +42,7 @@ pub mod fiber;
 pub mod geodesic;
 pub mod manifold;
 pub mod retraction;
+pub mod rotor;
 pub mod transport;
 
 /// The floating-point type used throughout cartan.
