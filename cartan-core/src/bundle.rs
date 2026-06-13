@@ -18,6 +18,7 @@
 use alloc::{vec, vec::Vec};
 
 use crate::fiber::{Fiber, FiberOps, Section, VecSection};
+use crate::rotor::{Rotor, Rotor2, Rotor3};
 
 /// Discrete connection: SO(D) frame transport per edge.
 ///
@@ -81,6 +82,61 @@ impl DiscreteConnection<3> for EdgeTransport3D {
     fn n_edges(&self) -> usize { self.edges.len() }
     fn edge_vertices(&self, e: usize) -> [usize; 2] { self.edges[e] }
     fn frame_transport(&self, e: usize) -> &[f64] { &self.transports[e] }
+}
+
+/// Discrete connection storing a rotor (Cl+(D) element) per edge.
+///
+/// The rotor carries the same SO(D) frame transport as `DiscreteConnection`'s
+/// matrix in fewer floats, with reverse transport as a conjugation.
+pub trait RotorConnection<const D: usize> {
+    /// Number of edges.
+    fn n_edges(&self) -> usize;
+
+    /// Edge endpoints `[v0, v1]` for edge `e`.
+    fn edge_vertices(&self, e: usize) -> [usize; 2];
+
+    /// Rotor for edge `e` (v0 -> v1).
+    fn rotor(&self, e: usize) -> Rotor;
+
+    /// Transport a fiber element from v0 to v1 along edge `e`.
+    fn transport_forward_rotor<F: Fiber>(&self, e: usize, element: &F::Element) -> F::Element {
+        F::transport_by_rotor(&self.rotor(e), element)
+    }
+
+    /// Transport a fiber element from v1 to v0 along edge `e` (rotor reverse).
+    fn transport_reverse_rotor<F: Fiber>(&self, e: usize, element: &F::Element) -> F::Element {
+        F::transport_by_rotor(&self.rotor(e).reverse(), element)
+    }
+}
+
+/// Edge-based rotor storage for SO(2) (one `Rotor2` per edge).
+#[derive(Clone, Debug)]
+pub struct EdgeTransportRotor2D {
+    /// Edge endpoints.
+    pub edges: Vec<[usize; 2]>,
+    /// Per-edge rotors (v0 -> v1 frame rotation).
+    pub rotors: Vec<Rotor2>,
+}
+
+impl RotorConnection<2> for EdgeTransportRotor2D {
+    fn n_edges(&self) -> usize { self.edges.len() }
+    fn edge_vertices(&self, e: usize) -> [usize; 2] { self.edges[e] }
+    fn rotor(&self, e: usize) -> Rotor { Rotor::R2(self.rotors[e]) }
+}
+
+/// Edge-based rotor storage for SO(3) (one `Rotor3` per edge).
+#[derive(Clone, Debug)]
+pub struct EdgeTransportRotor3D {
+    /// Edge endpoints.
+    pub edges: Vec<[usize; 2]>,
+    /// Per-edge rotors (v0 -> v1 frame rotation).
+    pub rotors: Vec<Rotor3>,
+}
+
+impl RotorConnection<3> for EdgeTransportRotor3D {
+    fn n_edges(&self) -> usize { self.edges.len() }
+    fn edge_vertices(&self, e: usize) -> [usize; 2] { self.edges[e] }
+    fn rotor(&self, e: usize) -> Rotor { Rotor::R3(self.rotors[e]) }
 }
 
 /// Generic covariant Laplacian on fiber bundle sections.
@@ -173,5 +229,41 @@ impl CovLaplacian {
         }
 
         result
+    }
+}
+
+#[cfg(test)]
+mod rotor_conn_tests {
+    use super::*;
+    use crate::fiber::TangentFiber;
+    use crate::rotor::{Rotor2, Rotor3};
+
+    #[test]
+    fn rotor3_connection_forward_matches_matrix_connection() {
+        let edges = vec![[0usize, 1usize]];
+        let r = Rotor3::from_matrix(&[
+            0.0, -1.0, 0.0,
+            1.0,  0.0, 0.0,
+            0.0,  0.0, 1.0,
+        ]);
+        let rconn = EdgeTransportRotor3D { edges: edges.clone(), rotors: vec![r] };
+        let mconn = EdgeTransport3D { edges, transports: vec![r.to_matrix()] };
+        let v = [1.0, 2.0, 3.0];
+        let fwd_rotor = rconn.transport_forward_rotor::<TangentFiber<3>>(0, &v);
+        let fwd_mat = mconn.transport_forward::<TangentFiber<3>>(0, &v);
+        for k in 0..3 { assert!((fwd_rotor[k]-fwd_mat[k]).abs() < 1e-12); }
+        let rev_rotor = rconn.transport_reverse_rotor::<TangentFiber<3>>(0, &v);
+        let rev_mat = mconn.transport_reverse::<TangentFiber<3>>(0, &v);
+        for k in 0..3 { assert!((rev_rotor[k]-rev_mat[k]).abs() < 1e-12); }
+    }
+
+    #[test]
+    fn rotor2_connection_builds() {
+        let conn = EdgeTransportRotor2D {
+            edges: vec![[0, 1], [1, 2]],
+            rotors: vec![Rotor2::from_angle(0.3), Rotor2::from_angle(-0.5)],
+        };
+        assert_eq!(conn.n_edges(), 2);
+        assert_eq!(conn.edge_vertices(1), [1, 2]);
     }
 }
