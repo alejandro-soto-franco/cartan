@@ -32,6 +32,17 @@ All floating-point computation uses the `Real` type alias (currently `f64`),
 so that a future generic refactor is mechanical. The crate also provides
 `CartanError` for structured error handling across the workspace.
 
+## Fiber bundles and rotors
+
+`cartan-core` also defines associated fiber bundles over simplicial meshes:
+the `Fiber` trait (with `U1Spin2`, `TangentFiber`, `NematicFiber3D`), discrete
+connections (`DiscreteConnection`, `EdgeTransport2D/3D`), and the covariant
+Laplacian `CovLaplacian`. Parallel transport can be carried either as SO(d)
+matrices or as geometric-algebra rotors (`Rotor2`, `Rotor3`, `RotorConnection`,
+`CovLaplacian::apply_rotor`): a rotor stores the same rotation in fewer floats,
+composes cheaply, and reverses by conjugation. The matrix and rotor paths agree
+to floating-point tolerance, so either can be used interchangeably.
+
 ## Example
 
 ```rust,no_run
@@ -49,7 +60,7 @@ fn tangent_norm<M: Manifold>(m: &M, p: &M::Point, v: &M::Tangent) -> Real {
 Disable default features and enable `alloc` for embedded targets:
 
 ```toml
-cartan-core = { version = "0.1", default-features = false, features = ["alloc"] }
+cartan-core = { version = "0.6", default-features = false, features = ["alloc"] }
 ```
 
 ## License
