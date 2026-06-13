@@ -64,4 +64,5 @@ pub use fiber::VecSection;
 pub use geodesic::GeodesicInterpolation;
 pub use manifold::Manifold;
 pub use retraction::Retraction;
+pub use rotor::{Rotor, Rotor2, Rotor3};
 pub use transport::{ParallelTransport, VectorTransport};

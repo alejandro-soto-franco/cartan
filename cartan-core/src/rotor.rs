@@ -296,4 +296,12 @@ mod tests {
             _ => panic!("variant mismatch"),
         }
     }
+
+    #[test]
+    fn reexport_paths_exist() {
+        // Compile-time check that the public re-exports resolve.
+        let _r2: crate::Rotor2 = crate::Rotor2::IDENTITY;
+        let _r3: crate::Rotor3 = crate::Rotor3::IDENTITY;
+        let _r: crate::Rotor = crate::Rotor::R2(_r2);
+    }
 }
