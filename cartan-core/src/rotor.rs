@@ -110,6 +110,69 @@ impl Rotor3 {
     }
 }
 
+/// A unit complex rotor in Cl+(2): `R = c + s*e12`, `(c, s) = (cos(t/2), sin(t/2))`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Rotor2 {
+    /// Half-angle cosine.
+    pub c: f64,
+    /// Half-angle sine.
+    pub s: f64,
+}
+
+impl Rotor2 {
+    /// The identity rotor.
+    pub const IDENTITY: Rotor2 = Rotor2 { c: 1.0, s: 0.0 };
+
+    /// Build the rotor that rotates a frame by `theta`.
+    pub fn from_angle(theta: f64) -> Rotor2 {
+        Rotor2 { c: (0.5 * theta).cos(), s: (0.5 * theta).sin() }
+    }
+
+    /// The full rotation angle this rotor induces on vectors.
+    pub fn angle(&self) -> f64 {
+        2.0 * self.s.atan2(self.c)
+    }
+
+    /// Row-major full-angle SO(2) matrix `[cos t, -sin t, sin t, cos t]`.
+    pub fn to_matrix(&self) -> [f64; 4] {
+        let cos_t = self.c * self.c - self.s * self.s;
+        let sin_t = 2.0 * self.s * self.c;
+        [cos_t, -sin_t, sin_t, cos_t]
+    }
+
+    /// Compose: angles add (complex multiply of half-angle reps).
+    pub fn compose(&self, other: &Rotor2) -> Rotor2 {
+        Rotor2 {
+            c: self.c * other.c - self.s * other.s,
+            s: self.s * other.c + self.c * other.s,
+        }
+    }
+
+    /// Reverse: negate the angle.
+    pub fn reverse(&self) -> Rotor2 {
+        Rotor2 { c: self.c, s: -self.s }
+    }
+}
+
+/// A rotor of either dimension, so fibers have one transport signature.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Rotor {
+    /// 2D rotor (Cl+(2)).
+    R2(Rotor2),
+    /// 3D rotor (Cl+(3)).
+    R3(Rotor3),
+}
+
+impl Rotor {
+    /// Reverse the wrapped rotor.
+    pub fn reverse(&self) -> Rotor {
+        match self {
+            Rotor::R2(r) => Rotor::R2(r.reverse()),
+            Rotor::R3(r) => Rotor::R3(r.reverse()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,6 +259,41 @@ mod tests {
             let mut mt = [0.0; 9];
             for i in 0..3 { for j in 0..3 { mt[i*3+j] = m[j*3+i]; } }
             assert!(max_abs_diff(&rev, &mt) < 1e-12);
+        }
+    }
+
+    #[test]
+    fn rotor2_to_matrix_is_full_angle() {
+        let r = Rotor2::from_angle(0.6);
+        let m = r.to_matrix();
+        let (c, s) = (0.6_f64.cos(), 0.6_f64.sin());
+        assert!((m[0]-c).abs() < 1e-12 && (m[1]+s).abs() < 1e-12);
+        assert!((m[2]-s).abs() < 1e-12 && (m[3]-c).abs() < 1e-12);
+    }
+
+    #[test]
+    fn rotor2_compose_adds_angles() {
+        let r = Rotor2::from_angle(0.4).compose(&Rotor2::from_angle(0.9));
+        assert!((r.angle() - 1.3).abs() < 1e-12);
+    }
+
+    #[test]
+    fn rotor2_reverse_negates_angle() {
+        let r = Rotor2::from_angle(0.7).reverse();
+        assert!((r.angle() + 0.7).abs() < 1e-12);
+    }
+
+    #[test]
+    fn rotor_enum_reverse_dispatches() {
+        let r3 = Rotor::R3(Rotor3::from_matrix(&sample_rotations()[3]));
+        match (r3.reverse(), r3) {
+            (Rotor::R3(rev), Rotor::R3(orig)) => assert_eq!(rev, orig.reverse()),
+            _ => panic!("variant mismatch"),
+        }
+        let r2 = Rotor::R2(Rotor2::from_angle(0.5));
+        match r2.reverse() {
+            Rotor::R2(rev) => assert!((rev.angle() + 0.5).abs() < 1e-12),
+            _ => panic!("variant mismatch"),
         }
     }
 }
