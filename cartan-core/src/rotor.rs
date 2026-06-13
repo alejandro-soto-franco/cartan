@@ -9,6 +9,37 @@
 
 #![allow(clippy::needless_range_loop)]
 
+// Float transcendentals routed through libm under no_std, matching the rest of
+// cartan-core (see manifold.rs). Under std they use the inherent f64 methods.
+#[inline]
+fn sqrt(x: f64) -> f64 {
+    #[cfg(feature = "std")]
+    { x.sqrt() }
+    #[cfg(not(feature = "std"))]
+    { libm::sqrt(x) }
+}
+#[inline]
+fn sin(x: f64) -> f64 {
+    #[cfg(feature = "std")]
+    { x.sin() }
+    #[cfg(not(feature = "std"))]
+    { libm::sin(x) }
+}
+#[inline]
+fn cos(x: f64) -> f64 {
+    #[cfg(feature = "std")]
+    { x.cos() }
+    #[cfg(not(feature = "std"))]
+    { libm::cos(x) }
+}
+#[inline]
+fn atan2(y: f64, x: f64) -> f64 {
+    #[cfg(feature = "std")]
+    { y.atan2(x) }
+    #[cfg(not(feature = "std"))]
+    { libm::atan2(y, x) }
+}
+
 /// A unit quaternion rotor in Cl+(3): `R = w + x*e23 + y*e31 + z*e12`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rotor3 {
@@ -27,7 +58,7 @@ impl Rotor3 {
         let (m00, m11, m22) = (m[0], m[4], m[8]);
         let trace = m00 + m11 + m22;
         let r = if trace > 0.0 {
-            let s = 0.5 / (trace + 1.0).sqrt();
+            let s = 0.5 / sqrt(trace + 1.0);
             Rotor3 {
                 w: 0.25 / s,
                 x: (m[7] - m[5]) * s,
@@ -35,7 +66,7 @@ impl Rotor3 {
                 z: (m[3] - m[1]) * s,
             }
         } else if m00 > m11 && m00 > m22 {
-            let s = 2.0 * (1.0 + m00 - m11 - m22).sqrt();
+            let s = 2.0 * sqrt(1.0 + m00 - m11 - m22);
             Rotor3 {
                 w: (m[7] - m[5]) / s,
                 x: 0.25 * s,
@@ -43,7 +74,7 @@ impl Rotor3 {
                 z: (m[2] + m[6]) / s,
             }
         } else if m11 > m22 {
-            let s = 2.0 * (1.0 + m11 - m00 - m22).sqrt();
+            let s = 2.0 * sqrt(1.0 + m11 - m00 - m22);
             Rotor3 {
                 w: (m[2] - m[6]) / s,
                 x: (m[1] + m[3]) / s,
@@ -51,7 +82,7 @@ impl Rotor3 {
                 z: (m[5] + m[7]) / s,
             }
         } else {
-            let s = 2.0 * (1.0 + m22 - m00 - m11).sqrt();
+            let s = 2.0 * sqrt(1.0 + m22 - m00 - m11);
             Rotor3 {
                 w: (m[3] - m[1]) / s,
                 x: (m[2] + m[6]) / s,
@@ -101,7 +132,7 @@ impl Rotor3 {
 
     /// Return a unit-normalized copy.
     pub fn normalized(&self) -> Rotor3 {
-        let n = (self.w*self.w + self.x*self.x + self.y*self.y + self.z*self.z).sqrt();
+        let n = sqrt(self.w*self.w + self.x*self.x + self.y*self.y + self.z*self.z);
         if n < 1e-30 {
             Rotor3::IDENTITY
         } else {
@@ -125,12 +156,12 @@ impl Rotor2 {
 
     /// Build the rotor that rotates a frame by `theta`.
     pub fn from_angle(theta: f64) -> Rotor2 {
-        Rotor2 { c: (0.5 * theta).cos(), s: (0.5 * theta).sin() }
+        Rotor2 { c: cos(0.5 * theta), s: sin(0.5 * theta) }
     }
 
     /// The full rotation angle this rotor induces on vectors.
     pub fn angle(&self) -> f64 {
-        2.0 * self.s.atan2(self.c)
+        2.0 * atan2(self.s, self.c)
     }
 
     /// Row-major full-angle SO(2) matrix `[cos t, -sin t, sin t, cos t]`.
