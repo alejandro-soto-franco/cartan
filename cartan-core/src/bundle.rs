@@ -230,6 +230,48 @@ impl CovLaplacian {
 
         result
     }
+
+    /// Apply the covariant Laplacian using a rotor-valued connection.
+    ///
+    /// Same stencil as `apply`; transports use rotors. Correctness-first: this
+    /// claims no inner-loop speedup over the matrix path. The rotor wins are
+    /// storage, cheap composition, and reverse-as-conjugate at the connection.
+    pub fn apply_rotor<F, const D: usize, C>(
+        &self,
+        section: &impl Section<F>,
+        conn: &C,
+    ) -> VecSection<F>
+    where
+        F: FiberOps,
+        C: RotorConnection<D>,
+    {
+        let nv = section.n_vertices();
+        let mut result = VecSection::<F>::zeros(nv);
+
+        for v in 0..nv {
+            let s_v = section.at(v);
+
+            for &(e, is_v0) in &self.vertex_edges[v] {
+                let neighbor = if is_v0 { self.edges[e][1] } else { self.edges[e][0] };
+                let s_neighbor = section.at(neighbor);
+                let w = self.cot_weights[e];
+
+                let transported = if is_v0 {
+                    conn.transport_reverse_rotor::<F>(e, s_neighbor)
+                } else {
+                    conn.transport_forward_rotor::<F>(e, s_neighbor)
+                };
+
+                F::accumulate_diff(result.at_mut(v), s_v, &transported, w);
+            }
+
+            if self.dual_areas[v] > 1e-30 {
+                F::scale_element(result.at_mut(v), 1.0 / self.dual_areas[v]);
+            }
+        }
+
+        result
+    }
 }
 
 #[cfg(test)]
@@ -265,5 +307,38 @@ mod rotor_conn_tests {
         };
         assert_eq!(conn.n_edges(), 2);
         assert_eq!(conn.edge_vertices(1), [1, 2]);
+    }
+
+    #[test]
+    fn apply_rotor_matches_matrix_apply() {
+        use crate::fiber::{TangentFiber, VecSection, Section};
+        // Triangle mesh: 3 vertices, 3 edges.
+        let edges = [[0usize, 1usize], [1, 2], [2, 0]];
+        let cot = [0.5, 0.5, 0.5];
+        let areas = [1.0, 1.0, 1.0];
+        let lap = CovLaplacian::new(3, &edges, &cot, &areas);
+
+        let rots = [Rotor3::from_matrix(&[
+            1.0,0.0,0.0, 0.0,1.0,0.0, 0.0,0.0,1.0]),
+            Rotor3::from_matrix(&[0.0,-1.0,0.0, 1.0,0.0,0.0, 0.0,0.0,1.0]),
+            Rotor3::from_matrix(&[1.0,0.0,0.0, 0.0,0.0,-1.0, 0.0,1.0,0.0])];
+        let rconn = EdgeTransportRotor3D { edges: edges.to_vec(), rotors: rots.to_vec() };
+        let mconn = EdgeTransport3D {
+            edges: edges.to_vec(),
+            transports: rots.iter().map(|r| r.to_matrix()).collect(),
+        };
+
+        let mut sec = VecSection::<TangentFiber<3>>::zeros(3);
+        *sec.at_mut(0) = [1.0, 0.0, 0.0];
+        *sec.at_mut(1) = [0.0, 1.0, 0.0];
+        *sec.at_mut(2) = [0.0, 0.0, 1.0];
+
+        let via_rotor = lap.apply_rotor::<TangentFiber<3>, 3, _>(&sec, &rconn);
+        let via_matrix = lap.apply::<TangentFiber<3>, 3, _>(&sec, &mconn);
+        for v in 0..3 {
+            for k in 0..3 {
+                assert!((via_rotor.at(v)[k] - via_matrix.at(v)[k]).abs() < 1e-12);
+            }
+        }
     }
 }
