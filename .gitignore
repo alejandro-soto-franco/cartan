@@ -1,4 +1,6 @@
-**/target/
+# No trailing slash: also matches the per-workspace `target` symlinks
+# (cartan-gpu/target, cartan-py/target) that point into /home/cargo-targets.
+**/target
 Cargo.lock
 .wolf/
 docs/
