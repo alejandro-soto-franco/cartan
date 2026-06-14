@@ -18,7 +18,8 @@ exclude = ["experiments", "cartan-py", "cartan-gpu"]
 [workspace.package]
 version = "0.6.0"
 edition = "2024"
-rust-version = "1.85"
+# Real floor: nalgebra 0.35 (and its safe_arch/wide deps) require rustc 1.89.
+rust-version = "1.89"
 license = "MIT"
 repository = "https://github.com/alejandro-soto-franco/cartan"
 keywords = ["riemannian", "manifold", "optimization", "geometry", "geodesic"]
