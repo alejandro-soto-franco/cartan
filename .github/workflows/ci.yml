@@ -13,7 +13,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@1.89
         with:
           components: clippy
@@ -38,7 +38,7 @@ jobs:
     name: no_std + alloc build check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@1.89
       - uses: Swatinem/rust-cache@v2
       - name: Build cartan-core (bare no_std)
@@ -47,3 +47,15 @@ jobs:
         run: cargo build -p cartan-manifolds --no-default-features --features alloc
       - name: Build cartan-geo (no_std + alloc)
         run: cargo build -p cartan-geo --no-default-features --features alloc
+
+  msrv:
+    name: MSRV (declared rust-version)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      # Must match workspace.package.rust-version in Cargo.toml. The real floor
+      # is pinned by nalgebra 0.35 -> safe_arch/wide, all of which need 1.89.
+      - uses: dtolnay/rust-toolchain@1.89
+      - uses: Swatinem/rust-cache@v2
+      - name: Check workspace builds on the declared MSRV
+        run: cargo check --workspace
