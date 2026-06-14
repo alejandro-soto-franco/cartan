@@ -89,8 +89,11 @@ impl Ilu0 {
             // assembly); add values to coalesce.
             let mut collapsed: Vec<(usize, f64)> = Vec::with_capacity(row.len());
             for &(j, v) in row.iter() {
-                if let Some(last) = collapsed.last_mut() {
-                    if last.0 == j { last.1 += v; continue; }
+                if let Some(last) = collapsed.last_mut()
+                    && last.0 == j
+                {
+                    last.1 += v;
+                    continue;
                 }
                 collapsed.push((j, v));
             }

@@ -116,10 +116,10 @@ pub fn track_disclination_events(
                 .partial_cmp(&dist3(**ca2, cb))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        if let Some((a_idx, ca)) = best {
-            if dist3(*ca, cb) < proximity_threshold {
-                b_match[b_idx] = Some(a_idx);
-            }
+        if let Some((a_idx, ca)) = best
+            && dist3(*ca, cb) < proximity_threshold
+        {
+            b_match[b_idx] = Some(a_idx);
         }
     }
 
@@ -132,10 +132,10 @@ pub fn track_disclination_events(
                 .partial_cmp(&dist3(**cb2, ca))
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
-        if let Some((b_idx, cb)) = best {
-            if dist3(*cb, ca) < proximity_threshold {
-                a_match[a_idx] = Some(b_idx);
-            }
+        if let Some((b_idx, cb)) = best
+            && dist3(*cb, ca) < proximity_threshold
+        {
+            a_match[a_idx] = Some(b_idx);
         }
     }
 

@@ -336,11 +336,11 @@ pub fn connect_disclination_lines(segs: &[DisclinationSegment], _dx: f64) -> Vec
             if k + 1 < path.len() {
                 let u = path[k + 1];
                 // Find the segment for edge (v, u) or (u, v)
-                if let Some(neighbors) = adj.get(&v) {
-                    if let Some(&(_, seg_idx)) = neighbors.iter().find(|&&(nb, _)| nb == u) {
-                        ordered_positions.push(segs[seg_idx].midpoint);
-                        continue;
-                    }
+                if let Some(neighbors) = adj.get(&v)
+                    && let Some(&(_, seg_idx)) = neighbors.iter().find(|&&(nb, _)| nb == u)
+                {
+                    ordered_positions.push(segs[seg_idx].midpoint);
+                    continue;
                 }
             }
             // Last vertex: use midpoint of last segment
