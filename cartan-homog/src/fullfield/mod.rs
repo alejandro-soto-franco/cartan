@@ -276,12 +276,12 @@ fn classify_aspect(shape: &crate::shapes::UserInclusion<Order2>) -> f64 {
         }
         return 1e-3;
     }
-    if dbg.starts_with("Spheroid") {
-        if let Some(idx) = dbg.find("aspect: ") {
-            let tail = &dbg[idx + "aspect: ".len()..];
-            if let Some(end) = tail.find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'e' && c != '-' && c != '+') {
-                return tail[..end].parse::<f64>().unwrap_or(1.0);
-            }
+    if dbg.starts_with("Spheroid")
+        && let Some(idx) = dbg.find("aspect: ")
+    {
+        let tail = &dbg[idx + "aspect: ".len()..];
+        if let Some(end) = tail.find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'e' && c != '-' && c != '+') {
+            return tail[..end].parse::<f64>().unwrap_or(1.0);
         }
     }
     1.0
