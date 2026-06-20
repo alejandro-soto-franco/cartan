@@ -73,7 +73,7 @@ where
     }
 
     let mut f = std::io::BufWriter::new(std::fs::File::create(path)?);
-    write!(
+    writeln!(
         f,
         r#"<?xml version="1.0"?>
 <VTKFile type="PolyData" version="1.0" byte_order="LittleEndian" header_type="UInt64">
@@ -86,8 +86,7 @@ where
         <DataArray type="Int64" Name="connectivity" format="binary">{conn_enc}</DataArray>
         <DataArray type="Int64" Name="offsets" format="binary">{offs_enc}</DataArray>
       </Polys>
-      <PointData>
-"#,
+      <PointData>"#,
         nv = nv,
         nt = nt,
         pts_enc = encode_f64_le(&pts),
@@ -98,10 +97,9 @@ where
     for field in fields {
         match field {
             Field::Scalar { name, values } => {
-                write!(
+                writeln!(
                     f,
-                    r#"        <DataArray type="Float64" Name="{name}" NumberOfComponents="1" format="binary">{enc}</DataArray>
-"#,
+                    r#"        <DataArray type="Float64" Name="{name}" NumberOfComponents="1" format="binary">{enc}</DataArray>"#,
                     name = name,
                     enc = encode_f64_le(values),
                 )?;
@@ -112,10 +110,9 @@ where
                 } else {
                     name.clone()
                 };
-                write!(
+                writeln!(
                     f,
-                    r#"        <DataArray type="Float64" Name="{da_name}" NumberOfComponents="3" format="binary">{enc}</DataArray>
-"#,
+                    r#"        <DataArray type="Float64" Name="{da_name}" NumberOfComponents="3" format="binary">{enc}</DataArray>"#,
                     da_name = da_name,
                     enc = encode_f64_le(values),
                 )?;
@@ -123,13 +120,12 @@ where
         }
     }
 
-    write!(
+    writeln!(
         f,
         r#"      </PointData>
     </Piece>
   </PolyData>
-</VTKFile>
-"#
+</VTKFile>"#
     )?;
     f.flush()?;
     Ok(())
