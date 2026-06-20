@@ -11,6 +11,7 @@ members = [
     "cartan-stochastic",
     "cartan-homog",
     "cartan-homog-valid",
+    "cartan-io",
     "benchmarks/rust",
 ]
 exclude = ["experiments", "cartan-py", "cartan-gpu"]
