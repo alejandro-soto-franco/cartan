@@ -9,6 +9,12 @@ use crate::xml::{encode_f64_le, encode_i64_le};
 
 pub enum Field {
     Scalar { name: String, values: Vec<f64> },
+    /// A vector field on the surface mesh.
+    ///
+    /// When `nematic` is true the field is a headless director (draw it
+    /// double-ended). The DataArray Name is written as `{name}__nematic` so
+    /// the suffix survives a round-trip through pyvista and the renderer can
+    /// detect it without relying on non-standard XML attributes.
     Vector { name: String, values: Vec<f64>, nematic: bool },
 }
 
@@ -101,13 +107,16 @@ where
                 )?;
             }
             Field::Vector { name, values, nematic } => {
-                let attr = if *nematic { r#" attribute="nematic""# } else { "" };
+                let da_name = if *nematic {
+                    format!("{name}__nematic")
+                } else {
+                    name.clone()
+                };
                 write!(
                     f,
-                    r#"        <DataArray type="Float64" Name="{name}"{attr} NumberOfComponents="3" format="binary">{enc}</DataArray>
+                    r#"        <DataArray type="Float64" Name="{da_name}" NumberOfComponents="3" format="binary">{enc}</DataArray>
 "#,
-                    name = name,
-                    attr = attr,
+                    da_name = da_name,
                     enc = encode_f64_le(values),
                 )?;
             }
@@ -187,7 +196,12 @@ mod tests {
         write_vtp(&tmp, &mesh, &[vec_field, nem_field]).unwrap();
         let body = std::fs::read_to_string(&tmp).unwrap();
         assert!(body.contains(r#"NumberOfComponents="3""#));
-        assert!(body.contains(r#"attribute="nematic""#));
+        // Nematic director uses the __nematic name suffix (survives VTK round-trip).
+        assert!(body.contains(r#"Name="director__nematic""#));
+        // Non-nematic vector keeps its plain name.
+        assert!(body.contains(r#"Name="velocity""#));
+        // No non-standard attribute should appear.
+        assert!(!body.contains(r#"attribute="nematic""#));
 
         // Wrong-length scalar must return Err, not panic.
         let bad_scalar = Field::Scalar {

@@ -30,12 +30,20 @@ fn main() {
         verts,
         vec![[0, 1, 2]],
     );
-    let field = Field::Scalar {
+    let scalar = Field::Scalar {
         name: "temp".into(),
         values: vec![1.0, 2.0, 3.0],
     };
+    // Director field: (1, 0, 0) per vertex, nematic (headless). Name will be
+    // written as "director__nematic" so the Python loader can detect it via
+    // the __nematic suffix convention.
+    let director = Field::Vector {
+        name: "director".into(),
+        values: vec![1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0],
+        nematic: true,
+    };
 
-    write_vtp(&out_dir.join("surface.vtp"), &mesh, &[field]).expect("write surface.vtp");
+    write_vtp(&out_dir.join("surface.vtp"), &mesh, &[scalar, director]).expect("write surface.vtp");
 
     println!("fixtures written to {}", out_dir.display());
 }
