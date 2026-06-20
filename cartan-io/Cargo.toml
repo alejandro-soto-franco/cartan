@@ -1,0 +1,12 @@
+[package]
+name = "cartan-io"
+version = "0.1.0"
+edition.workspace = true
+
+[dependencies]
+cartan-core      = { path = "../cartan-core", version = "0.6" }
+cartan-dec       = { path = "../cartan-dec", version = "0.6" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.6" }
+nalgebra         = { workspace = true }
+num-complex      = { workspace = true }
+base64           = "0.22"
