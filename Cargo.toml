@@ -15,6 +15,7 @@ members = [
     "cartan-exterior",
     "cartan-simplicial",
     "cartan-feec",
+    "cartan-maxwell",
     "benchmarks/rust",
 ]
 exclude = ["experiments", "cartan-py", "cartan-gpu"]
