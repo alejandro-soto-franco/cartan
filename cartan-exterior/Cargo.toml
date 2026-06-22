@@ -1,0 +1,12 @@
+[package]
+name = "cartan-exterior"
+description = "Dimension-generic numerical exterior algebra Λᵏ(ℝⁿ) with Gramian inner products"
+version = "0.6.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+nalgebra  = { workspace = true }
+itertools = { workspace = true }
