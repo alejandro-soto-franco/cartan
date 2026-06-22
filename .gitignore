@@ -12,3 +12,11 @@ cartan-py/.venv/
 /target
 cartan-py/uv.lock
 cartan-viz/.venv/
+cartan-viz/uv.lock
+
+# Python bytecode caches
+__pycache__/
+*.pyc
+
+# Example/demo run output
+out/
