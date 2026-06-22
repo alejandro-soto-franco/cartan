@@ -65,9 +65,9 @@ use rand::rngs::StdRng;
 /// keeps the code clear.
 fn se_point_diff<const N: usize>(a: &SEPoint<N>, b: &SEPoint<N>) -> f64 {
     // Frobenius norm of rotation matrix difference
-    let rot_diff = (a.rotation.clone() - b.rotation.clone()).norm();
+    let rot_diff = (a.rotation - b.rotation).norm();
     // L2 norm of translation vector difference
-    let trans_diff = (a.translation.clone() - b.translation.clone()).norm();
+    let trans_diff = (a.translation - b.translation).norm();
     rot_diff + trans_diff
 }
 
@@ -81,9 +81,9 @@ fn se_point_diff<const N: usize>(a: &SEPoint<N>, b: &SEPoint<N>) -> f64 {
 /// appropriate because the tangent error should be < tol in both components.
 fn se_tangent_diff<const N: usize>(a: &SETangent<N>, b: &SETangent<N>) -> f64 {
     // Frobenius norm of rotation-component difference
-    let rot_diff = (a.rotation.clone() - b.rotation.clone()).norm();
+    let rot_diff = (a.rotation - b.rotation).norm();
     // L2 norm of translation-component difference
-    let trans_diff = (a.translation.clone() - b.translation.clone()).norm();
+    let trans_diff = (a.translation - b.translation).norm();
     rot_diff + trans_diff
 }
 
@@ -94,8 +94,8 @@ fn se_tangent_diff<const N: usize>(a: &SETangent<N>, b: &SETangent<N>) -> f64 {
 /// we sometimes want to scale without consuming the original.
 fn scale_tangent<const N: usize>(v: &SETangent<N>, s: f64) -> SETangent<N> {
     SETangent {
-        rotation: v.rotation.clone() * s,
-        translation: v.translation.clone() * s,
+        rotation: v.rotation * s,
+        translation: v.translation * s,
     }
 }
 
@@ -814,7 +814,7 @@ fn se3_pure_translation_gives_correct_result() {
     let t_desired = SVector::<Real, 3>::new(1.0, 2.0, 3.0);
     let v_pure_trans = SETangent::<3> {
         rotation: SMatrix::<Real, 3, 3>::zeros(), // zero rotational velocity
-        translation: t_desired.clone(),           // spatial translational velocity
+        translation: t_desired,           // spatial translational velocity
     };
 
     // Apply the exponential map.
@@ -822,7 +822,7 @@ fn se3_pure_translation_gives_correct_result() {
 
     // Verify that the rotation is still the identity.
     let id = SMatrix::<Real, 3, 3>::identity();
-    let rot_err = (q.rotation.clone() - id).norm();
+    let rot_err = (q.rotation - id).norm();
     assert!(
         rot_err < 1e-14,
         "pure translation changed rotation: ||R_new - I||_F = {:.2e} (expected 0)",
@@ -831,7 +831,7 @@ fn se3_pure_translation_gives_correct_result() {
 
     // Verify that the translation is exactly [1, 2, 3].
     // J(0) = I, so t_new = 0 + I · I · [1,2,3] = [1,2,3].
-    let trans_err = (q.translation.clone() - t_desired).norm();
+    let trans_err = (q.translation - t_desired).norm();
     assert!(
         trans_err < 1e-14,
         "pure translation: ||t_new - [1,2,3]|| = {:.2e} (expected 0)",
@@ -945,11 +945,11 @@ fn se3_weight_affects_translation_distance() {
     let t2 = SVector::<Real, 3>::new(1.0, 0.0, 0.0); // translation of point 2 (1 unit along x)
 
     let p = SEPoint::<3> {
-        rotation: id.clone(),
+        rotation: id,
         translation: t1,
     };
     let q = SEPoint::<3> {
-        rotation: id.clone(),
+        rotation: id,
         translation: t2,
     };
 

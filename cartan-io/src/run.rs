@@ -53,6 +53,10 @@ impl RunWriter {
     ///
     /// Writes `frame_{n:04}.vtu`, appends a diagnostics row, records an MDD
     /// frame from `coords`, and (on the first call) writes `blender/base.obj`.
+    ///
+    /// One frame is an irreducible bundle of geometry, the two field cochains,
+    /// and two scalar diagnostics, so the wide argument list is intentional.
+    #[allow(clippy::too_many_arguments)]
     pub fn push_frame(
         &mut self,
         time: f64,
@@ -111,7 +115,7 @@ impl RunWriter {
     /// `blender/motion.mdd` from all recorded frames.
     pub fn finish(self) -> io::Result<()> {
         write_pvd(&self.dir.join("frames.pvd"), &self.pvd_entries)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))?;
+            .map_err(|e| io::Error::other(e.to_string()))?;
 
         self.diag.finish()?;
 

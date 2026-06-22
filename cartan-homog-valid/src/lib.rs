@@ -8,7 +8,7 @@ pub mod approx;
 mod smoke {
     #[test]
     fn harness_compiles() {
-        assert!(true);
+        // Reaching this point means the validation crate built and linked.
     }
 
     #[test]

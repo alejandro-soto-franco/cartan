@@ -17,7 +17,7 @@ use nalgebra::DVector;
 /// for any grade: a 2-cochain in 2D has a 1-dimensional grade-2 space, so
 /// the norm equals the absolute value of the single coefficient.
 ///
-/// Returns a flat Vec<f64> of length `complex.nsimplices(complex.dim())`.
+/// Returns a flat `Vec<f64>` of length `complex.nsimplices(complex.dim())`.
 pub fn cell_scalar_from_cochain(
     complex: &Complex,
     coords: &MeshCoords,
@@ -40,7 +40,7 @@ pub fn cell_scalar_from_cochain(
 /// and copies the grade-1 ExteriorElement coefficients into a length-3 slot,
 /// padding z=0 for 2D meshes.
 ///
-/// Returns a flat Vec<f64> of length `3 * complex.nsimplices(complex.dim())`.
+/// Returns a flat `Vec<f64>` of length `3 * complex.nsimplices(complex.dim())`.
 pub fn cell_vectors_from_cochain(
     complex: &Complex,
     coords: &MeshCoords,
@@ -53,7 +53,7 @@ pub fn cell_vectors_from_cochain(
         let barycenter = cell_barycenter(&cell, coords);
         let elem = form.eval_known_cell(cell, &barycenter);
         let coeffs = elem.coeffs();
-        let x = if coeffs.len() > 0 { coeffs[0] } else { 0.0 };
+        let x = if !coeffs.is_empty() { coeffs[0] } else { 0.0 };
         let y = if coeffs.len() > 1 { coeffs[1] } else { 0.0 };
         let z = if ambient_dim >= 3 && coeffs.len() > 2 { coeffs[2] } else { 0.0 };
         result.push(x);

@@ -18,7 +18,7 @@ fn geodesic_sphere_endpoint_roundtrip() {
     let p = SVector::<Real, 3>::from([1.0, 0.0, 0.0]);
     let q = SVector::<Real, 3>::from([0.0, 0.0, 1.0]);
 
-    let geo = Geodesic::from_two_points(&s2, p.clone(), &q).unwrap();
+    let geo = Geodesic::from_two_points(&s2, p, &q).unwrap();
 
     // gamma(0) = p
     let start = geo.eval(0.0);
@@ -91,7 +91,7 @@ fn geodesic_euclidean_is_line_segment() {
     let p = SVector::<Real, 3>::from([0.0, 0.0, 0.0]);
     let q = SVector::<Real, 3>::from([1.0, 2.0, 3.0]);
 
-    let geo = Geodesic::from_two_points(&r3, p.clone(), &q).unwrap();
+    let geo = Geodesic::from_two_points(&r3, p, &q).unwrap();
 
     // On Euclidean space, gamma(t) = p + t*(q-p) = t*q.
     for i in 0..=10 {
@@ -142,7 +142,7 @@ fn sphere_curvature_query_matches_free_functions() {
     let u = SVector::<Real, 3>::from([1.0, 0.0, 0.0]);
     let v = SVector::<Real, 3>::from([0.0, 0.0, 1.0]);
 
-    let q = CurvatureQuery::new(&s2, p.clone());
+    let q = CurvatureQuery::new(&s2, p);
     assert!((q.sectional(&u, &v) - sectional_at(&s2, &p, &u, &v)).abs() < 1e-14);
     assert!((q.scalar() - scalar_at(&s2, &p)).abs() < 1e-14);
 }
@@ -174,7 +174,7 @@ fn jacobi_euclidean_is_linear() {
     let j0 = SVector::<Real, 3>::from([1.0, 0.0, 0.0]);
     let j0_dot = SVector::<Real, 3>::from([0.0, 0.0, 1.0]);
 
-    let result = integrate_jacobi(&geo, j0.clone(), j0_dot.clone(), 100);
+    let result = integrate_jacobi(&geo, j0, j0_dot, 100);
 
     for (i, (&t, j)) in result.params.iter().zip(result.field.iter()).enumerate() {
         let expected = j0 + j0_dot * t;
@@ -196,10 +196,10 @@ fn jacobi_sphere_norm_at_zero() {
     let j0 = SVector::<Real, 3>::from([0.0, 1.0, 0.0]); // tangent at p, perp to v
     let j0_dot = SVector::<Real, 3>::zeros();
 
-    let result = integrate_jacobi(&geo, j0.clone(), j0_dot, 200);
+    let result = integrate_jacobi(&geo, j0, j0_dot, 200);
 
     // J(0) = j0 exactly
-    let start_err = (result.field[0].clone() - j0).norm();
+    let start_err = (result.field[0] - j0).norm();
     assert!(start_err < 1e-14, "J(0) err = {:.2e}", start_err);
 
     // All field values stay on the sphere's tangent bundle: ||J(t)||_sphere stays bounded

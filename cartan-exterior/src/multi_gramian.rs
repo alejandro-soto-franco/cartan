@@ -1,6 +1,6 @@
 // Ported from luiswirth/formoniq (used with permission), adapted for cartan.
 
-use crate::{combo::binomial, gramian::Gramian, term::ExteriorTerm, Dim, ExteriorGrade};
+use crate::{gramian::Gramian, term::ExteriorTerm, ExteriorGrade};
 use nalgebra as na;
 
 /// Construct Gramian on lexicographically ordered standard k-element standard
@@ -35,6 +35,7 @@ pub fn multi_gramian(single_gramian: &Gramian, grade: ExteriorGrade) -> Gramian 
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::combo::binomial;
   use approx::assert_relative_eq;
 
   #[test]

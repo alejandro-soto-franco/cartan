@@ -148,7 +148,7 @@ fn laplace_beltrami_kills_constants() {
     let ops = Operators::from_mesh(&mesh, &Euclidean::<2>);
     let nv = mesh.n_vertices();
 
-    let f = DVector::from_element(nv, 3.14);
+    let f = DVector::from_element(nv, 3.5);
     let lf = ops.apply_laplace_beltrami(&f);
 
     let max_err = lf.abs().max();
@@ -537,7 +537,7 @@ fn operators_generic_laplace_kills_constants() {
     let ops = Operators::from_mesh_generic(&mesh, &manifold).unwrap();
     let nv = mesh.n_vertices();
 
-    let f = DVector::from_element(nv, 3.14);
+    let f = DVector::from_element(nv, 3.5);
     let lf = ops.apply_laplace_beltrami(&f);
 
     let max_err = lf.abs().max();

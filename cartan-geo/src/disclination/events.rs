@@ -231,7 +231,8 @@ mod tests {
             charge: DisclinationCharge::Half(Sign::Positive),
             is_loop: false,
         };
-        let events = track_disclination_events(&[line.clone()], &[line], 5, 2.0);
+        let frame = [line];
+        let events = track_disclination_events(&frame, &frame, 5, 2.0);
         assert!(events.is_empty());
     }
 }

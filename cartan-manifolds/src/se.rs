@@ -1259,8 +1259,8 @@ mod tests {
         let v_recovered = m.log(&p, &q).expect("log should succeed for small tangent");
 
         // Compare rotation and translation components.
-        let rot_err = (&v_recovered.rotation - &v.rotation).norm();
-        let trans_err = (&v_recovered.translation - &v.translation).norm();
+        let rot_err = (v_recovered.rotation - v.rotation).norm();
+        let trans_err = (v_recovered.translation - v.translation).norm();
         assert!(rot_err < MED, "rotation roundtrip error: {:.2e}", rot_err);
         assert!(
             trans_err < MED,
@@ -1287,8 +1287,8 @@ mod tests {
         let v = m.log(&p, &q).expect("log should succeed");
         let q_recovered = m.exp(&p, &v);
 
-        let rot_err = (&q_recovered.rotation - &q.rotation).norm();
-        let trans_err = (&q_recovered.translation - &q.translation).norm();
+        let rot_err = (q_recovered.rotation - q.rotation).norm();
+        let trans_err = (q_recovered.translation - q.translation).norm();
         assert!(rot_err < MED, "rotation roundtrip error: {:.2e}", rot_err);
         assert!(
             trans_err < MED,
@@ -1312,8 +1312,8 @@ mod tests {
         let q = m.exp(&p, &v);
         let v_recovered = m.log(&p, &q).expect("log should succeed for SE(2)");
 
-        let rot_err = (&v_recovered.rotation - &v.rotation).norm();
-        let trans_err = (&v_recovered.translation - &v.translation).norm();
+        let rot_err = (v_recovered.rotation - v.rotation).norm();
+        let trans_err = (v_recovered.translation - v.translation).norm();
         assert!(
             rot_err < MED,
             "SE(2) rotation roundtrip error: {:.2e}",
@@ -1337,8 +1337,8 @@ mod tests {
         let zero = m.zero_tangent(&p);
         let q = m.exp(&p, &zero);
 
-        let rot_err = (&q.rotation - &p.rotation).norm();
-        let trans_err = (&q.translation - &p.translation).norm();
+        let rot_err = (q.rotation - p.rotation).norm();
+        let trans_err = (q.translation - p.translation).norm();
         assert!(rot_err < TIGHT, "exp(p, 0) rotation ≠ p: {:.2e}", rot_err);
         assert!(
             trans_err < TIGHT,
@@ -1398,8 +1398,8 @@ mod tests {
         let zero = m.zero_tangent(&p);
         let q = m.retract(&p, &zero);
 
-        let rot_err = (&q.rotation - &p.rotation).norm();
-        let trans_err = (&q.translation - &p.translation).norm();
+        let rot_err = (q.rotation - p.rotation).norm();
+        let trans_err = (q.translation - p.translation).norm();
         assert!(rot_err < TIGHT, "retract(p, 0) rotation ≠ p");
         assert!(trans_err < TIGHT, "retract(p, 0) translation ≠ p");
     }
@@ -1435,8 +1435,8 @@ mod tests {
             .inverse_retract(&p, &q)
             .expect("inverse_retract should succeed");
 
-        let rot_err = (&v_recovered.rotation - &v.rotation).norm();
-        let trans_err = (&v_recovered.translation - &v.translation).norm();
+        let rot_err = (v_recovered.rotation - v.rotation).norm();
+        let trans_err = (v_recovered.translation - v.translation).norm();
         assert!(
             rot_err < MED,
             "inverse_retract rotation error: {:.2e}",
@@ -1497,8 +1497,8 @@ mod tests {
         let q = m.exp(&p, &v);
 
         let g0 = m.geodesic(&p, &q, 0.0).expect("geodesic(0) should succeed");
-        let rot_err = (&g0.rotation - &p.rotation).norm();
-        let trans_err = (&g0.translation - &p.translation).norm();
+        let rot_err = (g0.rotation - p.rotation).norm();
+        let trans_err = (g0.translation - p.translation).norm();
         assert!(rot_err < MED, "geodesic(p,q,0) rotation ≠ p");
         assert!(trans_err < MED, "geodesic(p,q,0) translation ≠ p");
     }
@@ -1516,8 +1516,8 @@ mod tests {
         let q = m.exp(&p, &v);
 
         let g1 = m.geodesic(&p, &q, 1.0).expect("geodesic(1) should succeed");
-        let rot_err = (&g1.rotation - &q.rotation).norm();
-        let trans_err = (&g1.translation - &q.translation).norm();
+        let rot_err = (g1.rotation - q.rotation).norm();
+        let trans_err = (g1.translation - q.translation).norm();
         assert!(rot_err < MED, "geodesic(p,q,1) rotation ≠ q");
         assert!(trans_err < MED, "geodesic(p,q,1) translation ≠ q");
     }
@@ -1535,8 +1535,8 @@ mod tests {
         let proj1 = m.project_tangent(&p, &v);
         let proj2 = m.project_tangent(&p, &proj1);
 
-        let rot_err = (&proj2.rotation - &proj1.rotation).norm();
-        let trans_err = (&proj2.translation - &proj1.translation).norm();
+        let rot_err = (proj2.rotation - proj1.rotation).norm();
+        let trans_err = (proj2.translation - proj1.translation).norm();
         assert!(rot_err < TIGHT, "project_tangent not idempotent (rotation)");
         assert!(
             trans_err < TIGHT,
