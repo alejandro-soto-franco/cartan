@@ -1,7 +1,11 @@
 [package]
 name = "cartan-io"
-version = "0.1.0"
+description = "VTK, ParaView, and Blender export for cartan: dimension-generic UnstructuredGrid writer, run-directory recorder, and FEEC field reconstruction"
+version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [dependencies]
 cartan-core      = { path = "../cartan-core", version = "0.6" }
