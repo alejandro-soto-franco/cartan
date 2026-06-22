@@ -32,12 +32,12 @@ impl Cochain {
         Self::constant(0.0, skeleton)
     }
 
-    pub fn from_function<F>(mut f: F, dim: ExteriorGrade, topology: &Complex) -> Self
+    pub fn from_function<F>(f: F, dim: ExteriorGrade, topology: &Complex) -> Self
     where
         F: FnMut(SimplexHandle) -> f64,
     {
         let skeleton = topology.skeleton(dim);
-        let coeffs = DVector::from_iterator(skeleton.len(), skeleton.handle_iter().map(|h| f(h)));
+        let coeffs = DVector::from_iterator(skeleton.len(), skeleton.handle_iter().map(f));
         Self::new(dim, coeffs)
     }
 
@@ -162,7 +162,7 @@ mod cartan_tests {
         // d of a constant 0-cochain is 0 (closed).
         let (complex, _coords) = CartesianMeshInfo::new_unit(2, 2).compute_coord_complex();
         let skeleton = complex.skeleton(0);
-        let c = Cochain::constant(3.0, &*skeleton);
+        let c = Cochain::constant(3.0, &skeleton);
         let dc = c.dif(&complex);
         assert_eq!(dc.dim(), 1);
         for &v in dc.coeffs().iter() {

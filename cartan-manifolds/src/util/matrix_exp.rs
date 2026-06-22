@@ -812,7 +812,7 @@ mod tests {
         let id = SMatrix::<Real, 3, 3>::identity();
 
         // Check R^T R = I (orthogonality).
-        let rtr = r.transpose() * &r;
+        let rtr = r.transpose() * r;
         let orth_err = (rtr - id).norm();
         assert!(orth_err < MED, "R^T R ≠ I: error = {:.2e}", orth_err);
 
@@ -836,7 +836,7 @@ mod tests {
         let r = matrix_exp_skew(&omega);
         let r_inv = matrix_exp_skew(&(-omega)); // exp(-Ω) = exp(Ω)^{-1}
 
-        let product = &r * &r_inv;
+        let product = r * r_inv;
         let id = SMatrix::<Real, 3, 3>::identity();
         let err = (product - id).norm();
         assert!(err < MED, "exp(Ω)·exp(-Ω) ≠ I: error = {:.2e}", err);
@@ -861,7 +861,7 @@ mod tests {
         let r = matrix_exp_skew(&omega);
         let r_inv = matrix_exp_skew(&(-omega));
 
-        let product = &r * &r_inv;
+        let product = r * r_inv;
         let id = SMatrix::<Real, 4, 4>::identity();
         let err = (product - id).norm();
         assert!(err < MED, "N=4: exp(Ω)·exp(-Ω) ≠ I: error = {:.2e}", err);
@@ -881,7 +881,7 @@ mod tests {
         let r = matrix_exp_skew(&omega);
         let id = SMatrix::<Real, 4, 4>::identity();
 
-        let rtr = r.transpose() * &r;
+        let rtr = r.transpose() * r;
         let orth_err = (rtr - id).norm();
         assert!(orth_err < MED, "N=4: R^T R ≠ I: error = {:.2e}", orth_err);
 

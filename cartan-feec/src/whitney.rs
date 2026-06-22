@@ -8,7 +8,7 @@ use cartan_simplicial::{
     geometry::coord::simplex::SimplexCoords,
     topology::complex::Complex,
 };
-use sprs::{CsMat, TriMat};
+use sprs::CsMat;
 
 /// Extension trait for Complex: produces the exterior derivative operator
 /// as a sparse matrix (coboundary = transpose of boundary).

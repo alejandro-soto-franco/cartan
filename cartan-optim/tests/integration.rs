@@ -206,7 +206,7 @@ fn rtr_spd_recovers_target() {
             m.project_tangent(p, &egrad)
         },
         // EHessian-vector: D²(||P-A||²)[V] = 2V
-        |_p, v| v.clone() * 2.0,
+        |_p, v| *v * 2.0,
         x0,
         &config,
     );
@@ -341,7 +341,7 @@ fn rtr_converges_quadratic_sphere() {
             let egrad = (p - target) * 2.0;
             m.project_tangent(p, &egrad)
         },
-        |_p, v| v.clone() * 2.0,
+        |_p, v| *v * 2.0,
         x0,
         &config,
     );

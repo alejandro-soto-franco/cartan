@@ -1450,7 +1450,7 @@ mod tests {
         label: &str,
     ) {
         let omega = r.transpose() * v;
-        let violation = (&omega + omega.transpose()).norm();
+        let violation = (omega + omega.transpose()).norm();
         assert!(
             violation < tol,
             "{}: R^T V is not skew-symmetric, ||R^T V + (R^T V)^T||_F = {:.2e}",
@@ -1498,7 +1498,7 @@ mod tests {
         // exp(R, 0) = R
         let zero = m.zero_tangent(&r);
         let r_back = m.exp(&r, &zero);
-        let err = (r_back - &r).norm();
+        let err = (r_back - r).norm();
         assert!(err < TIGHT, "exp(R, 0) ≠ R, error = {:.2e}", err);
 
         // exp(R, V) ∈ SO(3)
@@ -1519,7 +1519,7 @@ mod tests {
         // random_tangent gives V = R Ω with ||Ω||_F ≈ sqrt(3) (3 i.i.d. N(0,1) per off-diagonal pair).
         // Scale to ||V||_R = 0.5 to be safe.
         let v_norm = m.norm(&r, &v_big);
-        let v = &v_big * (0.5 / v_norm);
+        let v = v_big * (0.5 / v_norm);
 
         // Forward: Q = exp(R, V)
         let q = m.exp(&r, &v);
@@ -1527,7 +1527,7 @@ mod tests {
         // Backward: V_recovered = log(R, Q)
         let v_recovered = m.log(&r, &q).expect("log should succeed for small V");
 
-        let err = (&v_recovered - &v).norm();
+        let err = (v_recovered - v).norm();
         assert!(
             err < TIGHT,
             "exp-log roundtrip SO(3): ||log(R,exp(R,V)) - V||_F = {:.2e}",
@@ -1565,7 +1565,7 @@ mod tests {
 
         let v_proj = m.project_tangent(&r, &v_ambient);
         let v_proj2 = m.project_tangent(&r, &v_proj);
-        let err = (&v_proj - &v_proj2).norm();
+        let err = (v_proj - v_proj2).norm();
         assert!(
             err < TIGHT,
             "project_tangent not idempotent: error = {:.2e}",
@@ -1592,7 +1592,7 @@ mod tests {
         let mut rng = rng();
         let r = m.random_point(&mut rng);
         let r2 = m.project_point(&r);
-        let err = (&r - &r2).norm();
+        let err = (r - r2).norm();
         assert!(
             err < MED,
             "project_point not idempotent on SO(3): error = {:.2e}",
@@ -1623,7 +1623,7 @@ mod tests {
         let v = m.random_tangent(&r, &mut rng);
         let w = m.random_tangent(&r, &mut rng);
 
-        let lhs = m.inner(&r, &(&u + &v), &w);
+        let lhs = m.inner(&r, &(u + v), &w);
         let rhs = m.inner(&r, &u, &w) + m.inner(&r, &v, &w);
         assert!(
             (lhs - rhs).abs() < TIGHT,
@@ -1653,7 +1653,7 @@ mod tests {
         let r = m.random_point(&mut rng);
         let zero = m.zero_tangent(&r);
         let r_back = m.retract(&r, &zero);
-        let err = (&r_back - &r).norm();
+        let err = (r_back - r).norm();
         assert!(err < TIGHT, "retract(R, 0) ≠ R: error = {:.2e}", err);
     }
 
@@ -1673,7 +1673,7 @@ mod tests {
             .expect("inverse_retract should succeed");
         let q_back = m.retract(&r, &v_back);
 
-        let err = (&q_back - &q).norm();
+        let err = (q_back - q).norm();
         assert!(
             err < TIGHT,
             "Cayley inverse_retract roundtrip SO(3): ||retract(R,inv_retract(R,Q)) - Q||_F = {:.2e}",
@@ -1790,14 +1790,14 @@ mod tests {
         let p0 = m
             .geodesic(&r, &q, 0.0)
             .expect("geodesic at t=0 should succeed");
-        let err0 = (&p0 - &r).norm();
+        let err0 = (p0 - r).norm();
         assert!(err0 < TIGHT, "geodesic(R, Q, 0) ≠ R: error = {:.2e}", err0);
 
         // t = 1 → Q
         let p1 = m
             .geodesic(&r, &q, 1.0)
             .expect("geodesic at t=1 should succeed");
-        let err1 = (&p1 - &q).norm();
+        let err1 = (p1 - q).norm();
         assert!(err1 < TIGHT, "geodesic(R, Q, 1) ≠ Q: error = {:.2e}", err1);
     }
 
@@ -1859,13 +1859,13 @@ mod tests {
 
         // Scale to norm 0.5 for roundtrip.
         let v_norm = m.norm(&r, &v_big);
-        let v = &v_big * (0.5 / v_norm);
+        let v = v_big * (0.5 / v_norm);
 
         let q = m.exp(&r, &v);
         let v_back = m
             .log(&r, &q)
             .expect("log should succeed for small V in SO(4)");
-        let err = (&v_back - &v).norm();
+        let err = (v_back - v).norm();
 
         // Use MED tolerance (1e-8) for SO(4): the Padé+Mercator pipeline accumulates
         // O(1e-12) rounding error per matrix operation, and four 4×4 multiplications
@@ -1899,7 +1899,7 @@ mod tests {
         let id = SMatrix::<Real, 3, 3>::identity();
         // A symmetric matrix is NOT a tangent vector at I (R^T V = I^T S = S is not skew).
         let sym = SMatrix::<Real, 3, 3>::from_fn(|i, j| (i * 3 + j) as Real + 1.0);
-        let sym_part = (&sym + sym.transpose()) * 0.5; // Force symmetric
+        let sym_part = (sym + sym.transpose()) * 0.5; // Force symmetric
         assert!(
             m.check_tangent(&id, &sym_part).is_err(),
             "check_tangent should reject a symmetric matrix at I"

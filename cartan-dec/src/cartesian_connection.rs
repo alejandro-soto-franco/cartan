@@ -143,9 +143,9 @@ mod tests {
         // The FD Laplacian approximates this. The CovLap should be the NEGATIVE.
         // At the peak (x = L/4, i = nx/4):
         let peak_i = nx / 4;
-        let peak_idx = (peak_i * nx + 0) * nx + 0;
+        let peak_idx = (peak_i * nx) * nx;
         let cov_val = result.at(peak_idx)[0];
-        let field_val = data[peak_idx][0];
+        let _field_val = data[peak_idx][0];
 
         // CovLap(sin) should be positive (since sin > 0 at peak, and CovLap is positive at max).
         assert!(

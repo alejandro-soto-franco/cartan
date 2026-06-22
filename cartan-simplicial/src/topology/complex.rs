@@ -37,10 +37,10 @@ pub struct SimplexComplexData {
 }
 
 impl Complex {
-  pub fn skeletons(&self) -> impl Iterator<Item = SkeletonHandle> {
+  pub fn skeletons(&self) -> impl Iterator<Item = SkeletonHandle<'_>> {
     (0..=self.dim()).map(|d| SkeletonHandle::new(self, d))
   }
-  pub fn skeleton(&self, dim: Dim) -> SkeletonHandle {
+  pub fn skeleton(&self, dim: Dim) -> SkeletonHandle<'_> {
     SkeletonHandle::new(self, dim)
   }
   pub fn mesh_skeleton_raw(&self, dim: Dim) -> &ComplexSkeleton {
@@ -49,16 +49,16 @@ impl Complex {
   pub fn nsimplices(&self, dim: Dim) -> usize {
     self.skeleton(dim).len()
   }
-  pub fn vertices(&self) -> SkeletonHandle {
+  pub fn vertices(&self) -> SkeletonHandle<'_> {
     self.skeleton(0)
   }
-  pub fn edges(&self) -> SkeletonHandle {
+  pub fn edges(&self) -> SkeletonHandle<'_> {
     self.skeleton(1)
   }
-  pub fn facets(&self) -> SkeletonHandle {
+  pub fn facets(&self) -> SkeletonHandle<'_> {
     self.skeleton(self.dim() - 1)
   }
-  pub fn cells(&self) -> SkeletonHandle {
+  pub fn cells(&self) -> SkeletonHandle<'_> {
     self.skeleton(self.dim())
   }
 }
@@ -115,7 +115,6 @@ impl Complex {
         facet
           .handle(self)
           .iter()
-          .map(|v| v)
           .collect::<Vec<_>>()
       })
       .unique()
