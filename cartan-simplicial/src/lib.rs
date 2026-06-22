@@ -4,3 +4,4 @@
 pub use cartan_exterior::Dim;
 
 pub mod linalg;
+pub mod topology;
