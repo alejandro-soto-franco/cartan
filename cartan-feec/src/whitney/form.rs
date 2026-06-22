@@ -35,14 +35,14 @@ impl<'a> WhitneyForm<'a> {
 
     /// Evaluate the Whitney form at a known cell, avoiding the slow cell search.
     pub fn eval_known_cell<'b>(&self, cell: SimplexHandle<'b>, coord: &nalgebra::DVector<f64>) -> ExteriorElement {
-        use super::CoordSimplexExt;
+        
         use cartan_simplicial::geometry::coord::simplex::SimplexCoords;
 
-        let cell_coords = SimplexCoords::from_simplex_and_coords(&*cell, self.mesh_coords);
+        let cell_coords = SimplexCoords::from_simplex_and_coords(&cell, self.mesh_coords);
 
         let mut value = MultiForm::zero(self.dim_ambient(), self.grade());
         for dof_simp in cell.mesh_subsimps(self.grade()) {
-            let local_dof_simp = (*dof_simp).relative_to(&*cell);
+            let local_dof_simp = (*dof_simp).relative_to(&cell);
 
             let lsf = WhitneyLsf::from_coords(cell_coords.clone(), local_dof_simp);
             let lsf_value = lsf.at_point(coord.as_view());
@@ -65,7 +65,7 @@ impl ExteriorField for WhitneyForm<'_> {
     }
     /// Evaluate at a global coordinate (slow: searches for the containing cell).
     fn at_point<'a>(&self, coord: impl Into<nalgebra::DVectorView<'a, f64>>) -> ExteriorElement {
-        use super::CoordSimplexExt;
+        
         use cartan_simplicial::geometry::coord::simplex::SimplexCoords;
 
         let coord_view: nalgebra::DVectorView<f64> = coord.into();
@@ -80,14 +80,14 @@ impl ExteriorField for WhitneyForm<'_> {
         let cell = self.complex.cells()
             .handle_iter()
             .find(|c| {
-                let cc = SimplexCoords::from_simplex_and_coords(&**c, self.mesh_coords);
+                let cc = SimplexCoords::from_simplex_and_coords(c, self.mesh_coords);
                 cc.is_global_inside(&coord_owned)
             })
             .unwrap();
 
         let mut value = MultiForm::zero(self.dim_intrinsic(), self.grade());
         for dof_simp in cell.mesh_subsimps(self.grade()) {
-            let local_dof_simp = (*dof_simp).relative_to(&*cell);
+            let local_dof_simp = (*dof_simp).relative_to(&cell);
 
             let lsf = WhitneyLsf::from_coords(cell_coords.clone(), local_dof_simp);
             let lsf_value = lsf.at_point(coord_owned.as_view());

@@ -8,7 +8,6 @@ use crate::linalg::{Matrix, Vector};
 use cartan_exterior::combo::{factorial, lex_rank};
 use cartan_exterior::gramian::Gramian;
 
-use itertools::Itertools;
 use std::f64::consts::SQRT_2;
 
 /// The edge lengths of a simplex.
@@ -204,7 +203,7 @@ impl SimplexLengths {
 #[cfg(test)]
 mod cartan_tests {
     use super::*;
-    use cartan_exterior::gramian::Gramian;
+    
     use crate::linalg::Vector;
     use approx::assert_relative_eq;
 

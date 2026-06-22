@@ -140,7 +140,7 @@ mod tests {
         assert!(
             is_skew(&s, TOL),
             "skew(A) is not skew-symmetric: ||s + s^T||_F = {}",
-            (s.clone() + s.transpose()).norm()
+            (s + s.transpose()).norm()
         );
 
         // --- Check diagonal is exactly zero ---

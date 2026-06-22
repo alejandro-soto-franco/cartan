@@ -3,7 +3,7 @@
 use crate::whitney::{lsf::WhitneyLsf, ManifoldComplexExt};
 
 use cartan_exterior::{
-    combo::{factorial, factorialf, Sign},
+    combo::{factorial, Sign},
     field::ExteriorField,
     list::ExteriorElementList,
     multi_gramian::multi_gramian,

@@ -12,7 +12,7 @@ use sprs::CsMat;
 use crate::driver::MetricDriver;
 use crate::state::MaxwellState;
 
-/// Sparse matrix times dense column vector (manual, since sprs does not impl Mul<DVector>).
+/// Sparse matrix times dense column vector (manual, since sprs does not impl `Mul<DVector>`).
 pub(crate) fn spmv(m: &CsMat<f64>, v: &DVector<f64>) -> DVector<f64> {
     let mut result = DVector::zeros(m.rows());
     for (&val, (row, col)) in m.iter() {

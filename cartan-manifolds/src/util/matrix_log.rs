@@ -570,7 +570,7 @@ mod tests {
         let omega2 = matrix_log_orthogonal(&r).expect("log should succeed");
         let r2 = matrix_exp_skew(&omega2);
 
-        let err = (&r - &r2).norm();
+        let err = (r - r2).norm();
         assert!(err < MED, "exp(log(R)) ≠ R for N=3: error = {:.2e}", err);
     }
 
@@ -609,7 +609,7 @@ mod tests {
         let omega2 = matrix_log_orthogonal(&r).expect("log should succeed for N=4");
         let r2 = matrix_exp_skew(&omega2);
 
-        let err = (&r - &r2).norm();
+        let err = (r - r2).norm();
         assert!(err < MED, "N=4: exp(log(R)) ≠ R: error = {:.2e}", err);
     }
 
