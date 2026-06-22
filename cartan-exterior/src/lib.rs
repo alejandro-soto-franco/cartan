@@ -1,6 +1,8 @@
 //! Dimension-generic numerical exterior algebra.
 //! Ported from luiswirth/formoniq (used with permission), adapted for cartan.
 
+pub mod combo;
+
 /// Intrinsic dimension of the linear space underlying the exterior algebra.
 pub type Dim = usize;
 /// Exterior grade (form degree) k in Λᵏ.
