@@ -11,3 +11,4 @@ cartan-py/.venv/
 **/Cargo.lock.bak
 /target
 cartan-py/uv.lock
+cartan-viz/.venv/
