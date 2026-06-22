@@ -16,9 +16,12 @@ pub mod gramian;
 pub mod term;
 pub mod list;
 pub mod multi_gramian;
+pub mod field;
 
 pub use gramian::Gramian;
 pub use multi_gramian::multi_gramian;
+pub use field::{ExteriorField, DifferentialMultiForm, DiffFormClosure};
+// MultiForm and MultiVector are type aliases defined in this module (lib.rs), no re-export needed.
 
 use nalgebra as na;
 
@@ -142,6 +145,38 @@ impl ExteriorElement {
     self.dim == other.dim
       && self.grade == other.grade
       && (&self.coeffs - &other.coeffs).norm_squared() <= eps.powi(2)
+  }
+}
+
+pub type MultiVector = ExteriorElement;
+pub type MultiForm = ExteriorElement;
+
+impl MultiForm {
+  /// Construct a grade-1 form from a coefficient vector.
+  pub fn from_grade1(coeffs: na::DVector<f64>) -> Self {
+    Self::line(coeffs)
+  }
+
+  /// Precompose k-form by some linear map.
+  /// Needed for pullback of differential k-form.
+  pub fn precompose_form(&self, linear_map: &na::DMatrix<f64>) -> Self {
+    self
+      .basis_iter()
+      .map(|(coeff, basis)| {
+        coeff
+          * MultiForm::wedge_big(
+            basis
+              .iter()
+              .map(|i| MultiForm::line(linear_map.row(i).transpose())),
+          )
+          .unwrap_or(ExteriorElement::one(self.dim))
+      })
+      .sum()
+  }
+
+  pub fn apply_form_to_vector(&self, vector: &MultiVector) -> f64 {
+    assert!(self.dim == vector.dim && self.grade == vector.grade);
+    self.coeffs.dot(&vector.coeffs)
   }
 }
 
