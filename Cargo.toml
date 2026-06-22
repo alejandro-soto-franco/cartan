@@ -12,6 +12,7 @@ members = [
     "cartan-homog",
     "cartan-homog-valid",
     "cartan-io",
+    "cartan-exterior",
     "benchmarks/rust",
 ]
 exclude = ["experiments", "cartan-py", "cartan-gpu"]
@@ -28,6 +29,7 @@ categories = ["mathematics", "science", "algorithms"]
 
 [workspace.dependencies]
 nalgebra = { version = "0.35", default-features = false }
+itertools = { version = "0.13", default-features = false, features = ["use_std"] }
 rand = { version = "0.9", default-features = false }
 rand_distr = { version = "0.5", default-features = false }
 rayon = { version = "1" }
