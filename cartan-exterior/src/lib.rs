@@ -5,8 +5,10 @@ pub mod combo;
 pub mod gramian;
 pub mod term;
 pub mod list;
+pub mod multi_gramian;
 
 pub use gramian::Gramian;
+pub use multi_gramian::multi_gramian;
 
 use nalgebra as na;
 
