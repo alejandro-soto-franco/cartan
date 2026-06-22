@@ -145,6 +145,74 @@ impl<'d, D: MetricDriver> MaxwellEvolver<'d, D> {
         state.e = Cochain::new(1, e_new);
         self.t += self.dt;
     }
+
+    /// One full leapfrog step, returning the synchronized half-step energy as a diagnostic.
+    ///
+    /// The synchronized energy U_sync = 1/2 (E_half^T M1_half E_half + B^T M2_half B)
+    /// is evaluated at the half-step point (t + dt/2), where E_half = 0.5 * (E^n + E^{n+1})
+    /// averages the electric field across the step. This places E and B at the same stagger
+    /// point, giving a better-conserved observable than the cross-time energy.
+    ///
+    /// The step itself is identical to `step()`.
+    pub fn step_with_energy(
+        &mut self,
+        state: &mut MaxwellState,
+        source: Option<&Cochain>,
+    ) -> f64 {
+        let dim = self.driver.dim();
+        let complex = self.driver.complex();
+        let interior = interior_grade_dofs(complex, 1);
+
+        // Capture E^n before the update.
+        let e_before = state.e.coeffs().clone();
+
+        // Faraday half-step (metric-free, exact).
+        self.faraday_step(state);
+
+        // Assemble time-dependent masses.
+        let l_now = self.driver.lengths_at(self.t);
+        let l_next = self.driver.lengths_at(self.t + self.dt);
+        let l_half = self.driver.lengths_at(self.t + 0.5 * self.dt);
+        let m1_now = assemble_galmat(complex, &l_now, HodgeMassElmat::new(dim, 1));
+        let m1_next = assemble_galmat(complex, &l_next, HodgeMassElmat::new(dim, 1));
+        let m1_half = assemble_galmat(complex, &l_half, HodgeMassElmat::new(dim, 1));
+        let m2_half = assemble_galmat(complex, &l_half, HodgeMassElmat::new(dim, 2));
+
+        // Ampere update RHS.
+        let e_now = state.e.coeffs();
+        let b_half = state.b.coeffs();
+        let m2b = spmv(&m2_half, b_half);
+        let d1t = self.d1.transpose_view().to_csc();
+        let d1t_m2b = spmv(&d1t, &m2b);
+        let mut rhs_full = spmv(&m1_now, e_now) + self.dt * d1t_m2b;
+        if let Some(j) = source {
+            rhs_full -= self.dt * j.coeffs();
+        }
+
+        // Cholesky solve on interior block.
+        let m1_int = restrict_galmat(&m1_next, &interior);
+        let rhs_int = DVector::from_fn(interior.len(), |i, _| rhs_full[interior[i]]);
+        let dense = to_dense(&m1_int);
+        let sol = dense
+            .cholesky()
+            .expect("interior M1 must be SPD")
+            .solve(&rhs_int);
+
+        // Scatter E^{n+1} back.
+        let mut e_new = DVector::zeros(complex.nsimplices(1));
+        for (i, &dof) in interior.iter().enumerate() {
+            e_new[dof] = sol[i];
+        }
+        state.e = Cochain::new(1, e_new);
+        self.t += self.dt;
+
+        // Synchronized energy: E_half = 0.5*(E^n + E^{n+1}), evaluated at M1_half, M2_half.
+        // After the update, state.e = E^{n+1} and e_before = E^n, so we pass e_before
+        // as the second argument: synchronized_energy computes 0.5*(self.e + e_next).
+        // To get 0.5*(E^n + E^{n+1}) we pass e_before as e_next and note that
+        // self.e is E^{n+1}, giving the correct average.
+        state.synchronized_energy(&e_before, &m1_half, &m2_half)
+    }
 }
 
 #[cfg(test)]
