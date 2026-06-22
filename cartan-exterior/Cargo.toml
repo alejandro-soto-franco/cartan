@@ -8,5 +8,8 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-nalgebra  = { workspace = true }
+nalgebra  = { workspace = true, features = ["std"] }
 itertools = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
