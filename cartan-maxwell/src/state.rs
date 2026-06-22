@@ -36,6 +36,24 @@ impl MaxwellState {
         let ub = b.dot(&spmv(m2, b));
         0.5 * (ue + ub)
     }
+
+    /// Synchronized half-step energy: U_sync = 1/2 (E_half^T M1 E_half + B^T M2 B),
+    /// where E_half = 0.5 * (E^n + E^{n+1}) is the average of the electric field
+    /// at two consecutive integer steps. This evaluates E and B at the same stagger
+    /// point as B (the half-integer step), giving a better-conserved diagnostic than
+    /// the cross-time energy from `energy()`.
+    pub fn synchronized_energy(
+        &self,
+        e_next: &DVector<f64>,
+        m1: &CsMat<f64>,
+        m2: &CsMat<f64>,
+    ) -> f64 {
+        let e_half = 0.5 * (self.e.coeffs() + e_next);
+        let b = self.b.coeffs();
+        let ue = e_half.dot(&spmv(m1, &e_half));
+        let ub = b.dot(&spmv(m2, b));
+        0.5 * (ue + ub)
+    }
 }
 
 #[cfg(test)]
