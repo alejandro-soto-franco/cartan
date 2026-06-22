@@ -1,0 +1,193 @@
+// Ported from luiswirth/formoniq (used with permission), adapted for cartan.
+
+//! Combinatorics
+
+pub fn binomial(n: usize, k: usize) -> usize {
+    if k > n {
+        0
+    } else if k == 0 || k == n {
+        1
+    } else {
+        let k = k.min(n - k);
+        (0..k).fold(1, |acc, i| acc * (n - i) / (i + 1))
+    }
+}
+
+pub fn factorial(num: usize) -> u64 {
+    (1..=num as u64).product()
+}
+
+pub fn nsubpermutations(n: usize, k: usize) -> usize {
+    binomial(n, k) * (factorial(k) as usize)
+}
+
+pub fn factorialf(num: usize) -> f64 {
+    factorial(num) as f64
+}
+
+pub fn is_strictly_increasing(indices: &[usize]) -> bool {
+    indices.windows(2).all(|w| w[0] < w[1])
+}
+
+pub fn lex_rank(indices: &[usize], n: usize) -> usize {
+    assert!(
+        is_strictly_increasing(indices),
+        "Lexicographical rank only available for strictly increasing multiindices"
+    );
+    let k = indices.len();
+
+    let mut rank = 0;
+    for (i, &index) in indices.iter().enumerate() {
+        let start = if i == 0 { 0 } else { indices[i - 1] + 1 };
+        for s in start..index {
+            rank += binomial(n - s - 1, k - i - 1);
+        }
+    }
+    rank
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum Sign {
+    #[default]
+    Pos = 1,
+    Neg = -1,
+}
+
+impl Sign {
+    pub fn from_bool(b: bool) -> Self {
+        match b {
+            true => Self::Pos,
+            false => Self::Neg,
+        }
+    }
+    pub fn from_f64(f: f64) -> Option<Self> {
+        if f == 0.0 {
+            return None;
+        }
+        Some(Self::from_bool(f > 0.0))
+    }
+
+    /// permutation parity
+    pub fn from_parity(n: usize) -> Self {
+        match n % 2 {
+            0 => Self::Pos,
+            1 => Self::Neg,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn other(self) -> Self {
+        match self {
+            Sign::Pos => Sign::Neg,
+            Sign::Neg => Sign::Pos,
+        }
+    }
+    pub fn flip(&mut self) {
+        *self = self.other()
+    }
+
+    pub fn as_i32(self) -> i32 {
+        self as i32
+    }
+    pub fn as_f64(self) -> f64 {
+        self as i32 as f64
+    }
+
+    pub fn is_pos(self) -> bool {
+        self == Self::Pos
+    }
+    pub fn is_neg(self) -> bool {
+        self == Self::Neg
+    }
+}
+impl std::ops::Neg for Sign {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        match self {
+            Self::Pos => Self::Neg,
+            Self::Neg => Self::Pos,
+        }
+    }
+}
+impl std::ops::Mul for Sign {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self::Output {
+        match self == other {
+            true => Self::Pos,
+            false => Self::Neg,
+        }
+    }
+}
+impl std::ops::MulAssign for Sign {
+    fn mul_assign(&mut self, other: Self) {
+        *self = *self * other;
+    }
+}
+impl From<Sign> for char {
+    fn from(o: Sign) -> Self {
+        match o {
+            Sign::Pos => '+',
+            Sign::Neg => '-',
+        }
+    }
+}
+impl std::fmt::Display for Sign {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(fmt, "{}", char::from(*self))
+    }
+}
+
+/// Returns the sorted permutation of `a` and the sign of the permutation.
+pub fn sort_signed<T: Ord>(a: &mut [T]) -> Sign {
+    Sign::from_parity(sort_count_swaps(a))
+}
+
+/// Returns the sorted permutation of `a` and the number of swaps.
+pub fn sort_count_swaps<T: Ord>(a: &mut [T]) -> usize {
+    let mut nswaps = 0;
+
+    let mut n = a.len();
+    if n > 0 {
+        let mut swapped = true;
+        while swapped {
+            swapped = false;
+            for i in 1..n {
+                if a[i - 1] > a[i] {
+                    a.swap(i - 1, i);
+                    swapped = true;
+                    nswaps += 1;
+                }
+            }
+            n -= 1;
+        }
+    }
+    nswaps
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn factorial_and_binomial() {
+        assert_eq!(factorial(0), 1);
+        assert_eq!(factorial(5), 120);
+        assert_eq!(binomial(4, 2), 6);
+        assert_eq!(binomial(5, 0), 1);
+    }
+
+    #[test]
+    fn lex_rank_orders_increasing_multiindices() {
+        // For n=4, the 2-subsets in lex order: 01,02,03,12,13,23 -> ranks 0..6
+        assert_eq!(lex_rank(&[0, 1], 4), 0);
+        assert_eq!(lex_rank(&[0, 2], 4), 1);
+        assert_eq!(lex_rank(&[2, 3], 4), 5);
+    }
+
+    #[test]
+    fn sign_alternates_with_parity() {
+        assert_eq!(Sign::from_parity(0).as_f64(), 1.0);
+        assert_eq!(Sign::from_parity(1).as_f64(), -1.0);
+        assert_eq!(Sign::from_parity(2).as_f64(), 1.0);
+    }
+}
