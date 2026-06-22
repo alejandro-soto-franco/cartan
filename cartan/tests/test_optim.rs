@@ -106,7 +106,7 @@ fn euclidean_rtr_recovers_target() {
         &m,
         euc_cost,
         |x| euc_rgrad(&m, x),
-        |_x, v| v.clone() * 2.0,
+        |_x, v| *v * 2.0,
         x0,
         &config,
     );
@@ -346,7 +346,7 @@ fn so3_rtr_recovers_rotation() {
         &m,
         |r| so3_cost(r, &a),
         |r| so3_rgrad(&m, r, &a),
-        |_r, v| v.clone() * 2.0,
+        |_r, v| *v * 2.0,
         x0,
         &config,
     );
@@ -562,7 +562,7 @@ fn corr3_rtr_recovers_target() {
         &m,
         |c| corr_cost(c, &target),
         |c| corr_rgrad(&m, c, &target),
-        |_c, v| v.clone() * 2.0,
+        |_c, v| *v * 2.0,
         x0,
         &config,
     );
@@ -763,14 +763,14 @@ fn all_algorithms_decrease_cost_on_sphere() {
         &m,
         |p| sph_cost(p, &a),
         |p| sph_rgrad(&m, p, &a),
-        x0.clone(),
+        x0,
         &config_rgd,
     );
     let res_rcg = minimize_rcg(
         &m,
         |p| sph_cost(p, &a),
         |p| sph_rgrad(&m, p, &a),
-        x0.clone(),
+        x0,
         &config_rcg,
     );
     let res_rtr = minimize_rtr(
@@ -778,7 +778,7 @@ fn all_algorithms_decrease_cost_on_sphere() {
         |p| sph_cost(p, &a),
         |p| sph_rgrad(&m, p, &a),
         |_p, _v| SVector::<Real, 3>::zeros(),
-        x0.clone(),
+        x0,
         &config_rtr,
     );
 

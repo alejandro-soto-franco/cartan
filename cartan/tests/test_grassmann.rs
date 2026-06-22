@@ -119,8 +119,8 @@ fn gr52_log_exp_roundtrip() {
         let q_rec = m.exp(&p, &m.log(&p, &q).unwrap());
         // Subspace equality: Q_rec and Q should span the same subspace.
         // ||P_{Q_rec} - P_Q||_F = 0, i.e. Q_rec Q_rec^T = Q Q^T.
-        let proj_rec = &q_rec * q_rec.transpose();
-        let proj_q = &q * q.transpose();
+        let proj_rec = q_rec * q_rec.transpose();
+        let proj_q = q * q.transpose();
         assert_frob(
             &proj_rec,
             &proj_q,
@@ -200,7 +200,7 @@ fn gr52_curvature_skew_symmetry_and_bianchi() {
         let r_uvw = m.riemann_curvature(&p, &u, &v, &w);
         let r_vuw = m.riemann_curvature(&p, &v, &u, &w);
         assert!(
-            (r_uvw.clone() + r_vuw).norm() < 1e-12,
+            (r_uvw + r_vuw).norm() < 1e-12,
             "sample {i}: skew-symmetry violated"
         );
 
@@ -269,8 +269,8 @@ fn gr52_geodesic_boundary_conditions() {
         let g1 = m.geodesic(&p, &q, 1.0).unwrap();
 
         // Subspace equality: compare projection matrices.
-        let proj_g0_p = &g0 * g0.transpose() - &p * p.transpose();
-        let proj_g1_q = &g1 * g1.transpose() - &q * q.transpose();
+        let proj_g0_p = g0 * g0.transpose() - p * p.transpose();
+        let proj_g1_q = g1 * g1.transpose() - q * q.transpose();
         assert!(
             proj_g0_p.norm() < 1e-10,
             "sample {i}: geodesic(0) not equal to p as subspace: err = {:.2e}",

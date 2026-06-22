@@ -105,10 +105,10 @@ impl MeshCoords {
       .cells()
       .handle_iter()
       .find(|cell| {
-        let cell_coords = SimplexCoords::from_simplex_and_coords(&*cell, self);
+        let cell_coords = SimplexCoords::from_simplex_and_coords(cell, self);
         cell_coords.is_global_inside(coord)
       })
-      .map(|cell| SimplexCoords::from_simplex_and_coords(&*cell, self))
+      .map(|cell| SimplexCoords::from_simplex_and_coords(&cell, self))
   }
 }
 

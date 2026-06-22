@@ -445,7 +445,7 @@ where
         // -- Skew-symmetry: R(u,v)w = -R(v,u)w, equivalently R(u,v)w + R(v,u)w = 0 --
         let r_uvw = manifold.riemann_curvature(&p, &u, &v, &w);
         let r_vuw = manifold.riemann_curvature(&p, &v, &u, &w);
-        let sum = r_uvw.clone() + r_vuw;
+        let sum = r_uvw + r_vuw;
         assert!(
             sum.norm() < tol * 10.0,
             "sample {}: skew-symmetry violated: ||R(u,v)w + R(v,u)w|| = {:.2e}",
@@ -497,8 +497,8 @@ where
         }
 
         // -- Constant speed: dist(p, gamma(0.5)) = 0.5 * dist(p, q) --
-        if let (Ok(d_pq), Ok(g_half)) = (manifold.dist(&p, &q), manifold.geodesic(&p, &q, 0.5)) {
-            if let Ok(d_half) = manifold.dist(&p, &g_half) {
+        if let (Ok(d_pq), Ok(g_half)) = (manifold.dist(&p, &q), manifold.geodesic(&p, &q, 0.5))
+            && let Ok(d_half) = manifold.dist(&p, &g_half) {
                 assert_real_eq(
                     d_half,
                     0.5 * d_pq,
@@ -506,6 +506,5 @@ where
                     &format!("sample {}: constant speed at t=0.5", i),
                 );
             }
-        }
     }
 }

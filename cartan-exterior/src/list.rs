@@ -41,12 +41,12 @@ impl FromIterator<ExteriorElement> for ExteriorElementList {
     let dim = first.dim();
     let grade = first.grade();
     let mut coeffs = na::DMatrix::zeros(first.coeffs().len(), 1);
-    coeffs.set_column(0, &first.coeffs());
+    coeffs.set_column(0, first.coeffs());
     for (i, elem) in iter.enumerate() {
       assert!(elem.dim() == dim);
       assert!(elem.grade() == grade);
       coeffs = coeffs.insert_column(i + 1, 0.0);
-      coeffs.set_column(i + 1, &elem.coeffs());
+      coeffs.set_column(i + 1, elem.coeffs());
     }
     Self::new(coeffs, dim, grade)
   }

@@ -111,7 +111,7 @@ fn test_viscosity_lap_symmetric() {
     let mesh = icosphere(&manifold, 1, true);
     let ops = ExtrinsicOperators::from_mesh(&mesh);
 
-    let n = 3 * mesh.n_vertices();
+    let _n = 3 * mesh.n_vertices();
     // Check symmetry: L[i,j] == L[j,i] for sampled entries.
     for col_view in ops.viscosity_lap.outer_iterator().enumerate() {
         let (col, view) = col_view;

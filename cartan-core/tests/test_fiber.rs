@@ -2,7 +2,7 @@ use std::f64::consts::{FRAC_PI_3, FRAC_PI_4, FRAC_PI_6, PI};
 
 use cartan_core::bundle::{CovLaplacian, EdgeTransport2D, EdgeTransport3D};
 use cartan_core::fiber::{
-    Fiber, FiberOps, NematicFiber3D, Section, TangentFiber, U1Spin2, VecSection,
+    Fiber, NematicFiber3D, Section, TangentFiber, U1Spin2, VecSection,
 };
 
 // ─── U1Spin2 tests ───────────────────────────────────────────────────────────
