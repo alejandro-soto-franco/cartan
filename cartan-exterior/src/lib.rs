@@ -2,6 +2,9 @@
 //! Ported from luiswirth/formoniq (used with permission), adapted for cartan.
 
 pub mod combo;
+pub mod gramian;
+
+pub use gramian::Gramian;
 
 /// Intrinsic dimension of the linear space underlying the exterior algebra.
 pub type Dim = usize;
