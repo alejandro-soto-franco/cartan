@@ -16,4 +16,6 @@ sprs      = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-approx = { workspace = true }
+approx   = { workspace = true }
+nalgebra = { workspace = true }
+sprs     = { workspace = true }
