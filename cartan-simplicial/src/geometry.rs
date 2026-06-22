@@ -5,6 +5,7 @@ use crate::Dim;
 use cartan_exterior::combo::factorialf;
 
 pub mod metric;
+pub mod coord;
 
 pub use metric::mesh::{MetricComplex, standard_metric_complex};
 
