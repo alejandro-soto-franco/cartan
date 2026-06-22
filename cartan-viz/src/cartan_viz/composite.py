@@ -173,16 +173,15 @@ def render_composite_animation(
     poster_path = out.parent / (out.name + "_poster.png")
     Image.fromarray(frames_rgb[poster_idx]).save(poster_path)
 
+    _CODECS = {"mp4": "libx264", "webm": "libvpx-vp9", "mov": "libx264"}
     written: list[Path] = []
     for fmt in formats:
         path = out.parent / (out.name + f".{fmt}")
-        iio.imwrite(
-            str(path),
-            frames_rgb,
-            fps=fps,
-            codec="libx264" if fmt == "mp4" else "libvpx-vp9",
-            plugin="pyav",
-        )
+        kwargs: dict = {"fps": fps}
+        codec = _CODECS.get(fmt)
+        if codec is not None:
+            kwargs["codec"] = codec
+        iio.imwrite(str(path), frames_rgb, **kwargs)
         written.append(path)
 
     return written
