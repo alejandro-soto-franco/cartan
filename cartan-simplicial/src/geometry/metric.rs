@@ -2,5 +2,6 @@
 //! Ported from luiswirth/formoniq (used with permission), adapted for cartan.
 
 pub mod simplex;
+pub mod mesh;
 
 pub type EdgeIdx = usize;

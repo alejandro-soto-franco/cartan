@@ -6,6 +6,8 @@ use cartan_exterior::combo::factorialf;
 
 pub mod metric;
 
+pub use metric::mesh::{MetricComplex, standard_metric_complex};
+
 /// Volume of the reference d-simplex (standard unit simplex in R^d).
 pub fn refsimp_vol(dim: Dim) -> f64 {
     factorialf(dim).recip()
