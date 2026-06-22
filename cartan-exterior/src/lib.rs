@@ -1,5 +1,15 @@
-//! Dimension-generic numerical exterior algebra.
+//! Dimension-generic numerical exterior algebra Λᵏ(ℝⁿ).
 //! Ported from luiswirth/formoniq (used with permission), adapted for cartan.
+//!
+//! ```
+//! use cartan_exterior::{gramian::Gramian, multi_gramian::multi_gramian};
+//! // A non-orthonormal metric on ℝ².
+//! let g = Gramian::new(nalgebra::DMatrix::from_row_slice(2, 2, &[2.0, 0.5, 0.5, 1.0]));
+//! // Λ² of ℝ² is 1-dimensional; its inner product is det(g).
+//! let top = multi_gramian(&g, 2);
+//! assert_eq!(top.dim(), 1);
+//! assert!((top.basis_inner(0, 0) - (2.0 * 1.0 - 0.5 * 0.5)).abs() < 1e-12);
+//! ```
 
 pub mod combo;
 pub mod gramian;
