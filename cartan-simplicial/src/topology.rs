@@ -5,3 +5,6 @@
 pub type VertexIdx = usize;
 
 pub mod simplex;
+pub mod skeleton;
+pub mod handle;
+pub mod complex;
