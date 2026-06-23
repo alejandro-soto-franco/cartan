@@ -217,8 +217,8 @@ pub fn solve_dense_lu(a: &CsMat<f64>, b: &DVector<f64>) -> Result<DVector<f64>, 
 /// Two-level aggregation AMG + Jacobi smoother + dense-LU coarse solve.
 ///
 /// Aggregation: each vertex seeds a coarse aggregate; strongly-connected
-/// (|A[i,j]| > θ·sqrt(A[i,i]·A[j,j])) unassigned neighbours join.
-/// Prolongation: piecewise-constant (P[i,k] = 1 if vertex i in aggregate k).
+/// (`|A[i,j]|` > θ·sqrt(`A[i,i]`·`A[j,j]`)) unassigned neighbours join.
+/// Prolongation: piecewise-constant (`P[i,k]` = 1 if vertex i in aggregate k).
 /// Coarse operator: A_c = P^T A P (Galerkin).
 /// V-cycle: one Jacobi pre-smooth, restrict to coarse, direct-solve coarse,
 /// interpolate back, correct, one Jacobi post-smooth.
