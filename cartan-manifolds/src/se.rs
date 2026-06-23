@@ -1037,8 +1037,8 @@ fn random_so_n<const N: usize, R: Rng>(rng: &mut R) -> SMatrix<Real, N, N> {
 
 /// Householder QR decomposition of an N×N matrix.
 ///
-/// Returns (Q, r_diag_signs) where Q is orthogonal and r_diag_signs[j] is the
-/// sign of R[j,j] in the upper-triangular factor R.
+/// Returns (Q, r_diag_signs) where Q is orthogonal and `r_diag_signs[j]` is the
+/// sign of `R[j,j]` in the upper-triangular factor R.
 ///
 /// This is a copy of the Householder QR implementation in `so.rs`, included here
 /// for self-containment. See `so.rs::householder_qr` for detailed documentation.
