@@ -96,7 +96,7 @@ pub fn matrix_exp_skew<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<R
 ///           [sin θ,  cos θ]]
 /// ```
 /// This follows directly from the power-series definition of exp and the
-/// identities for powers of the 2×2 skew unit matrix J = [[0,-1],[1,0]]:
+/// identities for powers of the 2×2 skew unit matrix J = `[[0,-1],[1,0]]`:
 /// J^2 = -I, J^3 = -J, J^4 = I (period 4), giving:
 ///   exp(θJ) = cos(θ)I + sin(θ)J.
 ///

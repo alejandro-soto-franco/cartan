@@ -6,11 +6,11 @@
 //! the boundary map of the simplicial complex and is independent of the metric.
 //!
 //! For a K-simplex mesh, the chain of exterior derivatives is:
-//!   d[0]: n_boundaries x n_vertices   (0-forms -> 1-forms)
-//!   d[1]: n_simplices x n_boundaries  (1-forms -> 2-forms)
-//! For K=4 (tets), there would be d[2]: n_tets x n_faces as well.
+//!   `d[0]`: n_boundaries x n_vertices   (0-forms -> 1-forms)
+//!   `d[1]`: n_simplices x n_boundaries  (1-forms -> 2-forms)
+//! For K=4 (tets), there would be `d[2]`: n_tets x n_faces as well.
 //!
-//! ## Exactness: d[k+1] * d[k] = 0
+//! ## Exactness: `d[k+1] * d[k] = 0`
 //!
 //! ## References
 //!
@@ -27,9 +27,9 @@ use crate::mesh::{FlatMesh, Mesh};
 /// The discrete exterior derivative operators for a simplicial complex.
 ///
 /// Stores a chain of sparse incidence matrices `d[k]` for k = 0..(K-2).
-/// For a triangle mesh (K=3): d[0] (edges x vertices) and d[1] (faces x edges).
+/// For a triangle mesh (K=3): `d[0]` (edges x vertices) and `d[1]` (faces x edges).
 pub struct ExteriorDerivative {
-    /// d[k] maps k-cochains to (k+1)-cochains. Stored as CSC sparse matrices.
+    /// `d[k]` maps k-cochains to (k+1)-cochains. Stored as CSC sparse matrices.
     pub d: Vec<CsMat<f64>>,
 }
 
@@ -45,12 +45,12 @@ impl ExteriorDerivative {
         Self::from_mesh_sparse_generic(mesh)
     }
 
-    /// K-generic sparse construction. Builds d[0] and d[1] from the mesh topology.
+    /// K-generic sparse construction. Builds `d[0]` and `d[1]` from the mesh topology.
     ///
-    /// d[0]: n_boundaries x n_vertices. d0[b, v] = +1 if v is the head of
+    /// `d[0]`: n_boundaries x n_vertices. `d0[b, v]` = +1 if v is the head of
     /// boundary b, -1 if v is the tail.
     ///
-    /// d[1]: n_simplices x n_boundaries. d1[t, b] = boundary_signs[t][k] for
+    /// `d[1]`: n_simplices x n_boundaries. `d1[t, b]` = `boundary_signs[t][k]` for
     /// the k-th boundary face of simplex t.
     pub fn from_mesh_sparse_generic<M: Manifold, const K: usize, const B: usize>(
         mesh: &Mesh<M, K, B>,
@@ -161,7 +161,7 @@ impl ExteriorDerivative {
         self.d.len()
     }
 
-    /// Verify the exactness property d[k+1] * d[k] = 0 for all k.
+    /// Verify the exactness property `d[k+1] * d[k] = 0` for all k.
     ///
     /// Returns the maximum absolute entry across all products.
     pub fn check_exactness(&self) -> f64 {

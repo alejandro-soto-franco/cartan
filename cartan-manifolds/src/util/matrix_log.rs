@@ -102,7 +102,7 @@ pub fn matrix_log_orthogonal<const N: usize>(
 /// log(R) = [[0, -θ],
 ///           [θ,  0]]
 /// ```
-/// where θ = atan2(R[1,0], R[0,0]) ∈ (-π, π].
+/// where θ = atan2(`R[1,0]`, `R[0,0]`) ∈ (-π, π].
 ///
 /// `atan2` handles all quadrants correctly and gives the principal value.
 /// There is no cut locus for SO(2) with this convention (though θ = π

@@ -21,9 +21,9 @@ use crate::mesh::{FlatMesh, Mesh};
 /// Diagonal Hodge star operators for a simplicial mesh.
 ///
 /// `star[k]` is the diagonal of the Hodge star for k-forms. For a triangle
-/// mesh (n=2): star[0] (vertices), star[1] (edges), star[2] (faces).
+/// mesh (n=2): `star[0]` (vertices), `star[1]` (edges), `star[2]` (faces).
 pub struct HodgeStar {
-    /// star[k] contains the diagonal entries of the k-form Hodge star.
+    /// `star[k]` contains the diagonal entries of the k-form Hodge star.
     pub star: Vec<DVector<f64>>,
 }
 
@@ -85,7 +85,7 @@ impl HodgeStar {
 
     /// K-generic Hodge star via circumcentric duality.
     ///
-    /// For each k-simplex sigma, star_k[sigma] = vol(dual(sigma)) / vol(sigma).
+    /// For each k-simplex sigma, `star_k[sigma]` = vol(dual(sigma)) / vol(sigma).
     ///
     /// Currently implemented for K=3 (triangle meshes on any manifold).
     /// Uses barycentric dual for star0, circumcentric dual edge length ratio
