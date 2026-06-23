@@ -64,15 +64,15 @@ use crate::mesh::{FlatMesh, Mesh};
 pub struct Operators<M: Manifold = Euclidean<2>, const K: usize = 3, const B: usize = 2> {
     /// Scalar Laplace-Beltrami: n_vertices x n_vertices (sparse).
     pub laplace_beltrami: CsMat<f64>,
-    /// Mass matrices: mass[k] = star[k] diagonal, k = 0..K-1.
+    /// Mass matrices: `mass[k]` = `star[k]` diagonal, k = 0..K-1.
     pub mass: Vec<DVector<f64>>,
     /// Exterior derivative chain.
     pub ext: ExteriorDerivative,
     /// Hodge star.
     pub hodge: HodgeStar,
-    /// Backward-compat alias for mass[0].
+    /// Backward-compat alias for `mass[0]`.
     pub mass0: DVector<f64>,
-    /// Backward-compat alias for mass[1].
+    /// Backward-compat alias for `mass[1]`.
     pub mass1: DVector<f64>,
     _phantom: PhantomData<M>,
 }
@@ -158,7 +158,7 @@ impl<M: Manifold, const K: usize, const B: usize> Operators<M, K, B> {
     /// Apply the scalar Laplace-Beltrami operator to a 0-form (vertex field).
     ///
     /// Uses sparse matrix-vector product. The Laplacian is stored in CSC format,
-    /// so `outer_iterator()` iterates over columns: y += A[:,j] * x[j].
+    /// so `outer_iterator()` iterates over columns: `y += A[:,j] * x[j]`.
     pub fn apply_laplace_beltrami(&self, f: &DVector<f64>) -> DVector<f64> {
         let n = f.len();
         let mut result = DVector::<f64>::zeros(n);

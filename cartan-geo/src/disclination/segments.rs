@@ -104,7 +104,7 @@ fn face_center_frame<F: QTensorField3D>(q: &F, vs: [usize; 4]) -> SMatrix<f64, 3
 /// recorded for that edge.
 ///
 /// The field `q` must implement [`QTensorField3D`]. Volterra's `QField3D` and
-/// the test helper [`UniformQGrid`] both implement this trait.
+/// the test helper `UniformQGrid` both implement this trait.
 ///
 /// **Winding note:** The face traversal order (fa→fb→fc→fd) is clockwise when
 /// viewed from the positive axis direction (not CCW). The `is_half_disclination`

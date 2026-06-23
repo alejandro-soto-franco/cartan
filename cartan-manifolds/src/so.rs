@@ -1253,7 +1253,7 @@ fn gauss_det_sign<const N: usize>(a: &SMatrix<Real, N, N>) -> Real {
 ///
 /// Returns `(Q, r_diag_signs)` where:
 /// - `Q` is the N×N orthogonal matrix from the QR decomposition.
-/// - `r_diag_signs[j]` is the sign of R_upper[j,j] (±1) for each column j.
+/// - `r_diag_signs[j]` is the sign of `R_upper[j,j]` (±1) for each column j.
 ///
 /// **Algorithm (Golub-Van Loan, Algorithm 5.2.1):**
 /// For k = 0, 1, ..., N-1:
@@ -1261,7 +1261,7 @@ fn gauss_det_sign<const N: usize>(a: &SMatrix<Real, N, N>) -> Real {
 ///   2. Apply H_k to the remaining columns: A ← H_k A.
 ///   3. Accumulate Q: Q ← Q H_k^T (since Q = H_1^T ... H_n^T for the full Q factor).
 ///
-/// We return the sign of R[k,k] (the k-th diagonal of the upper-triangular factor R)
+/// We return the sign of `R[k,k]` (the k-th diagonal of the upper-triangular factor R)
 /// so that the caller can apply the Mezzadri sign correction to get a Haar-uniform Q.
 ///
 /// **Why implement manually?** nalgebra's `g.qr()` requires `Const<N>: ToTypenum`,

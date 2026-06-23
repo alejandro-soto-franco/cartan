@@ -68,7 +68,7 @@ impl Default for RTRConfig {
 
 /// Solve the trust-region subproblem via Steihaug-Toint truncated CG.
 ///
-/// Minimize m(η) = <g, η> + ½ <H[η], η>  s.t. ||η||_M ≤ Δ
+/// Minimize m(`η`) = <g, `η`> + ½ <`H[η]`, `η`>  s.t. ||`η`||_M ≤ Δ
 ///
 /// Returns the step η and whether the boundary was hit.
 fn solve_trs<M>(
