@@ -1,7 +1,7 @@
 [package]
 name = "cartan-maxwell"
 description = "Maxwell evolution on a prescribed evolving simplicial-Riemannian (Regge) background"
-version = "0.6.0"
+version = "0.7.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -19,4 +19,4 @@ thiserror       = { workspace = true }
 [dev-dependencies]
 approx    = { workspace = true }
 nalgebra  = { workspace = true }
-cartan-io = { path = "../cartan-io", version = "0.6" }
+cartan-io = { path = "../cartan-io", version = "0.7" }

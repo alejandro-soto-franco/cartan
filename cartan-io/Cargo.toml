@@ -8,9 +8,9 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-cartan-core      = { path = "../cartan-core", version = "0.6" }
-cartan-dec       = { path = "../cartan-dec", version = "0.6" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.6" }
+cartan-core      = { path = "../cartan-core", version = "0.7" }
+cartan-dec       = { path = "../cartan-dec", version = "0.7" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.7" }
 simplicial       = { workspace = true }
 derham           = { workspace = true }
 nalgebra         = { workspace = true }

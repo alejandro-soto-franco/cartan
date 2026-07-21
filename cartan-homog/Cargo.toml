@@ -23,11 +23,11 @@ stochastic = ["std", "dep:cartan-stochastic", "dep:rand", "dep:rand_distr"]
 gpu-fft = ["full-field", "dep:gpufft", "dep:num-complex"]
 
 [dependencies]
-cartan-core       = { path = "../cartan-core",       version = "0.6", default-features = false }
-cartan-manifolds  = { path = "../cartan-manifolds",  version = "0.6", default-features = false }
-cartan-dec        = { path = "../cartan-dec",        version = "0.6", optional = true }
-cartan-remesh     = { path = "../cartan-remesh",     version = "0.6", optional = true }
-cartan-stochastic = { path = "../cartan-stochastic", version = "0.6", optional = true }
+cartan-core       = { path = "../cartan-core",       version = "0.7", default-features = false }
+cartan-manifolds  = { path = "../cartan-manifolds",  version = "0.7", default-features = false }
+cartan-dec        = { path = "../cartan-dec",        version = "0.7", optional = true }
+cartan-remesh     = { path = "../cartan-remesh",     version = "0.7", optional = true }
+cartan-stochastic = { path = "../cartan-stochastic", version = "0.7", optional = true }
 nalgebra   = { workspace = true, features = ["libm"] }
 thiserror  = { workspace = true }
 serde      = { workspace = true, optional = true }
