@@ -11,12 +11,10 @@ repository.workspace = true
 cartan-core      = { path = "../cartan-core", version = "0.6" }
 cartan-dec       = { path = "../cartan-dec", version = "0.6" }
 cartan-manifolds = { path = "../cartan-manifolds", version = "0.6" }
-cartan-simplicial = { path = "../cartan-simplicial", version = "0.6" }
-cartan-feec       = { path = "../cartan-feec", version = "0.6" }
-cartan-exterior   = { path = "../cartan-exterior", version = "0.6" }
+simplicial       = { workspace = true }
+derham           = { workspace = true }
 nalgebra         = { workspace = true }
 num-complex      = { workspace = true }
-sprs             = { workspace = true }
 base64           = "0.22"
 
 [dev-dependencies]
