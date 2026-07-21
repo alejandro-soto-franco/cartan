@@ -40,8 +40,11 @@ jobs:
           # Dependency-ordered: a crate appears only after every path
           # dependency (and dev-dependency) it relies on. cartan-io precedes
           # cartan-maxwell because maxwell carries a dev-dependency on it.
-          crates="cartan-core cartan-exterior cartan-manifolds cartan-stochastic \
-                  cartan-optim cartan-geo cartan-dec cartan-simplicial cartan-feec \
+          # The FEEC layer is no longer published from here: it comes from the
+          # upstream formoniq crates, which cartan-io and cartan-maxwell
+          # consume as ordinary registry dependencies.
+          crates="cartan-core cartan-manifolds cartan-stochastic \
+                  cartan-optim cartan-geo cartan-dec \
                   cartan-remesh cartan-homog cartan-io cartan-maxwell cartan"
 
           for crate in $crates; do
