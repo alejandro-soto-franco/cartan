@@ -10,9 +10,9 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-use cartan_feec::cochain::Cochain;
-use cartan_simplicial::geometry::coord::mesh::MeshCoords;
-use cartan_simplicial::topology::complex::Complex;
+use derham::cochain::Cochain;
+use simplicial::geometry::coord::mesh::MeshCoords;
+use simplicial::topology::complex::Complex;
 
 use crate::blender::{write_mdd, write_obj};
 use crate::diagnostics::DiagnosticsCsv;
@@ -129,12 +129,12 @@ impl RunWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cartan_feec::cochain::Cochain;
-    use cartan_simplicial::r#gen::cartesian::CartesianMeshInfo;
+    use derham::cochain::Cochain;
+    use simplicial::r#gen::cartesian::CartesianGrid;
 
     #[test]
     fn writes_a_complete_run_dir() {
-        let (complex, coords) = CartesianMeshInfo::new_unit(2, 2).compute_coord_complex();
+        let (complex, coords) = CartesianGrid::new_unit(2, 2).triangulate();
         let dir = std::env::temp_dir().join("cartan_run_test");
         let _ = std::fs::remove_dir_all(&dir);
         let mut run = RunWriter::new(&dir).unwrap();

@@ -2,8 +2,8 @@
 
 use std::io::{self, Write};
 use std::path::Path;
-use cartan_simplicial::topology::complex::Complex;
-use cartan_simplicial::geometry::coord::mesh::MeshCoords;
+use simplicial::topology::complex::Complex;
+use simplicial::geometry::coord::mesh::MeshCoords;
 use crate::xml::{encode_f64_le, encode_i64_le};
 
 /// Write a VTK UnstructuredGrid file (.vtu) for a simplicial complex.
@@ -66,7 +66,7 @@ pub fn write_vtu(
     let mut types = Vec::with_capacity(ncells);
 
     for (k, cell) in complex.cells().handle_iter().enumerate() {
-        for v in cell.iter() {
+        for v in cell.simplex().iter() {
             conn.push(v as i64);
         }
         offs.push(((k + 1) * verts_per_cell) as i64);
@@ -148,11 +148,11 @@ pub fn write_vtu(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cartan_simplicial::r#gen::cartesian::CartesianMeshInfo;
+    use simplicial::r#gen::cartesian::CartesianGrid;
 
     #[test]
     fn writes_wellformed_vtu_for_unit_square() {
-        let (complex, coords) = CartesianMeshInfo::new_unit(2, 2).compute_coord_complex();
+        let (complex, coords) = CartesianGrid::new_unit(2, 2).triangulate();
         let ncells = complex.nsimplices(2);
         let cell_scalar: Vec<f64> = (0..ncells).map(|i| i as f64).collect();
         let cell_vec: Vec<f64> = (0..3 * ncells).map(|i| i as f64).collect();

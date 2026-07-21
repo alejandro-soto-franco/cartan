@@ -12,9 +12,6 @@ members = [
     "cartan-homog",
     "cartan-homog-valid",
     "cartan-io",
-    "cartan-exterior",
-    "cartan-simplicial",
-    "cartan-feec",
     "cartan-maxwell",
     "benchmarks/rust",
 ]
@@ -44,6 +41,16 @@ approx = { version = "0.5", default-features = false }
 hashbrown = { version = "0.15", default-features = false }
 num-complex = { version = "0.4", default-features = false }
 indexmap = { version = "2", default-features = false, features = ["std", "rayon"] }
+
+# Upstream formoniq FEEC stack. Pinned exactly: 0.2.0 is the first published
+# release and the crate graph was renamed wholesale just before it, so the API
+# is not yet stable enough to float.
+formoniq = { version = "=0.2.0" }
+simplicial = { version = "=0.2.0" }
+exterior = { version = "=0.2.0" }
+derham = { version = "=0.2.0" }
+gramian = { version = "=0.2.0" }
+nalgebra-sparse = { version = "0.12" }
 
 [profile.release]
 opt-level = 3

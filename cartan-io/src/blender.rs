@@ -1,14 +1,27 @@
 //! Blender OBJ and MDD vertex-cache exporter for mesh animation.
 //!
-//! MDD binary layout ported from formoniq (author-permitted):
-//! [nframes u32 BE][nverts u32 BE][times f32 BE ...][xyz f32 BE per vertex per frame]
+//! MDD is the NewTek Motion Designer vertex cache that Blender's Mesh Cache
+//! modifier reads. Every field is big-endian, and the layout is fully
+//! determined by two counts read from the header:
+//!
+//! | offset | type          | meaning              |
+//! |--------|---------------|----------------------|
+//! | 0      | `u32`         | frame count `F`      |
+//! | 4      | `u32`         | vertex count `V`     |
+//! | 8      | `f32 * F`     | time of each frame   |
+//! | 8+4F   | `f32 * 3*V*F` | xyz, vertex-major within a frame |
+//!
+//! There is no per-frame vertex count, so `V` is fixed for the whole cache:
+//! a mesh whose vertex count changes between frames cannot be represented,
+//! and [`write_mdd`] rejects that input rather than writing a file that
+//! silently misparses.
 
 use std::fmt::Write as FmtWrite;
 use std::io::Write as IoWrite;
 use std::path::Path;
 
-use cartan_simplicial::geometry::coord::mesh::MeshCoords;
-use cartan_simplicial::topology::complex::Complex;
+use simplicial::geometry::coord::mesh::MeshCoords;
+use simplicial::topology::complex::Complex;
 
 /// Write a Wavefront OBJ file for the top-dimensional faces of `complex`.
 ///
@@ -23,38 +36,50 @@ pub fn write_obj(path: &Path, complex: &Complex, coords: &MeshCoords) -> std::io
         writeln!(s, "v {:.6} {:.6} {:.6}", x, y, z).unwrap();
     }
     for cell in complex.cells().handle_iter() {
-        let indices: Vec<String> = cell.iter().map(|i| (i + 1).to_string()).collect();
+        let indices: Vec<String> = cell.simplex().iter().map(|i| (i + 1).to_string()).collect();
         writeln!(s, "f {}", indices.join(" ")).unwrap();
     }
     std::fs::write(path, s)
 }
 
-/// Write a Blender MDD vertex-cache file.
+/// Write a Blender MDD vertex-cache file, per the layout in the module docs.
 ///
-/// Format (all big-endian): `[nframes u32][nverts u32][times f32 x nframes]
-/// [xyz f32 x nverts x nframes]`.
-///
-/// Ported from formoniq `write_mdd_file` (author-permitted).
+/// Errors with `InvalidInput` if `times` disagrees with `frames` in length, or
+/// if the frames do not all carry the same vertex count, since neither is
+/// representable in the format.
 pub fn write_mdd(path: &Path, frames: &[Vec<[f32; 3]>], times: &[f32]) -> std::io::Result<()> {
-    let file = std::fs::File::create(path)?;
-    let mut writer = std::io::BufWriter::new(file);
+    let invalid = |msg: &str| std::io::Error::new(std::io::ErrorKind::InvalidInput, msg.to_owned());
 
-    let nframes = frames.len() as u32;
-    writer.write_all(&nframes.to_be_bytes())?;
-    let nvertices = frames[0].len() as u32;
-    writer.write_all(&nvertices.to_be_bytes())?;
-
-    for &time in times {
-        writer.write_all(&time.to_be_bytes())?;
+    if frames.len() != times.len() {
+        return Err(invalid("MDD needs exactly one time per frame"));
     }
-    for vertices in frames {
-        for vertex in vertices {
-            for comp in vertex {
-                writer.write_all(&comp.to_be_bytes())?;
-            }
+    let nvertices = match frames.first() {
+        Some(first) => first.len(),
+        // An empty cache is well-formed: F = 0, V = 0, no payload.
+        None => 0,
+    };
+    if frames.iter().any(|f| f.len() != nvertices) {
+        return Err(invalid("MDD requires a constant vertex count across frames"));
+    }
+
+    // Header (8 bytes) + times (4F) + positions (12 V F).
+    let mut buf: Vec<u8> = Vec::with_capacity(8 + 4 * frames.len() + 12 * nvertices * frames.len());
+    buf.extend_from_slice(&(frames.len() as u32).to_be_bytes());
+    buf.extend_from_slice(&(nvertices as u32).to_be_bytes());
+    for &time in times {
+        buf.extend_from_slice(&time.to_be_bytes());
+    }
+    for frame in frames {
+        for [x, y, z] in frame {
+            buf.extend_from_slice(&x.to_be_bytes());
+            buf.extend_from_slice(&y.to_be_bytes());
+            buf.extend_from_slice(&z.to_be_bytes());
         }
     }
-    Ok(())
+
+    let mut writer = std::io::BufWriter::new(std::fs::File::create(path)?);
+    writer.write_all(&buf)?;
+    writer.flush()
 }
 
 /// Write a Blender MDD animation from a sequence of `MeshCoords` frames.
@@ -87,13 +112,17 @@ pub fn write_mesh_animation(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cartan_simplicial::r#gen::cartesian::CartesianMeshInfo;
+    use simplicial::r#gen::cartesian::CartesianGrid;
+
+    fn tmp(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(name);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
 
     #[test]
     fn mdd_header_encodes_counts_big_endian() {
-        let dir = std::env::temp_dir().join("cartan_mdd_test");
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("motion.mdd");
+        let path = tmp("cartan_mdd_test").join("motion.mdd");
         let frames = vec![
             vec![[0.0f32, 0.0, 0.0], [1.0, 0.0, 0.0]],
             vec![[0.0f32, 0.0, 0.0], [2.0, 0.0, 0.0]],
@@ -102,17 +131,40 @@ mod tests {
         let bytes = std::fs::read(&path).unwrap();
         assert_eq!(&bytes[0..4], &2u32.to_be_bytes()); // nframes
         assert_eq!(&bytes[4..8], &2u32.to_be_bytes()); // nvertices
+        // Header + 2 times + 2 frames * 2 vertices * 3 components.
+        assert_eq!(bytes.len(), 8 + 2 * 4 + 2 * 2 * 3 * 4);
+    }
+
+    #[test]
+    fn mdd_rejects_ragged_frames() {
+        let path = tmp("cartan_mdd_ragged").join("motion.mdd");
+        let frames = vec![
+            vec![[0.0f32, 0.0, 0.0], [1.0, 0.0, 0.0]],
+            vec![[0.0f32, 0.0, 0.0]],
+        ];
+        assert!(write_mdd(&path, &frames, &[0.0, 1.0]).is_err());
+    }
+
+    #[test]
+    fn mdd_rejects_time_count_mismatch() {
+        let path = tmp("cartan_mdd_times").join("motion.mdd");
+        let frames = vec![vec![[0.0f32, 0.0, 0.0]]];
+        assert!(write_mdd(&path, &frames, &[0.0, 1.0]).is_err());
     }
 
     #[test]
     fn obj_has_vertices_and_faces() {
-        let (complex, coords) = CartesianMeshInfo::new_unit(2, 1).compute_coord_complex();
-        let dir = std::env::temp_dir().join("cartan_obj_test");
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("base.obj");
+        let (complex, coords) = CartesianGrid::new_unit(2, 1).triangulate();
+        let path = tmp("cartan_obj_test").join("base.obj");
         write_obj(&path, &complex, &coords).unwrap();
         let text = std::fs::read_to_string(&path).unwrap();
-        assert_eq!(text.lines().filter(|l| l.starts_with("v ")).count(), coords.nvertices());
-        assert_eq!(text.lines().filter(|l| l.starts_with("f ")).count(), complex.nsimplices(2));
+        assert_eq!(
+            text.lines().filter(|l| l.starts_with("v ")).count(),
+            coords.nvertices()
+        );
+        assert_eq!(
+            text.lines().filter(|l| l.starts_with("f ")).count(),
+            complex.nsimplices(2)
+        );
     }
 }
