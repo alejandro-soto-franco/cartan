@@ -6,6 +6,29 @@ All notable changes to cartan are documented here.
 
 ## [Unreleased]
 
+### Changed
+
+- **FEEC layer now comes from upstream `formoniq`.** `cartan-exterior`,
+  `cartan-simplicial` and `cartan-feec` are removed from the workspace and
+  replaced by the `formoniq`, `simplicial`, `exterior` and `derham` crates,
+  pinned at `=0.2.0`. Those three crates were a port of formoniq made before it
+  was published; formoniq now ships the same stack on crates.io, so cartan no
+  longer carries a copy of it.
+- **Geometry is carried as squared edge lengths** (`MeshLengthsSq`), matching
+  upstream. This is the Regge primitive: the per-cell metric is linear in it, so
+  a prescribed metric evolution enters polynomially rather than through square
+  roots, and indefinite signatures stay representable. `FlrwDriver` consequently
+  scales its stored data by `a(t)^2` where it previously scaled lengths by
+  `a(t)`; the length-level behaviour is unchanged and is covered by a test.
+- **`cartan-io`** drops its `sprs` and exterior-algebra dependencies, which it
+  did not use. Field reconstruction now goes through `WhitneyInterpolant` and
+  `Sampler`, which returns ambient-frame values, the frame VTK consumers expect.
+- **`cartan-io`'s MDD writer** is rewritten from the format specification and
+  now rejects ragged frames and time/frame count mismatches, neither of which
+  the MDD container can represent.
+- `cartan-dec`, `cartan-homog` and the rest of the stack are untouched, and
+  `sprs` remains the workspace sparse-matrix default.
+
 ### Added — v1.3 (full-field enhancements)
 
 - **DifferentialCompliance scheme** (`cartan-homog::schemes`): Norris-Davies
