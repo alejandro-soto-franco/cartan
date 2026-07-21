@@ -17,11 +17,11 @@ stochastic = ["cartan-homog/stochastic"]
 # cartan-homog transitively via this crate's features.
 
 [dependencies]
-cartan-homog     = { path = "../cartan-homog",     version = "0.6" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.6" }
-cartan-core      = { path = "../cartan-core",      version = "0.6" }
-cartan-dec       = { path = "../cartan-dec",       version = "0.6" }
-cartan-remesh    = { path = "../cartan-remesh",    version = "0.6" }
+cartan-homog     = { path = "../cartan-homog",     version = "0.7" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.7" }
+cartan-core      = { path = "../cartan-core",      version = "0.7" }
+cartan-dec       = { path = "../cartan-dec",       version = "0.7" }
+cartan-remesh    = { path = "../cartan-remesh",    version = "0.7" }
 nalgebra    = { workspace = true }
 ndarray     = { version = "0.16" }
 ndarray-npy = { version = "0.9" }

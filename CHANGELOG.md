@@ -4,7 +4,10 @@ All notable changes to cartan are documented here.
 
 ---
 
-## [Unreleased]
+## [0.7.0]
+
+Breaking: the FEEC crates are gone from the published set, and the geometry
+primitive changed. See below.
 
 ### Changed
 
