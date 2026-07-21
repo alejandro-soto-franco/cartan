@@ -8,15 +8,15 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-cartan-exterior   = { path = "../cartan-exterior", version = "0.6" }
-cartan-simplicial = { path = "../cartan-simplicial", version = "0.6" }
-cartan-feec       = { path = "../cartan-feec", version = "0.6" }
-nalgebra  = { workspace = true }
-sprs      = { workspace = true }
-thiserror = { workspace = true }
+formoniq        = { workspace = true }
+simplicial      = { workspace = true }
+exterior        = { workspace = true }
+derham          = { workspace = true }
+nalgebra        = { workspace = true }
+nalgebra-sparse = { workspace = true }
+thiserror       = { workspace = true }
 
 [dev-dependencies]
-approx   = { workspace = true }
-nalgebra = { workspace = true }
-sprs     = { workspace = true }
+approx    = { workspace = true }
+nalgebra  = { workspace = true }
 cartan-io = { path = "../cartan-io", version = "0.6" }
