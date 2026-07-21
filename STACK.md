@@ -44,18 +44,22 @@ A single-page map of what each crate is responsible for across the stochastic-an
 - L3: `bismut` (26 GB of Rust target, ~200 LOC source — early). `elworthy` scaffolded, nine tests, BEL implementation pending. Both will consume L0 Ricci/Jacobi and L1 development.
 - L4: `malliavin` options backtest engine runs end-to-end; BEL Greeks path waits on L3.
 
-## FEEC and physics stack (cartan-exterior, cartan-simplicial, cartan-feec, cartan-maxwell)
+## FEEC and physics stack (cartan-maxwell)
 
 A second stack in this workspace targets finite element exterior calculus and PDE physics on simplicial meshes. It is independent of the stochastic-analysis layers above.
 
+Layers F0 to F2 are supplied by the upstream `formoniq` crates, taken as ordinary registry dependencies pinned at `=0.2.0`. cartan does not carry its own copy.
+
 | Layer | Crate | Provides |
 |---|---|---|
-| **F0: algebra** | `cartan-exterior` | Dimension-generic exterior algebra Lambda^k(R^n), multi-gramians, wedge products, pullbacks. |
-| **F1: topology and geometry** | `cartan-simplicial` | Runtime dimension-generic simplicial topology (Complex, boundary chain, coboundary), intrinsic Regge edge-length geometry (MeshLengths), Cartesian mesh generators. |
-| **F2: FEEC assembly** | `cartan-feec` | Whitney k-forms, Galerkin Hodge mass M_k, assembly loop, interior/boundary DOF selection, discrete cochains. |
-| **F3: physics** | `cartan-maxwell` | Maxwell evolution on a prescribed evolving simplicial-Riemannian (Regge) background. MetricDriver/FlrwDriver supply edge lengths l_e(t). Staggered leapfrog: metric-free Faraday (exact flux conservation, d2 d1 = 0) plus Ampere with time-dependent masses and PEC walls (Cholesky on interior DOF block). Runs dimension-agnostically in 2D and 3D. |
+| **F0: algebra** | `exterior` (upstream) | Dimension-generic exterior algebra Lambda^k(R^n), multi-gramians, wedge products, pullbacks. |
+| **F1: topology and geometry** | `simplicial` (upstream) | Runtime dimension-generic simplicial topology (Complex, boundary and coboundary operators, homology), intrinsic Regge geometry carried as squared edge lengths (MeshLengthsSq, any signature), charts and transition maps, Cartesian mesh generators. |
+| **F2: FEEC assembly** | `formoniq`, `derham` (upstream) | Whitney k-forms, Galerkin Hodge mass M_k, assembly loop, the relative complex for boundary conditions, discrete cochains and their interpolation. |
+| **F3: physics** | `cartan-maxwell` | Maxwell evolution on a prescribed evolving simplicial-Riemannian (Regge) background. MetricDriver/FlrwDriver supply squared edge lengths l_e(t)^2. Staggered leapfrog: metric-free Faraday (exact flux conservation, d2 d1 = 0) plus Ampere with time-dependent masses and PEC walls (Cholesky on the interior DOF block). Runs dimension-agnostically in 2D and 3D. |
 
-The cartan-maxwell crate is the first F3 physics consumer. Additional physics (e.g. linearised gravity, Dirac, elasticity) would be added as separate F3 crates consuming cartan-feec primitives.
+The cartan-maxwell crate is the first F3 physics consumer. Additional physics (e.g. linearised gravity, Dirac, elasticity) would be added as separate F3 crates consuming the same upstream primitives.
+
+Geometry is carried as **squared** edge lengths throughout. That is the Regge primitive: the per-cell metric tensor is linear in them, so a prescribed metric evolution enters polynomially rather than through square roots, and indefinite signatures stay representable.
 
 ## Pending upstream work (for contributors)
 
