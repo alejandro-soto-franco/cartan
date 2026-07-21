@@ -18,7 +18,7 @@ members = [
 exclude = ["experiments", "cartan-py", "cartan-gpu"]
 
 [workspace.package]
-version = "0.6.0"
+version = "0.7.0"
 edition = "2024"
 # Real floor: nalgebra 0.35 (and its safe_arch/wide deps) require rustc 1.89.
 rust-version = "1.89"
