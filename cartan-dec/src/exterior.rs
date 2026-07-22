@@ -175,3 +175,56 @@ impl ExteriorDerivative {
         max_err
     }
 }
+
+#[cfg(test)]
+mod tests {
+    // Assembly here pushes one contribution per incident simplex, so shared
+    // (i, j) entries receive several pushes and must sum. sprs::TriMat and
+    // nalgebra_sparse::CooMatrix are both documented to do this. A difference
+    // would corrupt every assembled operator while leaving the field-level
+    // tests green, so it is checked directly.
+    #[test]
+    fn coo_to_csr_sums_duplicate_entries() {
+        use nalgebra_sparse::{CooMatrix, CsrMatrix};
+
+        let mut coo = CooMatrix::<f64>::new(2, 2);
+        coo.push(0, 0, 1.0);
+        coo.push(0, 0, 2.0);
+        coo.push(0, 0, 4.0);
+        coo.push(1, 1, -3.0);
+        coo.push(0, 1, 0.5);
+
+        let csr = CsrMatrix::from(&coo);
+
+        assert_eq!(csr.get_entry(0, 0).unwrap().into_value(), 7.0, "duplicates must sum");
+        assert_eq!(csr.get_entry(1, 1).unwrap().into_value(), -3.0);
+        assert_eq!(csr.get_entry(0, 1).unwrap().into_value(), 0.5);
+        assert_eq!(csr.nnz(), 3, "summed duplicates occupy one entry");
+    }
+
+    // The same property for sprs, so the migration compares like with like.
+    // Deleted once sprs leaves the crate.
+    #[test]
+    fn sprs_and_nalgebra_sparse_agree_on_duplicates() {
+        use nalgebra_sparse::{CooMatrix, CsrMatrix};
+        use sprs::TriMat;
+
+        let mut tri = TriMat::<f64>::new((2, 2));
+        tri.add_triplet(0, 0, 1.0);
+        tri.add_triplet(0, 0, 2.0);
+        tri.add_triplet(0, 0, 4.0);
+        let sprs_csr: sprs::CsMat<f64> = tri.to_csr();
+
+        let mut coo = CooMatrix::<f64>::new(2, 2);
+        coo.push(0, 0, 1.0);
+        coo.push(0, 0, 2.0);
+        coo.push(0, 0, 4.0);
+        let na_csr = CsrMatrix::from(&coo);
+
+        assert_eq!(
+            *sprs_csr.get(0, 0).unwrap(),
+            na_csr.get_entry(0, 0).unwrap().into_value(),
+            "the two libraries must agree on duplicate handling"
+        );
+    }
+}
