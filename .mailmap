@@ -1,0 +1,13 @@
+# Canonical author identity.
+#
+# The same person appears under five spellings across two addresses, because a
+# squash merge stamps the GitHub profile display name rather than the local git
+# author name, and the profile name has changed over the life of the project.
+# Both addresses are verified on the account and attribute correctly; this file
+# only affects how git itself groups them, in shortlog, blame and log.
+#
+# No history is rewritten. Mapping by address alone covers every name variant
+# that used it.
+
+Alejandro Soto Franco <soto.alejandro2025@gmail.com> <soto.alejandro2025@gmail.com>
+Alejandro Soto Franco <soto.alejandro2025@gmail.com> <sotofranco.eng@gmail.com>
