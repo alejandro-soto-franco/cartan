@@ -182,10 +182,17 @@ impl Manifold for QTensor3 {
     /// is the restriction of the flat Frobenius metric on R^{3×3} to Sym_0(R^3).
     /// It is independent of the base point Q.
     fn inner(&self, _p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
-        // tr(U V) for symmetric U, V equals tr(U^T V) (component-wise sum of products).
-        // nalgebra's `component_mul` (Hadamard product) followed by sum is equivalent
-        // and slightly more readable. Use the standard trace of the product for clarity.
-        (u * v).trace()
+        // tr(UV) = sum_ij U_ij V_ji, accumulated directly. Forming the product
+        // to read its diagonal computes nine entries to use three. Written as
+        // the trace rather than as a Frobenius dot so it stays exact for a
+        // non-symmetric ambient argument, where the two differ.
+        let mut s = 0.0;
+        for i in 0..3 {
+            for j in 0..3 {
+                s += u[(i, j)] * v[(j, i)];
+            }
+        }
+        s
     }
 
     /// Exponential map: Q + V (straight-line geodesic in flat Q-space).

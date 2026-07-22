@@ -10,7 +10,9 @@
 //! ```
 
 use cartan_core::{Manifold, ParallelTransport};
-use cartan_manifolds::{Spd, Sphere};
+use cartan_manifolds::{
+    Corr, Grassmann, Spd, SpdBuresWasserstein, SpecialEuclidean, SpecialOrthogonal, Sphere,
+};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use nalgebra::{SMatrix, SVector};
 use rand::rngs::StdRng;
@@ -158,5 +160,128 @@ fn into_variants(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, sphere_ops, spd_ops, round_trip, into_variants);
+/// Manifolds that carry quantitative-finance workloads, at sizes those
+/// workloads actually use.
+///
+/// `Corr` is the correlation matrix of a multi-asset model. `Grassmann` is a
+/// factor subspace, so `Grassmann<20, 5>` is five factors over twenty assets.
+/// `SpdBuresWasserstein` is the optimal-transport geometry between Gaussians,
+/// which is a different metric on the same cone as `Spd` and answers a
+/// different question about covariance.
+fn quant_ops(c: &mut Criterion) {
+    let mut group = c.benchmark_group("quant");
+
+    macro_rules! corr_dim {
+        ($n:literal) => {{
+            let m = Corr::<$n>;
+            let mut rng = StdRng::seed_from_u64(SEED);
+            let p = m.random_point(&mut rng);
+            let q = m.random_point(&mut rng);
+            let v = m.random_tangent(&p, &mut rng);
+
+            group.bench_with_input(BenchmarkId::new("corr_exp", $n), &$n, |b, _| {
+                b.iter(|| m.exp(black_box(&p), black_box(&v)))
+            });
+            group.bench_with_input(BenchmarkId::new("corr_log", $n), &$n, |b, _| {
+                b.iter(|| m.log(black_box(&p), black_box(&q)))
+            });
+            group.bench_with_input(BenchmarkId::new("corr_dist", $n), &$n, |b, _| {
+                b.iter(|| m.dist(black_box(&p), black_box(&q)))
+            });
+        }};
+    }
+
+    corr_dim!(5);
+    corr_dim!(10);
+    corr_dim!(20);
+
+    macro_rules! bw_dim {
+        ($n:literal) => {{
+            let m = SpdBuresWasserstein::<$n>;
+            let mut rng = StdRng::seed_from_u64(SEED);
+            let p = m.random_point(&mut rng);
+            let q = m.random_point(&mut rng);
+
+            group.bench_with_input(BenchmarkId::new("bw_dist", $n), &$n, |b, _| {
+                b.iter(|| m.dist(black_box(&p), black_box(&q)))
+            });
+            group.bench_with_input(BenchmarkId::new("bw_log", $n), &$n, |b, _| {
+                b.iter(|| m.log(black_box(&p), black_box(&q)))
+            });
+        }};
+    }
+
+    bw_dim!(3);
+    bw_dim!(10);
+
+    macro_rules! grass {
+        ($n:literal, $k:literal, $label:literal) => {{
+            let m = Grassmann::<$n, $k>;
+            let mut rng = StdRng::seed_from_u64(SEED);
+            let p = m.random_point(&mut rng);
+            let q = m.random_point(&mut rng);
+            let v = m.random_tangent(&p, &mut rng);
+
+            group.bench_function(concat!("grassmann_exp_", $label), |b| {
+                b.iter(|| m.exp(black_box(&p), black_box(&v)))
+            });
+            group.bench_function(concat!("grassmann_log_", $label), |b| {
+                b.iter(|| m.log(black_box(&p), black_box(&q)))
+            });
+            group.bench_function(concat!("grassmann_dist_", $label), |b| {
+                b.iter(|| m.dist(black_box(&p), black_box(&q)))
+            });
+        }};
+    }
+
+    grass!(10, 3, "10_3");
+    grass!(20, 5, "20_5");
+
+    // Robotics: SO(3) attitude, SE(3) pose. SO(10) is there to show how the
+    // inner product scales once it is no longer a matrix product.
+    macro_rules! so_dim {
+        ($n:literal) => {{
+            let m = SpecialOrthogonal::<$n>;
+            let mut rng = StdRng::seed_from_u64(SEED);
+            let p = m.random_point(&mut rng);
+            let v = m.random_tangent(&p, &mut rng);
+            let q = m.exp(&p, &v);
+
+            group.bench_with_input(BenchmarkId::new("so_exp", $n), &$n, |b, _| {
+                b.iter(|| m.exp(black_box(&p), black_box(&v)))
+            });
+            group.bench_with_input(BenchmarkId::new("so_log", $n), &$n, |b, _| {
+                b.iter(|| m.log(black_box(&p), black_box(&q)))
+            });
+            group.bench_with_input(BenchmarkId::new("so_dist", $n), &$n, |b, _| {
+                b.iter(|| m.dist(black_box(&p), black_box(&q)))
+            });
+        }};
+    }
+
+    so_dim!(3);
+    so_dim!(10);
+
+    {
+        let m = SpecialEuclidean::<3> { weight: 1.0 };
+        let mut rng = StdRng::seed_from_u64(SEED);
+        let p = m.random_point(&mut rng);
+        let v = m.random_tangent(&p, &mut rng);
+        let q = m.exp(&p, &v);
+
+        group.bench_function("se3_exp", |b| {
+            b.iter(|| m.exp(black_box(&p), black_box(&v)))
+        });
+        group.bench_function("se3_log", |b| {
+            b.iter(|| m.log(black_box(&p), black_box(&q)))
+        });
+        group.bench_function("se3_dist", |b| {
+            b.iter(|| m.dist(black_box(&p), black_box(&q)))
+        });
+    }
+
+    group.finish();
+}
+
+criterion_group!(benches, sphere_ops, spd_ops, round_trip, into_variants, quant_ops);
 criterion_main!(benches);
