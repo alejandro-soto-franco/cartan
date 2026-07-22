@@ -13,7 +13,12 @@
 //!
 //! let mut rng = rand::rng();
 //! let p = s2.random_point(&mut rng);
-//! let v = s2.random_tangent(&p, &mut rng);
+//!
+//! // Scaled inside the injectivity radius, which is pi on the unit sphere.
+//! // `random_tangent` draws a projected standard normal, so its norm is
+//! // unbounded; past pi the geodesic runs beyond the antipode and `log`
+//! // returns the shorter way back, so the two stop being inverse.
+//! let v = s2.random_tangent(&p, &mut rng).normalize() * 1.2;
 //!
 //! // Walk along the geodesic leaving p with velocity v.
 //! let q = s2.exp(&p, &v);
