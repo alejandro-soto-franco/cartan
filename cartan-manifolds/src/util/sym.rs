@@ -148,6 +148,23 @@ pub(crate) fn sym_eigenvalues<const N: usize>(m: &SMatrix<Real, N, N>) -> DVecto
     DMatrix::from_column_slice(N, N, m.as_slice()).symmetric_eigenvalues()
 }
 
+/// Rebuild `V diag(fd) V^T` from an eigendecomposition.
+///
+/// Column i of `V diag(fd)` is column i of `V` scaled by `fd[i]`, which is
+/// O(N^2). Materialising the diagonal matrix and multiplying by it instead
+/// costs a second O(N^3) product for the same answer.
+#[inline]
+fn recompose<const N: usize>(v: &DMatrix<Real>, fd: &DVector<Real>) -> SMatrix<Real, N, N> {
+    let mut scaled = v.clone();
+    for (i, &f) in fd.iter().enumerate() {
+        for j in 0..N {
+            scaled[(j, i)] *= f;
+        }
+    }
+    let result = scaled * v.transpose();
+    SMatrix::from_column_slice(result.as_slice())
+}
+
 /// Apply a scalar function f to the eigenvalues of a symmetric matrix.
 ///
 /// Returns V * diag(f(d_i)) * V^T as an SMatrix.
@@ -157,9 +174,25 @@ fn sym_apply<const N: usize, F: Fn(Real) -> Real>(
     f: F,
 ) -> SMatrix<Real, N, N> {
     let (v, d) = sym_eigen(m);
-    let fd = d.map(f);
-    let result = &v * DMatrix::from_diagonal(&fd) * v.transpose();
-    SMatrix::from_column_slice(result.as_slice())
+    recompose::<N>(&v, &d.map(f))
+}
+
+/// Both `P^{1/2}` and `P^{-1/2}` from a single eigendecomposition.
+///
+/// `sym_sqrt` and `sym_sqrt_inv` decompose the same matrix and differ only in
+/// the scalar map applied to its eigenvalues, so calling both, as the SPD
+/// exponential and logarithm did, paid for the decomposition twice.
+///
+/// The clamping matches the two functions exactly: negative eigenvalues floor
+/// to zero for the root, and eigenvalues at or below 1e-14 give 1e7 for the
+/// inverse root, avoiding a division by zero on a near-singular input.
+pub(crate) fn sym_sqrt_pair<const N: usize>(
+    m: &SMatrix<Real, N, N>,
+) -> (SMatrix<Real, N, N>, SMatrix<Real, N, N>) {
+    let (v, d) = sym_eigen(m);
+    let root = d.map(|x| x.max(0.0).sqrt());
+    let inv_root = d.map(|x| if x > 1e-14 { 1.0 / x.sqrt() } else { 1.0 / 1e-7 });
+    (recompose::<N>(&v, &root), recompose::<N>(&v, &inv_root))
 }
 
 /// Symmetric matrix square root: P^{1/2}.

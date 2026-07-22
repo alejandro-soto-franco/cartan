@@ -300,8 +300,8 @@ impl<const N: usize> Manifold for Spd<N> {
     /// Exp_P(V) = P^{1/2} exp(P^{-1/2} V P^{-1/2}) P^{1/2}
     /// ```
     fn exp(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Point {
-        let sqrt_p = sym_sqrt(p);
-        let sqrt_p_inv = sym_sqrt_inv(p);
+        // One eigendecomposition of P serves both roots.
+        let (sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
         let s = sqrt_p_inv * v * sqrt_p_inv; // P^{-1/2} V P^{-1/2}, symmetric
         sqrt_p * sym_exp(&s) * sqrt_p // P^{1/2} exp(S) P^{1/2}
     }
@@ -314,8 +314,8 @@ impl<const N: usize> Manifold for Spd<N> {
     ///
     /// Globally defined: SPD(N) is a Cartan-Hadamard manifold (no cut locus).
     fn log(&self, p: &Self::Point, q: &Self::Point) -> Result<Self::Tangent, CartanError> {
-        let sqrt_p = sym_sqrt(p);
-        let sqrt_p_inv = sym_sqrt_inv(p);
+        // One eigendecomposition of P serves both roots.
+        let (sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
         let m = sqrt_p_inv * q * sqrt_p_inv; // P^{-1/2} Q P^{-1/2}, symmetric PD
         Ok(sqrt_p * sym_log(&m) * sqrt_p) // P^{1/2} log(M) P^{1/2}
     }
