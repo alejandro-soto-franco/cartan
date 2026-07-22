@@ -13,20 +13,50 @@ documentation = "https://docs.rs/cartan"
 homepage = "https://cartan.sotofranco.dev"
 
 [features]
-default = ["full"]
-# full: includes cartan-dec (rayon + mesh allocation). Requires std.
-# Disable this feature to get a no_std-compatible facade:
-#   cartan = { version = "0.5", default-features = false, features = ["alloc"] }
-full = ["dep:cartan-dec", "std"]
-std = ["alloc", "cartan-core/std", "cartan-manifolds/std", "cartan-optim/std", "cartan-geo/std"]
-alloc = ["cartan-core/alloc", "cartan-manifolds/alloc", "cartan-optim/alloc", "cartan-geo/alloc"]
+default = ["std", "dec"]
+
+# Tier ladder. The `?` keeps an optional dependency from being force-enabled by
+# a tier feature; cartan-homog only gets its tier if `homog` is also on.
+alloc = [
+    "cartan-core/alloc",
+    "cartan-manifolds/alloc",
+    "cartan-optim/alloc",
+    "cartan-geo/alloc",
+    "cartan-homog?/alloc",
+]
+std = [
+    "alloc",
+    "cartan-core/std",
+    "cartan-manifolds/std",
+    "cartan-optim/std",
+    "cartan-geo/std",
+    "cartan-homog?/std",
+]
+
+# Capability features. `homog` sits outside `std` because its mean-field schemes
+# are small-tensor arithmetic that runs at the alloc tier; only `full-field`
+# needs threads and a sparse solver.
+homog      = ["dep:cartan-homog"]
+dec        = ["std", "dep:cartan-dec"]
+remesh     = ["dec", "dep:cartan-remesh"]
+stochastic = ["std", "dep:cartan-stochastic"]
+io         = ["dec", "dep:cartan-io"]
+maxwell    = ["io", "dep:cartan-maxwell"]
+full-field = ["homog", "remesh", "std", "cartan-homog/full-field"]
+
+full = ["std", "dec", "remesh", "stochastic", "homog", "full-field", "io", "maxwell"]
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.7", default-features = false }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.7", default-features = false }
-cartan-optim = { path = "../cartan-optim", version = "0.7", default-features = false }
-cartan-geo = { path = "../cartan-geo", version = "0.7", default-features = false }
-cartan-dec = { path = "../cartan-dec", version = "0.7", optional = true }
+cartan-core       = { path = "../cartan-core",       version = "0.8", default-features = false }
+cartan-manifolds  = { path = "../cartan-manifolds",  version = "0.8", default-features = false }
+cartan-optim      = { path = "../cartan-optim",      version = "0.8", default-features = false }
+cartan-geo        = { path = "../cartan-geo",        version = "0.8", default-features = false }
+cartan-dec        = { path = "../cartan-dec",        version = "0.8", optional = true }
+cartan-remesh     = { path = "../cartan-remesh",     version = "0.8", optional = true }
+cartan-stochastic = { path = "../cartan-stochastic", version = "0.8", optional = true }
+cartan-homog      = { path = "../cartan-homog",      version = "0.8", optional = true, default-features = false }
+cartan-io         = { path = "../cartan-io",         version = "0.8", optional = true }
+cartan-maxwell    = { path = "../cartan-maxwell",    version = "0.8", optional = true }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std_rng", "std"] }
