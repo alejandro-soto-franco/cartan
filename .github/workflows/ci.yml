@@ -35,18 +35,59 @@ jobs:
         run: cargo clippy -p cartan-homog-valid --all-targets --features full-field,stochastic -- -D warnings
 
   no-std-check:
-    name: no_std + alloc build check
+    name: no_std bare-metal build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@1.89
+        with:
+          targets: thumbv7em-none-eabihf
+      - uses: Swatinem/rust-cache@v2
+      # Building --no-default-features on x86_64 proves only that the source
+      # avoids std: std stays linkable, so a crate missing #![no_std] still
+      # compiles. That gap let two defects ship in 0.7.0, one of them the
+      # facade itself, which is the exact configuration the README documents.
+      # A target with no std at all is the check that catches them.
+      - name: Facade (alloc)
+        run: cargo build -p cartan --no-default-features --features alloc --target thumbv7em-none-eabihf
+      - name: Facade (alloc + homog)
+        run: cargo build -p cartan --no-default-features --features alloc,homog --target thumbv7em-none-eabihf
+      - name: cartan-core (bare, no alloc)
+        run: cargo build -p cartan-core --no-default-features --target thumbv7em-none-eabihf
+      - name: Alloc-tier crates
+        run: |
+          set -euo pipefail
+          for c in cartan-manifolds cartan-optim cartan-geo cartan-homog; do
+            echo "::group::$c"
+            cargo build -p "$c" --no-default-features --features alloc --target thumbv7em-none-eabihf
+            echo "::endgroup::"
+          done
+
+  feature-matrix:
+    name: Feature combinations
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@1.89
       - uses: Swatinem/rust-cache@v2
-      - name: Build cartan-core (bare no_std)
-        run: cargo build -p cartan-core --no-default-features
-      - name: Build cartan-manifolds (no_std + alloc)
-        run: cargo build -p cartan-manifolds --no-default-features --features alloc
-      - name: Build cartan-geo (no_std + alloc)
-        run: cargo build -p cartan-geo --no-default-features --features alloc
+      # Catches a feature that only compiles alongside another, which the
+      # default and full builds both hide.
+      - name: Each facade feature alone
+        run: |
+          set -euo pipefail
+          for f in dec remesh stochastic homog full-field io maxwell; do
+            echo "::group::$f"
+            cargo build -p cartan --no-default-features --features "std,$f"
+            echo "::endgroup::"
+          done
+      - name: Tier builds
+        run: |
+          set -euo pipefail
+          cargo build -p cartan --no-default-features --features alloc
+          cargo build -p cartan --no-default-features --features std
+          cargo build -p cartan --features full
+      - name: Guide doctests
+        run: cargo test -p cartan --features full --doc
 
   msrv:
     name: MSRV (declared rust-version)

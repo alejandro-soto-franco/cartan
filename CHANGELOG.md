@@ -4,6 +4,110 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.8.0]
+
+### The facade is now the dependency to reach for
+
+`cartan` re-exported five of eleven crates, so `remesh`, `stochastic`, `homog`,
+`io` and `maxwell` could not be reached through `use cartan::` at all. It now
+carries a capability feature per crate:
+
+```toml
+cartan = "0.8"                                        # std + dec, as before
+cartan = { version = "0.8", features = ["full"] }     # everything
+cartan = { version = "0.8", default-features = false, features = ["alloc"] }
+```
+
+Features are `alloc`, `std`, `dec`, `remesh`, `stochastic`, `homog`,
+`full-field`, `io`, `maxwell` and `full`. Gated re-exports carry `doc(cfg)`
+badges, so the docs.rs page shows the whole family and names the flag each item
+needs.
+
+**Breaking.** `full` widens from "std plus dec" to the whole family. Existing
+users of that feature get a larger build, not a broken one. The default feature
+set still resolves to std plus dec.
+
+### no_std actually works now
+
+Two defects shipped in 0.7.0, both because no CI job had ever built for a target
+without std. `--no-default-features` on x86_64 proves only that the source avoids
+std; std stays linkable, so the gap was invisible.
+
+- **The `cartan` facade never declared `#![no_std]`.** The embedded configuration
+  its own documentation recommended compiled on a host and failed on hardware.
+- **`cartan-homog` declared an `alloc` tier that produced 17 errors** on
+  `thumbv7em-none-eabihf`: fifteen std-only float methods and two imports of a
+  std-gated `Spd`.
+
+Both are fixed. Float transcendentals route through `libm` behind a `#[cfg]`
+shim, matching the existing pattern in `cartan-core`. The `Spd` geodesic damping
+step is gated behind std and falls back to the linear damping arm the function
+already carried, so no new numerics enter.
+
+CI now builds the facade, `cartan-core` bare, and every alloc-tier crate for
+`thumbv7em-none-eabihf`, plus a feature-matrix job that builds each capability
+feature alone.
+
+**Behaviour change at the alloc tier:** `SelfConsistent` damps its fixed-point
+iteration linearly rather than along SPD geodesics, because the geodesic step
+needs an eigen decomposition that requires std. It reaches the same fixed point
+more slowly.
+
+### One sparse matrix type
+
+0.7.0's move to the upstream formoniq stack left the workspace split: `cartan-io`
+and `cartan-maxwell` on `nalgebra-sparse`, `cartan-dec` and `cartan-homog` on
+`sprs`. Anyone composing dec with maxwell met both. `sprs` is now retired.
+
+**Breaking.** Six public signatures change type, all from `sprs::CsMat` to
+`nalgebra_sparse::CscMatrix`:
+
+| item |
+|---|
+| `cartan_dec::exterior::ExteriorDerivative::d0` |
+| `cartan_dec::exterior::ExteriorDerivative::d1` |
+| `cartan_dec::line_bundle::BochnerLaplacian::matrix` |
+| `cartan_homog::fullfield::solver::Ilu0::factor` |
+| `cartan_homog::fullfield::solver::solve_dense_lu` |
+| `cartan_homog::fullfield::solver::Amg::build` |
+
+The target is CSC rather than CSR because every assembly here builds CSC and the
+matvec loops walk columns accordingly. The operators are unchanged: the full
+numerical validation suite, including the 84-case cross-check at
+`d_AI < 3e-15`, passes without modification.
+
+### Guide
+
+A `cartan::guide` module of doctested chapters covering the three regimes:
+`getting_started`, `manifolds`, `optimisation`, `fields`, `bundles`,
+`stochastic`, `homogenisation` and `interop`. Every code block runs under
+`cargo test --doc`, so a chapter that drifts from the API fails CI. Writing them
+caught a README quickstart that had never compiled.
+
+### Dead dependencies removed
+
+An audit of every member's declared dependencies against its source found six
+referenced nowhere: `rayon` and `serde` in both `cartan-dec` and `cartan-homog`,
+`thiserror` in `cartan-maxwell`, and `rayon` plus `indexmap` at workspace level.
+`rayon` was used nowhere in the workspace, and `cartan-dec` sits in the default
+path, so every user compiled a thread pool for nothing.
+
+**Breaking.** `cartan-homog`'s `serde` feature is removed. It was in the default
+set and gated a dependency the crate never used.
+
+### Also
+
+- `cartan-homog` gains an `examples/rve_to_effective.rs` sweep that asserts every
+  scheme stays inside the Reuss-Voigt bracket.
+- `cartan-core`, `cartan-dec` and `cartan-maxwell` now inherit the workspace
+  version rather than pinning their own.
+- `cartan-py`'s declared MSRV was stale at 1.85 against a nalgebra 0.35 floor of
+  1.89.
+- README rebuilt as an on-ramp; the per-crate inventory moves to
+  `CAPABILITIES.md`.
+
+---
+
 ## [0.7.0]
 
 Breaking: the FEEC crates are gone from the published set, and the geometry
