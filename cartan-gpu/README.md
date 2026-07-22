@@ -9,6 +9,17 @@ Part of the [cartan](https://crates.io/crates/cartan) workspace, but its own
 detached Cargo workspace so its wgpu/GPU build deps stay isolated from the rest
 of the stack.
 
+## Precision
+
+WGSL has no `f64`. It offers `f32`, `i32`, `u32` and, by extension, `f16`.
+Anything computed through this crate is therefore single precision, while the
+rest of cartan is `f64` throughout.
+
+That is fine for the workloads GPUs are usually pointed at here, embeddings and
+visualisation among them, and wrong for the scientific results the rest of the
+library is built to produce, where agreement is measured at 1e-14. Use the CPU
+path when the precision matters.
+
 ## What this crate does
 
 `cartan-gpu` exposes a small, opinionated GPU surface to the rest of the
@@ -106,4 +117,4 @@ The three remaining integration tests (`device_smoke`, `hello_shader`,
 
 ## License
 
-[MIT](../LICENSE-MIT)
+[MIT](LICENSE-MIT)

@@ -57,6 +57,15 @@ impl Device {
         self.adapter.get_info()
     }
 
+    /// The underlying wgpu instance.
+    ///
+    /// Exposed because the external-memory interop path needs instance-level
+    /// access: importing a `VkDeviceMemory` into another API goes through the
+    /// instance, not the device.
+    pub fn wgpu_instance(&self) -> &wgpu::Instance {
+        &self.instance
+    }
+
     pub fn wgpu_device(&self) -> &wgpu::Device {
         &self.device
     }
