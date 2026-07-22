@@ -26,8 +26,13 @@ rand_distr = { workspace = true, default-features = false }
 
 [dev-dependencies]
 approx = { workspace = true }
-rand = { workspace = true, features = ["small_rng"] }
+rand = { workspace = true, features = ["small_rng", "std_rng", "std"] }
+criterion = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[bench]]
+name = "geometry"
+harness = false
