@@ -179,10 +179,9 @@ impl ExteriorDerivative {
 #[cfg(test)]
 mod tests {
     // Assembly here pushes one contribution per incident simplex, so shared
-    // (i, j) entries receive several pushes and must sum. sprs::TriMat and
-    // nalgebra_sparse::CooMatrix are both documented to do this. A difference
-    // would corrupt every assembled operator while leaving the field-level
-    // tests green, so it is checked directly.
+    // (i, j) entries receive several pushes and must sum on conversion. Every
+    // assembled operator depends on it, and the field-level tests would not
+    // catch a change, so the property is asserted directly for both formats.
     #[test]
     fn coo_to_csr_sums_duplicate_entries() {
         use nalgebra_sparse::{CooMatrix, CsrMatrix};
