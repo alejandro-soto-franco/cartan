@@ -5,6 +5,7 @@
 extern crate alloc;
 
 pub mod error;
+mod float;
 pub mod tensor;
 pub mod kelvin_mandel;
 pub mod shapes;
