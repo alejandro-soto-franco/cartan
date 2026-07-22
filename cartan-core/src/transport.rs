@@ -64,6 +64,34 @@ pub trait ParallelTransport: Manifold {
         q: &Self::Point,
         u: &Self::Tangent,
     ) -> Result<Self::Tangent, CartanError>;
+
+    /// Parallel transport, written into a caller-owned destination.
+    ///
+    /// Same result as [`transport`](Self::transport). It exists because the
+    /// value-returning form must materialise and return a tangent vector, and
+    /// for a large ambient dimension that copy is a measurable share of the
+    /// call: an `SVector<f64, 50>` is 400 bytes moved per invocation.
+    ///
+    /// Worth reaching for only in a loop that already owns a reusable buffer.
+    /// For small ambient dimensions the copy is noise and
+    /// [`transport`](Self::transport) is the clearer call.
+    ///
+    /// `out` is fully overwritten, so its prior contents are irrelevant. It
+    /// may not alias `p`, `q` or `u`; the borrow checker enforces that.
+    ///
+    /// The default implementation delegates to
+    /// [`transport`](Self::transport) and assigns, so implementors get it for
+    /// free and only override where avoiding the temporary actually pays.
+    fn transport_into(
+        &self,
+        p: &Self::Point,
+        q: &Self::Point,
+        u: &Self::Tangent,
+        out: &mut Self::Tangent,
+    ) -> Result<(), CartanError> {
+        *out = self.transport(p, q, u)?;
+        Ok(())
+    }
 }
 
 /// Approximate vector transport (cheaper than exact parallel transport).
