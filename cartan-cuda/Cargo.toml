@@ -1,0 +1,30 @@
+[package]
+name = "cartan-cuda"
+description = "Batched double-precision manifold operations on CUDA, via cuda-oxide"
+version = "0.8.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/alejandro-soto-franco/cartan"
+readme = "README.md"
+
+# Not published. cuda-oxide is not on crates.io, and cargo rejects git
+# dependencies at publish time, so this crate cannot ship until it is. It also
+# needs a pinned nightly and the `cargo oxide` subcommand, neither of which the
+# rest of cartan requires.
+publish = false
+
+# Its own workspace: the pinned nightly and the codegen backend must not leak
+# into cartan's stable build.
+[workspace]
+
+[dependencies]
+cuda-device = { git = "https://github.com/NVlabs/cuda-oxide.git" }
+cuda-host = { git = "https://github.com/NVlabs/cuda-oxide.git" }
+cuda-core = { git = "https://github.com/NVlabs/cuda-oxide.git" }
+
+# The CPU implementation the GPU results are checked against. Host-side only;
+# nothing here crosses into device code.
+cartan-core = { path = "../cartan-core" }
+cartan-manifolds = { path = "../cartan-manifolds" }
+nalgebra = { version = "0.35", features = ["std"] }
+rand = { version = "0.9", features = ["std", "std_rng"] }
