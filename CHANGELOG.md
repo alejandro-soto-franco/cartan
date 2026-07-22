@@ -4,6 +4,79 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.8.1]
+
+`cartan-gpu` joins the workspace and reaches the family version. The other
+eleven published crates carry no code change in this release; they move to
+0.8.1 because the workspace shares one version.
+
+### Changed
+
+- **`cartan-gpu` is a workspace member at the family version.** It carried its
+  own `[workspace]` and sat in the root `exclude` list, so the 0.8.0 bump
+  skipped it and the registry showed 0.5.1 against 0.8.0 everywhere else. It
+  now inherits the workspace version and shared package fields, and
+  `cargo test --workspace` covers it.
+- **`cartan-gpu` takes `gpufft` from the registry.** It was a path dependency on
+  `../../gpufft/gpufft`, outside this repository, so the `fft`, `vulkan`,
+  `cuda` and `shared` features could not be built by anyone who cloned cartan.
+  Now `gpufft = "0.1.3"`.
+- **`Device::instance` gains an accessor.** The field was held and never read.
+  The external-memory interop path the crate documents needs instance-level
+  access, since importing a `VkDeviceMemory` into another API goes through the
+  instance rather than the device.
+
+### Added
+
+- **`cartan-cuda`**: batched double-precision manifold operations on CUDA,
+  through [cuda-oxide](https://github.com/NVlabs/cuda-oxide). Kernels are
+  ordinary Rust compiled to PTX. Batched sphere `exp` and `log` agree with the
+  CPU implementation to 3.22e-15, and the affine-invariant SPD(3) distance to
+  9.58e-15 relative.
+
+  This exists because of precision. WGSL has no `f64`, so anything routed
+  through `cartan-gpu` is single precision while the rest of cartan is double.
+  CUDA has `f64` natively, so these kernels are held to the same tolerance the
+  CPU code is.
+
+  **Not published**, and not a workspace member: cuda-oxide is not on
+  crates.io and cargo rejects git dependencies at publish time; it pins a
+  nightly with `rustc-dev` because it is a rustc backend, against cartan's
+  stable 1.89; and it builds through `cargo oxide` rather than `cargo build`.
+  It has its own workspace and sits in the root `exclude` list, so the stable
+  build and CI never see it.
+- **A precision section in `cartan-gpu`'s README.** WGSL offers `f32`, `i32`,
+  `u32` and, by extension, `f16`. That suits embeddings and visualisation and
+  is wrong for results the library elsewhere agrees on at 1e-14.
+
+### Fixed
+
+- **`cartan-gpu` failed the rustdoc gate.** Its `buffer` module documented
+  `GpuBuffer<T>` without backticks, which rustdoc parses as an unclosed HTML
+  tag. The crate was outside the workspace, so `cargo doc --workspace` never
+  saw it.
+- **The release workflow rejected any tag.** Its preflight compares the
+  hardcoded release order against the workspace's publishable members, and
+  `cartan-gpu` became the twelfth member without being added to the list. The
+  guard was correct; the list was not.
+
+### Removed
+
+- **`cartan-gpu-sys` is retired.** It was raw FFI bindings to a vendored VkFFT;
+  that job now belongs to `gpufft`. Its source no longer existed in the tree
+  and its only reverse dependency was `cartan-gpu` 0.5.1. Yanked on crates.io.
+
+### Notes
+
+- `cartan-exterior`, `cartan-simplicial` and `cartan-feec` are yanked at 0.6.0.
+  They were a port of [formoniq](https://crates.io/crates/formoniq), made
+  before formoniq was published, and 0.7.0 replaced them with the upstream
+  crates. Yanking does not break existing builds: a `Cargo.lock` still
+  resolves them. It stops new adoption of an unmaintained fork of a live
+  library.
+
+---
+
 ## [0.8.0]
 
 Breaking: six sparse signatures change type, `full` widens to the whole family,
