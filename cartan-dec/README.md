@@ -18,7 +18,7 @@ The crate provides:
 
 - `Mesh<M, K, B>`, a generic simplicial complex parameterised by manifold
   type `M`, simplex dimension `K`, and boundary dimension `B`.
-- `ExteriorDerivative`, sparse boundary operators d0 and d1 (via `sprs`).
+- `ExteriorDerivative`, sparse boundary operators d0 and d1 (via `nalgebra-sparse`).
 - `HodgeStar`, diagonal Hodge star operators (barycentric or circumcentric dual).
 - `Operators`, assembled Laplace-Beltrami, Bochner, and Lichnerowicz
   Laplacians.
@@ -58,4 +58,4 @@ let lf = ops.apply_laplace_beltrami(&f);
 
 ## License
 
-[MIT](../LICENSE-MIT)
+[MIT](LICENSE-MIT)

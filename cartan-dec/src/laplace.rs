@@ -46,7 +46,7 @@
 use core::marker::PhantomData;
 
 use nalgebra::DVector;
-use sprs::{CsMat, TriMat};
+use nalgebra_sparse::{CooMatrix, CscMatrix};
 
 use cartan_core::Manifold;
 use cartan_manifolds::euclidean::Euclidean;
@@ -63,7 +63,7 @@ use crate::mesh::{FlatMesh, Mesh};
 /// Lichnerowicz operators are specialized to K=3 (2-manifold).
 pub struct Operators<M: Manifold = Euclidean<2>, const K: usize = 3, const B: usize = 2> {
     /// Scalar Laplace-Beltrami: n_vertices x n_vertices (sparse).
-    pub laplace_beltrami: CsMat<f64>,
+    pub laplace_beltrami: CscMatrix<f64>,
     /// Mass matrices: `mass[k]` = `star[k]` diagonal, k = 0..K-1.
     pub mass: Vec<DVector<f64>>,
     /// Exterior derivative chain.
@@ -80,39 +80,39 @@ pub struct Operators<M: Manifold = Euclidean<2>, const K: usize = 3, const B: us
 /// Assemble the scalar Laplace-Beltrami: star0_inv * d0^T * diag(star1) * d0.
 ///
 /// All operations are sparse. The result is a sparse CSC matrix.
-fn assemble_scalar_laplacian(ext: &ExteriorDerivative, hodge: &HodgeStar) -> CsMat<f64> {
+fn assemble_scalar_laplacian(ext: &ExteriorDerivative, hodge: &HodgeStar) -> CscMatrix<f64> {
     let d0 = ext.d0();
     let s1 = hodge.star1();
     let ne = s1.len();
 
     // Build diag(star1) as a sparse diagonal matrix.
-    let mut star1_tri = TriMat::new((ne, ne));
+    let mut star1_tri = CooMatrix::new(ne, ne);
     for e in 0..ne {
         let w = s1[e];
         if w.abs() > 1e-30 {
-            star1_tri.add_triplet(e, e, w);
+            star1_tri.push(e, e, w);
         }
     }
-    let star1_diag = star1_tri.to_csc();
+    let star1_diag = CscMatrix::from(&star1_tri);
 
     // star1 * d0
     let star1_d0 = &star1_diag * d0;
 
     // d0^T * (star1 * d0)
-    let d0t = d0.transpose_view();
+    let d0t = d0.transpose();
     let d0t_star1_d0 = &d0t * &star1_d0;
 
     // star0_inv * (d0^T * star1 * d0)
     let nv = hodge.star0().len();
     let star0_inv = hodge.star0_inv();
-    let mut star0_inv_tri = TriMat::new((nv, nv));
+    let mut star0_inv_tri = CooMatrix::new(nv, nv);
     for v in 0..nv {
         let w = star0_inv[v];
         if w.abs() > 1e-30 {
-            star0_inv_tri.add_triplet(v, v, w);
+            star0_inv_tri.push(v, v, w);
         }
     }
-    let star0_inv_diag = star0_inv_tri.to_csc();
+    let star0_inv_diag = CscMatrix::from(&star0_inv_tri);
 
     &star0_inv_diag * &d0t_star1_d0
 }
@@ -158,14 +158,14 @@ impl<M: Manifold, const K: usize, const B: usize> Operators<M, K, B> {
     /// Apply the scalar Laplace-Beltrami operator to a 0-form (vertex field).
     ///
     /// Uses sparse matrix-vector product. The Laplacian is stored in CSC format,
-    /// so `outer_iterator()` iterates over columns: `y += A[:,j] * x[j]`.
+    /// so `col_iter()` iterates over columns: `y += A[:,j] * x[j]`.
     pub fn apply_laplace_beltrami(&self, f: &DVector<f64>) -> DVector<f64> {
         let n = f.len();
         let mut result = DVector::<f64>::zeros(n);
-        // CSC outer_iterator: (col_idx, column_slice)
-        for (col_idx, col) in self.laplace_beltrami.outer_iterator().enumerate() {
+        // CSC col_iter: (col_idx, column)
+        for (col_idx, col) in self.laplace_beltrami.col_iter().enumerate() {
             let x_j = f[col_idx];
-            for (row_idx, &val) in col.iter() {
+            for (&row_idx, &val) in col.row_indices().iter().zip(col.values()) {
                 result[row_idx] += val * x_j;
             }
         }
@@ -189,7 +189,7 @@ impl<M: Manifold> Operators<M, 3, 2> {
         u: &DVector<f64>,
         ricci_correction: Option<&dyn Fn(usize) -> [[f64; 2]; 2]>,
     ) -> DVector<f64> {
-        let nv = self.laplace_beltrami.rows();
+        let nv = self.laplace_beltrami.nrows();
         assert_eq!(u.len(), 2 * nv, "Bochner: u must have 2*n_v entries");
 
         let ux = u.rows(0, nv).into_owned();
@@ -229,7 +229,7 @@ impl<M: Manifold> Operators<M, 3, 2> {
         q: &DVector<f64>,
         curvature_correction: Option<&dyn Fn(usize) -> [[f64; 3]; 3]>,
     ) -> DVector<f64> {
-        let nv = self.laplace_beltrami.rows();
+        let nv = self.laplace_beltrami.nrows();
         assert_eq!(q.len(), 3 * nv, "Lichnerowicz: q must have 3*n_v entries");
 
         let qxx = q.rows(0, nv).into_owned();

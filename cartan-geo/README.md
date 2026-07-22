@@ -46,9 +46,9 @@ Disable default features and enable `alloc` for embedded targets.
 `std`. Holonomy and disclination modules require `std`.
 
 ```toml
-cartan-geo = { version = "0.1", default-features = false, features = ["alloc"] }
+cartan-geo = { version = "0.8", default-features = false, features = ["alloc"] }
 ```
 
 ## License
 
-[MIT](../LICENSE-MIT)
+[MIT](LICENSE-MIT)

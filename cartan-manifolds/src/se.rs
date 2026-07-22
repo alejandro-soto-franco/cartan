@@ -366,7 +366,9 @@ impl<const N: usize> Manifold for SpecialEuclidean<N> {
         // Rotation inner product: (1/2) tr(U_rot^T V_rot) = (1/2) tr(Ω_u^T Ω_v)
         // Since U_rot = R Ω_u, we have U_rot^T V_rot = Ω_u^T R^T R Ω_v = Ω_u^T Ω_v
         // (R^T R = I for R ∈ SO(N)). So tr(U_rot^T V_rot) = tr(Ω_u^T Ω_v).
-        let rotation_inner = (u.rotation.transpose() * v.rotation).trace() * 0.5;
+        // tr(A^T B) is the Frobenius inner product exactly, so this is the
+        // same value in O(N^2) rather than O(N^3).
+        let rotation_inner = u.rotation.dot(&v.rotation) * 0.5;
 
         // Translation inner product: weight · v_body_u^T v_body_v
         // v_body_u = R^T u_trans, v_body_v = R^T v_trans

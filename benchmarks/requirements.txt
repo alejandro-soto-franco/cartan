@@ -1,0 +1,16 @@
+# Cross-language comparators for the benchmark harness.
+#
+# geomstats is pinned to a main-branch commit rather than 2.8.0: the released
+# version imports numpy.trapz, removed in numpy 2.0, and its PyTorch backend
+# imports the numpy backend transitively so switching backends does not avoid
+# it. The fix is upstream but unreleased. Pinned by commit so a rerun resolves
+# to the same code.
+geomstats @ git+https://github.com/geomstats/geomstats.git@1746a38b086d56e348ba68509d54122ea3d3f5e6
+geoopt
+torch
+numpy
+scipy
+mpmath
+matplotlib
+# numba caps numpy below 2.5, so it pins the environment to numpy 2.4.x.
+numba

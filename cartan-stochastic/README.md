@@ -59,4 +59,4 @@ let diff = WishartSpdDiffusion::new(/* parameters */);
 
 ## License
 
-[MIT](../LICENSE-MIT)
+[MIT](LICENSE-MIT)

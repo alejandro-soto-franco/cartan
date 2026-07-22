@@ -29,7 +29,7 @@ stack without the optimisation layer), depend on the subcrates directly.
 | [`cartan-remesh`](../cartan-remesh) | 2D + 3D adaptive remeshing (split / collapse / flip / red-refinement) |
 | [`cartan-stochastic`](../cartan-stochastic) | Frame bundle, horizontal lift, Stratonovich development, Wishart SDE on SPD |
 | [`cartan-homog`](../cartan-homog) | Mean-field + full-field homogenisation; spectral solver via `cartan-gpu` |
-| [`cartan-homog-valid`](../cartan-homog-valid) | ECHOES cross-validation harness |
+| [`cartan-homog-valid`](../cartan-homog-valid) | numerical cross-validation harness |
 | [`cartan-gpu`](../cartan-gpu) | Portable GPU primitives: VkFFT (Vulkan) + cuFFT (CUDA) unified behind one trait, zero-copy interop |
 | [`cartan-gpu-sys`](../cartan-gpu-sys) | Raw FFI to vendored VkFFT (internal plumbing for `cartan-gpu`) |
 | [`cartan-py`](../cartan-py) | PyO3 / numpy bindings to the full library |
@@ -56,4 +56,4 @@ no_std support, and the published rendered documentation site at
 
 ## License
 
-[MIT](../LICENSE-MIT)
+[MIT](LICENSE-MIT)
