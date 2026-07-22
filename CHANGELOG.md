@@ -39,6 +39,15 @@ and `cartan-homog`'s `serde` feature is removed. See below.
   Distance is now cheaper than `log`. Sphere distance is deliberately untouched:
   `2*asin(||p-q||/2)` avoids the cancellation `acos(p.q)` suffers near
   coincident points.
+- **`Sphere::transport` no longer calls `log`.** The two-log formula
+  (Absil et al. 8.1.3) evaluated `log` in each direction, each paying an
+  inverse trig call, a norm and a division. Written on the dot product alone it
+  is `PT(v) = v - (v.w)(w/(1+c) + p)` with `c = p.q` and `w = q - cp`; both trig
+  calls cancel because `cos(theta) = c` and `||w|| = sin(theta)` for unit
+  vectors. S^2 37 to 7 ns, S^9 97 to 23 ns, S^49 167 to 96 ns. Against
+  Manifolds.jl, 0.4x-0.9x becomes 0.9x-4.9x. The result is still re-projected:
+  tangency is exact in exact arithmetic, but `w/(1+c)` amplifies rounding near
+  the cut locus, where the residual reaches 4e-10 without it.
 - **`SelfConsistent` damps linearly at the `alloc` tier**, rather than along SPD
   geodesics, because the geodesic step needs an eigen decomposition that
   requires std. Same fixed point, slower convergence. Under std it is unchanged.
@@ -56,9 +65,8 @@ and `cartan-homog`'s `serde` feature is removed. See below.
   agreement is measured on identical inputs. 51 of 51 comparisons match to
   better than 1e-12, worst 9.4e-14, over exp, log, dist and transport on the
   sphere and SPD cone. Timing rows are gated on the values having matched.
-  Against Manifolds.jl: 1.5x to 3.5x on SPD, mixed on the sphere, slower on
-  sphere transport. Against the Python libraries, two to three orders of
-  magnitude, which largely measures interpreter overhead.
+  Against Manifolds.jl the median is 1.9x. Against the Python libraries, two to
+  three orders of magnitude, which largely measures interpreter overhead.
 - **Criterion suite**: `cargo bench -p cartan-manifolds`, over exp, log, dist
   and transport for `Sphere` and `Spd`.
 - **Bare-metal CI**: builds the facade, `cartan-core` bare, and every alloc-tier
