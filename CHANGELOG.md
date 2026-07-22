@@ -39,6 +39,30 @@ and `cartan-homog`'s `serde` feature is removed. See below.
   Distance is now cheaper than `log`. Sphere distance is deliberately untouched:
   `2*asin(||p-q||/2)` avoids the cancellation `acos(p.q)` suffers near
   coincident points.
+- **SPD `exp` and `log` share one eigendecomposition.** Both called
+  `sym_sqrt(p)` and `sym_sqrt_inv(p)`, which decompose the same matrix and
+  differ only in the scalar map applied to its eigenvalues, so the
+  decomposition was paid for twice. `sym_apply` also built `diag(f(d))` densely
+  and multiplied by it, a second O(N^3) product where scaling V's columns is
+  O(N^2).
+- **A stack-based Jacobi eigensolver for 3x3.** The previous path allocated a
+  `DMatrix` per call and ran a general tridiagonalise-then-QR solver. Jacobi
+  needs no allocation and wins at N = 3; it loses from N = 4 upward, where the
+  general solver's setup amortises, so the threshold is measured and the larger
+  sizes keep the old path. N = 3 dominates SPD use: covariance matrices,
+  diffusion tensors, Order2 Kelvin-Mandel.
+
+  | SPD op | before | after | |
+  |---|---|---|---|
+  | `exp` N=3 | 1448 ns | 424 ns | 3.4x |
+  | `exp` N=10 | 11339 ns | 6378 ns | 1.8x |
+  | `log` N=3 | 1386 ns | 424 ns | 3.3x |
+  | `log` N=10 | 11343 ns | 6517 ns | 1.7x |
+
+  Against Manifolds.jl, SPD(3) `exp` moves from 2.4x to 7.1x, and the overall
+  median from 1.9x to 2.2x. Cross-language agreement is unchanged at 84 of 84,
+  with the worst deviation improving from 9.4e-14 to 8.0e-14, which is
+  consistent with Jacobi's better relative accuracy on small eigenvalues.
 - **In-place `exp_into`, `log_into` and `transport_into`.** The
   value-returning forms must materialise and return a tangent vector, which at
   ambient dimension 50 is 400 bytes moved per call. These write into a
