@@ -218,6 +218,82 @@ impl<const N: usize> Manifold for Spd<N> {
         (p_inv * u * p_inv * v).trace()
     }
 
+    /// Geodesic distance, computed without forming the logarithm.
+    ///
+    /// ```text
+    /// d(P, Q)^2 = sum_i log^2(lambda_i),   lambda_i = eig(P^{-1} Q)
+    /// ```
+    ///
+    /// The default `Manifold::dist` is `||Log_P(Q)||_P`. Taken literally that
+    /// costs four eigendecompositions here: three inside `log`, to build
+    /// `P^{1/2}`, `P^{-1/2}` and `log(M)`, and a fourth inside `inner` via
+    /// `sym_inv`. Only the spectrum of `P^{-1} Q` actually reaches the answer,
+    /// so none of those matrices need to exist.
+    ///
+    /// The spectrum is read off `L^{-1} Q L^{-T}`, where `P = L L^T` is the
+    /// Cholesky factor. That matrix is symmetric, so the cheaper symmetric
+    /// eigensolver applies, and it is similar to `P^{-1} Q`, so it carries the
+    /// same eigenvalues. A Cholesky costs a fraction of the eigendecomposition
+    /// it replaces, and only eigenvalues are requested, not eigenvectors.
+    ///
+    /// Eigenvalues are floored at 1e-14 before the logarithm, matching
+    /// `sym_log`, so a point that has lost positive-definiteness to roundoff
+    /// degrades the same way it would through the general path.
+    ///
+    /// SPD(N) is a Cartan-Hadamard manifold with empty cut locus, so this is
+    /// defined for every pair and fails only if `P` is not positive definite.
+    fn dist(&self, p: &Self::Point, q: &Self::Point) -> Result<Real, CartanError> {
+        let chol = p.cholesky().ok_or_else(|| {
+            #[cfg(feature = "alloc")]
+            {
+                CartanError::NumericalFailure {
+                    operation: "dist(SPD(N))".to_string(),
+                    message: "Cholesky of the base point failed; P is not positive definite"
+                        .to_string(),
+                }
+            }
+            #[cfg(not(feature = "alloc"))]
+            {
+                CartanError::NumericalFailure {
+                    operation: "dist(SPD(N))",
+                    message: "Cholesky of the base point failed; P is not positive definite",
+                }
+            }
+        })?;
+        let l = chol.l();
+
+        // A = L^{-1} Q, then M = L^{-1} A^T = L^{-1} Q L^{-T}, using that Q is
+        // symmetric. Two triangular solves, no explicit inverse.
+        let singular = || {
+            #[cfg(feature = "alloc")]
+            {
+                CartanError::NumericalFailure {
+                    operation: "dist(SPD(N))".to_string(),
+                    message: "triangular solve against the Cholesky factor failed".to_string(),
+                }
+            }
+            #[cfg(not(feature = "alloc"))]
+            {
+                CartanError::NumericalFailure {
+                    operation: "dist(SPD(N))",
+                    message: "triangular solve against the Cholesky factor failed",
+                }
+            }
+        };
+        let a = l.solve_lower_triangular(q).ok_or_else(singular)?;
+        let m = l.solve_lower_triangular(&a.transpose()).ok_or_else(singular)?;
+
+        let sum_sq: Real = crate::util::sym::sym_eigenvalues(&m)
+            .iter()
+            .map(|&lambda| {
+                let ln = lambda.max(1e-14).ln();
+                ln * ln
+            })
+            .sum();
+
+        Ok(sum_sq.sqrt())
+    }
+
     /// Exponential map (affine-invariant geodesic):
     ///
     /// ```text
@@ -541,6 +617,78 @@ mod tests {
 
     fn sample_spd_3b() -> SMatrix<Real, 3, 3> {
         SMatrix::<Real, 3, 3>::from_row_slice(&[3.0, 1.0, 0.5, 1.0, 4.0, 1.5, 0.5, 1.5, 2.5])
+    }
+
+    // ── Distance agrees with its definition ─────────────────────────────────
+
+    /// `dist` has a specialised implementation that never forms the matrix
+    /// logarithm. This pins it to the definition it replaced,
+    /// `d(P, Q) = ||Log_P(Q)||_P`, so a divergence fails loudly rather than
+    /// silently returning a slightly different metric.
+    #[test]
+    fn test_dist_matches_norm_of_log() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        macro_rules! check {
+            ($n:literal) => {{
+                let m = Spd::<$n>;
+                let mut rng = StdRng::seed_from_u64(7);
+                for _ in 0..25 {
+                    let p = m.random_point(&mut rng);
+                    let q = m.random_point(&mut rng);
+
+                    let fast = m.dist(&p, &q).unwrap();
+                    let reference = m.norm(&p, &m.log(&p, &q).unwrap());
+
+                    assert_relative_eq!(fast, reference, epsilon = 1e-9, max_relative = 1e-9);
+                }
+            }};
+        }
+
+        check!(2);
+        check!(3);
+        check!(6);
+    }
+
+    /// The affine-invariant distance is symmetric and vanishes only on the
+    /// diagonal. A formula built from one operand's Cholesky factor could
+    /// plausibly break symmetry, so it is checked rather than assumed.
+    #[test]
+    fn test_dist_symmetric_and_zero_on_diagonal() {
+        let m = Spd::<3>;
+        let a = sample_spd_3();
+        let b = sample_spd_3b();
+
+        assert_relative_eq!(m.dist(&a, &b).unwrap(), m.dist(&b, &a).unwrap(), epsilon = 1e-12);
+        assert!(m.dist(&a, &a).unwrap() < 1e-12);
+        assert!(m.dist(&a, &b).unwrap() > 0.0);
+    }
+
+    /// Affine invariance: d(A P A^T, A Q A^T) = d(P, Q) for any invertible A.
+    /// This is the property that distinguishes the metric, and it is exactly
+    /// what an eigenvalue-based formula must preserve.
+    #[test]
+    fn test_dist_affine_invariant() {
+        let m = Spd::<3>;
+        let p = sample_spd_3();
+        let q = sample_spd_3b();
+
+        let a = SMatrix::<Real, 3, 3>::from_row_slice(&[
+            1.0, 0.5, 0.0,
+            0.0, 2.0, 0.3,
+            0.2, 0.0, 1.5,
+        ]);
+
+        let pa = a * p * a.transpose();
+        let qa = a * q * a.transpose();
+
+        assert_relative_eq!(
+            m.dist(&p, &q).unwrap(),
+            m.dist(&pa, &qa).unwrap(),
+            epsilon = 1e-9,
+            max_relative = 1e-9
+        );
     }
 
     // ── Basic geometry ──────────────────────────────────────────────────────
