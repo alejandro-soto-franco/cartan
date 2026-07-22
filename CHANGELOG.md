@@ -95,6 +95,35 @@ path, so every user compiled a thread pool for nothing.
 **Breaking.** `cartan-homog`'s `serde` feature is removed. It was in the default
 set and gated a dependency the crate never used.
 
+### SPD distance no longer forms the logarithm
+
+`Spd::dist` inherited the default `||Log_P(Q)||_P`, which cost four
+eigendecompositions: three inside `log`, to build `P^{1/2}`, `P^{-1/2}` and
+`log(M)`, and a fourth inside `inner` via `sym_inv`. Only the spectrum of
+`P^{-1} Q` reaches the answer, so none of those matrices need to exist.
+
+It now reads the eigenvalues off `L^{-1} Q L^{-T}`, where `P = L L^T` is the
+Cholesky factor: symmetric, so the cheaper symmetric solver applies, and
+similar to `P^{-1} Q`, so the spectrum is the same. Eigenvectors are never
+requested.
+
+| case | before | after | |
+|---|---|---|---|
+| SPD(3) | 1830 ns | 405 ns | 4.5x |
+| SPD(6) | 5745 ns | 1426 ns | 4.0x |
+| SPD(10) | 14653 ns | 3884 ns | 3.8x |
+
+Distance is now cheaper than `log`, which it always should have been. Against
+Manifolds.jl the same cases move from 0.5x-0.8x, slower, to 1.8x-3.5x, faster.
+
+Three tests pin the result to the definition it replaced: agreement with
+`||Log_P(Q)||_P` across 75 random pairs at N = 2, 3 and 6; symmetry and
+vanishing on the diagonal, which a formula built from one operand's Cholesky
+factor could plausibly break; and affine invariance, the property that
+characterises the metric.
+
+The benchmark rig below is what surfaced this.
+
 ### Cross-language benchmarks
 
 `benchmarks/CROSSLANG.md` compares cartan against Manifolds.jl, geomstats and

@@ -134,6 +134,20 @@ fn sym_eigen<const N: usize>(m: &SMatrix<Real, N, N>) -> (DMatrix<Real>, DVector
     (eigen.eigenvectors, eigen.eigenvalues)
 }
 
+/// Eigenvalues of a symmetric matrix, without the eigenvectors.
+///
+/// `symmetric_eigenvalues` skips the eigenvector accumulation that
+/// `symmetric_eigen` performs, which is the bulk of the work. Used where only
+/// the spectrum reaches the answer, as in the affine-invariant distance.
+///
+/// Goes through `DMatrix` for the same reason `sym_eigen` does: the const
+/// generic `SMatrix<Real, N, N>` does not satisfy nalgebra's `DimSub<U1>`
+/// bound for the symmetric eigensolver.
+#[inline]
+pub(crate) fn sym_eigenvalues<const N: usize>(m: &SMatrix<Real, N, N>) -> DVector<Real> {
+    DMatrix::from_column_slice(N, N, m.as_slice()).symmetric_eigenvalues()
+}
+
 /// Apply a scalar function f to the eigenvalues of a symmetric matrix.
 ///
 /// Returns V * diag(f(d_i)) * V^T as an SMatrix.
