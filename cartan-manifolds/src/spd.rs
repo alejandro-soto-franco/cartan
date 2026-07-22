@@ -188,6 +188,32 @@ fn transport_op<const N: usize>(
 // Manifold
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// `L^{-1} X L^{-T}`, symmetrised, for the Cholesky factor `L` of the base
+/// point.
+///
+/// Both the exponential and the logarithm conjugate by an inverse square root
+/// of `P`. The affine-invariant formulae hold for *any* factor `A` with
+/// `P = A A^T`, not only the symmetric root: writing `A = P^{1/2} R` with `R`
+/// orthogonal, `R` passes through `log` and `exp` unchanged because
+/// `log(R^T X R) = R^T log(X) R`, and cancels against `R^T` on the other side.
+///
+/// So the symmetric root can be replaced by a Cholesky factor, trading a full
+/// eigendecomposition for a Cholesky and two triangular solves. That leaves
+/// one eigendecomposition per call instead of two.
+///
+/// Returns `None` if `P` is not positive definite enough for the solves, which
+/// leaves the caller to fall back to the symmetric-root path.
+fn cholesky_congruence<const N: usize>(
+    l: &SMatrix<Real, N, N>,
+    x: &SMatrix<Real, N, N>,
+) -> Option<SMatrix<Real, N, N>> {
+    let a = l.solve_lower_triangular(x)?;
+    let m = l.solve_lower_triangular(&a.transpose())?;
+    // Symmetric in exact arithmetic; the eigensolvers assume it, so the
+    // rounding asymmetry is removed rather than left to them.
+    Some(sym_symmetrize(&m))
+}
+
 impl<const N: usize> Manifold for Spd<N> {
     /// An SPD matrix: SMatrix<Real, N, N>.
     type Point = SMatrix<Real, N, N>;
@@ -300,10 +326,20 @@ impl<const N: usize> Manifold for Spd<N> {
     /// Exp_P(V) = P^{1/2} exp(P^{-1/2} V P^{-1/2}) P^{1/2}
     /// ```
     fn exp(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Point {
-        // One eigendecomposition of P serves both roots.
+        // Exp_P(V) = L exp(L^{-1} V L^{-T}) L^T with P = L L^T; see
+        // `cholesky_congruence` for why any factor of P will do.
+        if let Some(chol) = p.cholesky() {
+            let l = chol.l();
+            if let Some(s) = cholesky_congruence(&l, v) {
+                return l * sym_exp(&s) * l.transpose();
+            }
+        }
+
+        // P has lost positive definiteness to rounding; the symmetric root
+        // floors its eigenvalues and still returns something usable.
         let (sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
-        let s = sqrt_p_inv * v * sqrt_p_inv; // P^{-1/2} V P^{-1/2}, symmetric
-        sqrt_p * sym_exp(&s) * sqrt_p // P^{1/2} exp(S) P^{1/2}
+        let s = sqrt_p_inv * v * sqrt_p_inv;
+        sqrt_p * sym_exp(&s) * sqrt_p
     }
 
     /// Logarithmic map (affine-invariant geodesic):
@@ -314,10 +350,19 @@ impl<const N: usize> Manifold for Spd<N> {
     ///
     /// Globally defined: SPD(N) is a Cartan-Hadamard manifold (no cut locus).
     fn log(&self, p: &Self::Point, q: &Self::Point) -> Result<Self::Tangent, CartanError> {
-        // One eigendecomposition of P serves both roots.
+        // Log_P(Q) = L log(L^{-1} Q L^{-T}) L^T with P = L L^T; see
+        // `cholesky_congruence` for why any factor of P will do.
+        if let Some(chol) = p.cholesky() {
+            let l = chol.l();
+            if let Some(m) = cholesky_congruence(&l, q) {
+                return Ok(l * sym_log(&m) * l.transpose());
+            }
+        }
+
+        // Fallback for a P that is not positive definite enough to factor.
         let (sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
-        let m = sqrt_p_inv * q * sqrt_p_inv; // P^{-1/2} Q P^{-1/2}, symmetric PD
-        Ok(sqrt_p * sym_log(&m) * sqrt_p) // P^{1/2} log(M) P^{1/2}
+        let m = sqrt_p_inv * q * sqrt_p_inv;
+        Ok(sqrt_p * sym_log(&m) * sqrt_p)
     }
 
     /// Project ambient matrix onto T_P SPD(N): symmetrize.
@@ -617,6 +662,65 @@ mod tests {
 
     fn sample_spd_3b() -> SMatrix<Real, 3, 3> {
         SMatrix::<Real, 3, 3>::from_row_slice(&[3.0, 1.0, 0.5, 1.0, 4.0, 1.5, 0.5, 1.5, 2.5])
+    }
+
+    /// `exp` and `log` factor P by Cholesky rather than by its symmetric
+    /// square root. That is a different factor, justified by the congruence
+    /// argument on `cholesky_congruence`, so it is checked against the formula
+    /// it replaced rather than left to the round-trip tests.
+    #[test]
+    fn test_exp_log_match_symmetric_root_formula() {
+        use crate::util::sym::sym_sqrt_pair;
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        macro_rules! check {
+            ($n:literal) => {{
+                let m = Spd::<$n>;
+                let mut rng = StdRng::seed_from_u64(31);
+                for _ in 0..30 {
+                    let p = m.random_point(&mut rng);
+                    let q = m.random_point(&mut rng);
+                    let v = m.random_tangent(&p, &mut rng);
+
+                    let (sqrt_p, sqrt_p_inv) = sym_sqrt_pair(&p);
+
+                    let exp_ref = sqrt_p * sym_exp(&(sqrt_p_inv * v * sqrt_p_inv)) * sqrt_p;
+                    let exp_got = m.exp(&p, &v);
+                    let e = (exp_got - exp_ref).norm() / exp_ref.norm();
+                    assert!(e < 1e-10, "exp disagrees on SPD({}): {e:.3e}", $n);
+
+                    let log_ref = sqrt_p * sym_log(&(sqrt_p_inv * q * sqrt_p_inv)) * sqrt_p;
+                    let log_got = m.log(&p, &q).unwrap();
+                    let e = (log_got - log_ref).norm() / log_ref.norm();
+                    assert!(e < 1e-10, "log disagrees on SPD({}): {e:.3e}", $n);
+                }
+            }};
+        }
+
+        check!(2);
+        check!(3);
+        check!(6);
+    }
+
+    /// The result of `exp` must stay symmetric. A congruence by a triangular
+    /// factor is symmetric in exact arithmetic but not obviously so in
+    /// floating point, and an asymmetric point would poison every later
+    /// eigendecomposition.
+    #[test]
+    fn test_exp_result_is_symmetric() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        let m = Spd::<6>;
+        let mut rng = StdRng::seed_from_u64(17);
+        for _ in 0..30 {
+            let p = m.random_point(&mut rng);
+            let v = m.random_tangent(&p, &mut rng);
+            let e = m.exp(&p, &v);
+            let asym = (e - e.transpose()).norm() / e.norm();
+            assert!(asym < 1e-13, "exp result is asymmetric: {asym:.3e}");
+        }
     }
 
     // ── Distance agrees with its definition ─────────────────────────────────
