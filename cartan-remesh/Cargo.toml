@@ -6,15 +6,16 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
 keywords = ["remesh", "riemannian", "triangle", "mesh", "adaptive"]
 categories = ["mathematics", "science", "algorithms"]
 documentation = "https://docs.rs/cartan-remesh"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core      = { path = "../cartan-core", version = "0.7" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.7" }
-cartan-dec       = { path = "../cartan-dec", version = "0.7" }
+cartan-core      = { path = "../cartan-core", version = "0.8" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.8" }
+cartan-dec       = { path = "../cartan-dec", version = "0.8" }
 nalgebra         = { workspace = true }
 thiserror        = { workspace = true }
 

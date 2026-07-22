@@ -145,6 +145,36 @@ pub trait Manifold {
     /// - Grassmann: principal angles near pi/2
     fn log(&self, p: &Self::Point, q: &Self::Point) -> Result<Self::Tangent, CartanError>;
 
+    /// Exponential map, written into a caller-owned destination.
+    ///
+    /// Same result as [`exp`](Self::exp). It exists because the
+    /// value-returning form must materialise and return a point, and for a
+    /// large ambient dimension that copy is a measurable share of the call.
+    /// Worth reaching for only in a loop that already owns a reusable buffer.
+    ///
+    /// `out` is fully overwritten. The default implementation delegates to
+    /// [`exp`](Self::exp) and assigns, so implementors get it for free and
+    /// only override where avoiding the temporary pays.
+    fn exp_into(&self, p: &Self::Point, v: &Self::Tangent, out: &mut Self::Point) {
+        *out = self.exp(p, v);
+    }
+
+    /// Logarithmic map, written into a caller-owned destination.
+    ///
+    /// Same result as [`log`](Self::log), including its cut-locus failure.
+    /// `out` is left untouched when the call fails, so a caller reusing a
+    /// buffer across iterations cannot mistake a stale value for a fresh one
+    /// without checking the result.
+    fn log_into(
+        &self,
+        p: &Self::Point,
+        q: &Self::Point,
+        out: &mut Self::Tangent,
+    ) -> Result<(), CartanError> {
+        *out = self.log(p, q)?;
+        Ok(())
+    }
+
     /// Orthogonal projection from ambient space onto tangent space T_p M.
     ///
     /// Since Tangent uses ambient coordinates, any ambient vector can be

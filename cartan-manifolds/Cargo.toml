@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
 keywords = ["riemannian", "manifold", "sphere", "grassmann", "lie-group"]
 categories = ["mathematics", "science", "algorithms"]
 documentation = "https://docs.rs/cartan-manifolds"
@@ -17,7 +18,7 @@ std = ["alloc", "cartan-core/std", "rand/std", "rand_distr/std", "nalgebra/std"]
 alloc = ["cartan-core/alloc", "rand/alloc", "rand_distr/alloc", "nalgebra/alloc"]
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.7", default-features = false }
+cartan-core = { path = "../cartan-core", version = "0.8", default-features = false }
 # libm satisfies f64: RealField in no_std mode (unconditional — no harm in std mode).
 # nalgebra/std and nalgebra/alloc are threaded through the feature flags above.
 nalgebra = { workspace = true, features = ["libm"] }
@@ -26,8 +27,13 @@ rand_distr = { workspace = true, default-features = false }
 
 [dev-dependencies]
 approx = { workspace = true }
-rand = { workspace = true, features = ["small_rng"] }
+rand = { workspace = true, features = ["small_rng", "std_rng", "std"] }
+criterion = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[[bench]]
+name = "geometry"
+harness = false

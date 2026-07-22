@@ -6,17 +6,20 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/cartan-stochastic"
+homepage = "https://cartan.sotofranco.dev"
 keywords = ["riemannian", "stochastic", "brownian-motion", "malliavin", "manifold"]
 categories = ["mathematics", "science"]
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.7" }
+cartan-core = { path = "../cartan-core", version = "0.8" }
 nalgebra = { workspace = true, features = ["std"] }
 rand = { workspace = true, features = ["std"] }
 rand_distr = { workspace = true, features = ["std"] }
 thiserror.workspace = true
 
 [dev-dependencies]
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.7", features = ["std"] }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.8", features = ["std"] }
 approx.workspace = true
 rand = { workspace = true, features = ["std", "std_rng"] }

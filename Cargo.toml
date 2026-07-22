@@ -18,7 +18,7 @@ members = [
 exclude = ["experiments", "cartan-py", "cartan-gpu"]
 
 [workspace.package]
-version = "0.7.0"
+version = "0.8.0"
 edition = "2024"
 # Real floor: nalgebra 0.35 (and its safe_arch/wide deps) require rustc 1.89.
 rust-version = "1.89"
@@ -32,15 +32,13 @@ nalgebra = { version = "0.35", default-features = false }
 itertools = { version = "0.13", default-features = false, features = ["use_std"] }
 rand = { version = "0.9", default-features = false }
 rand_distr = { version = "0.5", default-features = false }
-rayon = { version = "1" }
 thiserror = { version = "2", default-features = false }
 serde = { version = "1", features = ["derive"], default-features = false }
 serde_json = { version = "1", default-features = false }
-sprs = { version = "0.11", default-features = false }
 approx = { version = "0.5", default-features = false }
 hashbrown = { version = "0.15", default-features = false }
 num-complex = { version = "0.4", default-features = false }
-indexmap = { version = "2", default-features = false, features = ["std", "rayon"] }
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
 
 # Upstream formoniq FEEC stack. Pinned exactly: 0.2.0 is the first published
 # release and the crate graph was renamed wholesale just before it, so the API

@@ -1,6 +1,7 @@
 //! Kelvin-Mandel helpers: isotropy / transversely-isotropic constructors,
 //! spectral queries, and SPD positivity checks. Used by shapes and schemes.
 
+use crate::float::{powi, sqrt};
 use nalgebra::{Matrix3, SymmetricEigen};
 
 pub fn iso_order2(k: f64) -> Matrix3<f64> {
@@ -33,7 +34,7 @@ pub fn is_spd_order2(m: &Matrix3<f64>, tol: f64) -> bool {
 /// the iso branch vs the Lebedev fallback.
 pub fn iso_detect_order2(c: &Matrix3<f64>) -> (f64, f64) {
     let d = c.diagonal();
-    let off = (c[(0,1)].powi(2) + c[(0,2)].powi(2) + c[(1,2)].powi(2)).sqrt();
+    let off = sqrt(powi(c[(0,1)], 2) + powi(c[(0,2)], 2) + powi(c[(1,2)], 2));
     let avg = (d[0] + d[1] + d[2]) / 3.0;
     let diag_aniso = (d[0] - avg).abs() + (d[1] - avg).abs() + (d[2] - avg).abs();
     let relative = (diag_aniso + off) / avg.abs().max(1e-300);

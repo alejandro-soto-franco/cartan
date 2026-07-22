@@ -174,7 +174,33 @@ impl<const N: usize> Manifold for Corr<N> {
     /// Independent of the base point C. This is the flat Euclidean metric
     /// on Sym(N) restricted to the affine subspace {C_{ii} = 1}.
     fn inner(&self, _p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
-        (u * v).trace()
+        // tr(UV) = sum_ij U_ij V_ji, which is O(N^2). Forming the product and
+        // then taking its trace computes N^3 entries to read N of them.
+        // Written out rather than as a Frobenius dot so it stays exact for a
+        // non-symmetric ambient argument, where the two differ.
+        let mut s = 0.0;
+        for i in 0..N {
+            for j in 0..N {
+                s += u[(i, j)] * v[(j, i)];
+            }
+        }
+        s
+    }
+
+    /// Geodesic distance.
+    ///
+    /// The manifold is flat, so `Log_P(Q) = Q - P` and the distance is that
+    /// difference's norm under the trace metric. Accumulated directly, since
+    /// the default route through `log` materialises the difference matrix only
+    /// to measure it.
+    fn dist(&self, p: &Self::Point, q: &Self::Point) -> Result<Real, CartanError> {
+        let mut s = 0.0;
+        for i in 0..N {
+            for j in 0..N {
+                s += (q[(i, j)] - p[(i, j)]) * (q[(j, i)] - p[(j, i)]);
+            }
+        }
+        Ok(s.sqrt())
     }
 
     /// Exponential map (flat geodesic): Exp_C(V) = C + V.

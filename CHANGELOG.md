@@ -4,6 +4,220 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.8.0]
+
+Breaking: six sparse signatures change type, `full` widens to the whole family,
+and `cartan-homog`'s `serde` feature is removed. See below.
+
+### Changed
+
+- **The facade re-exports all ten sub-crates**, one capability feature each:
+  `dec`, `remesh`, `stochastic`, `homog`, `full-field`, `io`, `maxwell`, plus
+  the `alloc` and `std` tiers and `full`. Previously it re-exported five, so
+  `remesh`, `stochastic`, `homog`, `io` and `maxwell` were unreachable through
+  `use cartan::`. Default is still `std` plus `dec`. Gated re-exports carry
+  `doc(cfg)` badges, so docs.rs shows the whole surface and names the flag each
+  item needs.
+- **`full` now means the whole family**, not "std plus dec". Existing users of
+  that feature get a larger build, not a broken one.
+- **`sprs` is replaced by `nalgebra-sparse` throughout.** `cartan-io` and
+  `cartan-maxwell` already used it; `cartan-dec` and `cartan-homog` have joined
+  them, so the workspace no longer carries two sparse types. Six public
+  signatures change from `sprs::CsMat` to `nalgebra_sparse::CscMatrix`:
+  `exterior::ExteriorDerivative::{d0, d1}`, `line_bundle::BochnerLaplacian::matrix`,
+  and `fullfield::solver::{Ilu0::factor, solve_dense_lu, Amg::build}`. CSC, not
+  CSR: every assembly here builds CSC and the matvec loops walk columns to
+  match. The operators are unchanged and the 84-case numerical cross-check
+  passes without modification.
+- **`Spd::dist` no longer forms the logarithm.** It inherited the default
+  `||Log_P(Q)||_P`, costing four eigendecompositions: three in `log` for
+  `P^{1/2}`, `P^{-1/2}` and `log(M)`, a fourth in `inner` via `sym_inv`. Only
+  the spectrum of `P^{-1} Q` reaches the answer. Eigenvalues now come off
+  `L^{-1} Q L^{-T}` with `P = L L^T` the Cholesky factor: symmetric, so the
+  cheaper solver applies, and similar to `P^{-1} Q`, so the spectrum matches.
+  SPD(3) 1830 to 405 ns, SPD(6) 5745 to 1426 ns, SPD(10) 14653 to 3884 ns.
+  Distance is now cheaper than `log`. Sphere distance is deliberately untouched:
+  `2*asin(||p-q||/2)` avoids the cancellation `acos(p.q)` suffers near
+  coincident points.
+- **Four inner products no longer form a matrix product to read its trace.**
+  `Corr`, `QTensor3`, `SpecialOrthogonal` and `SpecialEuclidean` each built an
+  N x N product and summed its diagonal. For `SO` and `SE` the quantity is
+  `tr(A^T B)`, which is the Frobenius inner product exactly, so it becomes a
+  dot. For `Corr` and `QTensor3` it is `tr(UV)`, which is not, so it is
+  accumulated as `sum_ij U_ij V_ji` and stays correct for a non-symmetric
+  argument.
+- **Three distances stopped falling back to `||log||`.**
+  `SpdBuresWasserstein::dist` now calls the closed form the crate already
+  shipped as `bw_distance_sq`. `Corr::dist` uses the flat-manifold form
+  directly. `Grassmann::dist` reads principal angles from the singular values
+  of `Q^T P` without computing the singular vectors `log` needs, falling back
+  to the tangent route for small angles where `arccos` loses precision.
+
+  | operation | before | after | |
+  |---|---|---|---|
+  | `Corr::dist` N=20 | 1134 ns | 276 ns | 4.1x |
+  | `SpdBuresWasserstein::dist` N=10 | 17059 ns | 6431 ns | 2.7x |
+  | `Grassmann::dist` Gr(20,5) | 2796 ns | 1242 ns | 2.3x |
+- **SPD `exp` and `log` factor P by Cholesky.** The affine-invariant formulae
+  hold for any `A` with `P = A A^T`, not only the symmetric root: writing
+  `A = P^{1/2} R` with `R` orthogonal, `R` passes through `log` and `exp`
+  unchanged because `log(R^T X R) = R^T log(X) R` and cancels on the other
+  side. So `Log_P(Q) = L log(L^{-1} Q L^{-T}) L^T` with `L` the Cholesky
+  factor, which trades a full eigendecomposition for a Cholesky and two
+  triangular solves and leaves one decomposition per call instead of two. A
+  non-factorable `P` falls back to the symmetric root, which floors its
+  eigenvalues.
+- **SPD `exp` and `log` share one eigendecomposition.** Both called
+  `sym_sqrt(p)` and `sym_sqrt_inv(p)`, which decompose the same matrix and
+  differ only in the scalar map applied to its eigenvalues, so the
+  decomposition was paid for twice. `sym_apply` also built `diag(f(d))` densely
+  and multiplied by it, a second O(N^3) product where scaling V's columns is
+  O(N^2).
+- **A stack-based Jacobi eigensolver for 3x3.** The previous path allocated a
+  `DMatrix` per call and ran a general tridiagonalise-then-QR solver. Jacobi
+  needs no allocation and wins at N = 3; it loses from N = 4 upward, where the
+  general solver's setup amortises, so the threshold is measured and the larger
+  sizes keep the old path. N = 3 dominates SPD use: covariance matrices,
+  diffusion tensors, Order2 Kelvin-Mandel.
+
+  | SPD op | before | after | |
+  |---|---|---|---|
+  | `exp` N=3 | 1448 ns | 252 ns | 5.7x |
+  | `exp` N=6 | 4713 ns | 1586 ns | 3.0x |
+  | `exp` N=10 | 11339 ns | 4176 ns | 2.7x |
+  | `log` N=3 | 1386 ns | 250 ns | 5.5x |
+  | `log` N=6 | 4541 ns | 1620 ns | 2.8x |
+  | `log` N=10 | 11343 ns | 4046 ns | 2.8x |
+
+  Against Manifolds.jl, SPD(3) `exp` moves from 2.4x to 13.9x and SPD(10) from
+  1.5x to 4.3x; the overall median goes from 1.9x to 2.2x. Cross-language
+  agreement holds at 84 of 84 throughout, so every one of these is removed
+  work rather than altered arithmetic.
+
+  `sym_eigenvalues` also gets a Jacobi loop that skips the eigenvector
+  accumulation, since the affine-invariant distance discards it.
+- **In-place `exp_into`, `log_into` and `transport_into`.** The
+  value-returning forms must materialise and return a tangent vector, which at
+  ambient dimension 50 is 400 bytes moved per call. These write into a
+  caller-owned buffer instead. Both traits gain them with default
+  implementations that delegate, so no existing implementor breaks and only
+  manifolds where it pays need override; `Sphere` does, using `copy_from` and
+  `axpy` so no temporary is built either.
+
+  | op | N = 10 | N = 50 |
+  |---|---|---|
+  | `exp_into` | 1.18x | 1.12x |
+  | `log_into` | 1.42x | 1.61x |
+  | `transport_into` | 1.05x | 1.29x |
+
+  At N = 3 they are level with the value-returning forms, which stay the
+  clearer call there. `log_into` leaves `out` untouched when it fails at the
+  cut locus, so a caller reusing a buffer cannot read a stale value as a fresh
+  one.
+
+  `transport_into` uses the collapse
+  `(q - cp)/(1+c) + p = (p+q)/(1+c)`, so the direction vector is never formed.
+  The same collapse loses in the value-returning form, where `(p+q) * k`
+  materialises a vector: 91 ns to 149 ns at N = 50.
+- **`Sphere::transport` no longer calls `log`.** The two-log formula
+  (Absil et al. 8.1.3) evaluated `log` in each direction, each paying an
+  inverse trig call, a norm and a division. Written on the dot product alone it
+  is `PT(v) = v - (v.w)(w/(1+c) + p)` with `c = p.q` and `w = q - cp`; both trig
+  calls cancel because `cos(theta) = c` and `||w|| = sin(theta)` for unit
+  vectors. S^2 37 to 7 ns, S^9 97 to 23 ns, S^49 167 to 96 ns. Against
+  Manifolds.jl, 0.4x-0.9x becomes 0.9x-4.9x. The result is still re-projected:
+  tangency is exact in exact arithmetic, but `w/(1+c)` amplifies rounding near
+  the cut locus, where the residual reaches 4e-10 without it.
+- **`SelfConsistent` damps linearly at the `alloc` tier**, rather than along SPD
+  geodesics, because the geodesic step needs an eigen decomposition that
+  requires std. Same fixed point, slower convergence. Under std it is unchanged.
+- README rebuilt as an on-ramp; the per-crate inventory moves to
+  `CAPABILITIES.md`. MSRV badge corrected from 1.85 to 1.89.
+
+### Added
+
+- **`cartan::guide`**: doctested chapters over the three regimes, points, fields
+  and paths. `getting_started`, `manifolds`, `optimisation`, `fields`,
+  `bundles`, `stochastic`, `homogenisation`, `interop`. Run by
+  `cargo test --doc`, so a chapter that drifts from the API fails CI.
+- **Cross-language benchmarks** (`benchmarks/CROSSLANG.md`) against
+  Manifolds.jl, geomstats and geoopt. All four read one fixture file, so
+  agreement is measured on identical inputs. 51 of 51 comparisons match to
+  better than 1e-12, worst 9.4e-14, over exp, log, dist and transport on the
+  sphere and SPD cone. Timing rows are gated on the values having matched.
+  Against Manifolds.jl the median is 1.9x. Against the Python libraries, two to
+  three orders of magnitude, which largely measures interpreter overhead.
+- **Criterion suite**: `cargo bench -p cartan-manifolds`, over exp, log, dist
+  and transport for `Sphere` and `Spd`.
+- **Bare-metal CI**: builds the facade, `cartan-core` bare, and every alloc-tier
+  crate for `thumbv7em-none-eabihf`. A feature-matrix job builds each capability
+  feature alone and runs the guide doctests.
+- **`cartan-homog/examples/rve_to_effective.rs`**: sweeps volume fraction across
+  six schemes and asserts each stays inside the Reuss-Voigt bracket.
+
+### Fixed
+
+- **The `cartan` facade never declared `#![no_std]`.** The embedded
+  configuration its own documentation recommended compiled on a host, where std
+  stays linkable, and failed on any target without one.
+- **`cartan-homog`'s `alloc` tier did not build**: 17 errors on
+  `thumbv7em-none-eabihf`, 15 std-only float methods and 2 imports of a
+  std-gated `Spd`. Transcendentals now route through `libm` behind a `#[cfg]`
+  shim, matching `cartan-core`. The SPD geodesic step is gated behind std and
+  falls back to the linear damping arm the function already carried.
+- Both shipped because no CI job had ever targeted a platform without std.
+  `--no-default-features` on x86_64 proves only that the source avoids std.
+- **Benchmark timing methodology**, twice. Per-call timing charged
+  `Instant::now` overhead to every sample, reporting a 15 ns `exp` as 40 ns.
+  Batching fixed that and exposed the next: with loop-invariant inputs the
+  optimiser hoisted the call out of the batch, reporting 0 ns. Inputs are now
+  black-boxed and the harness is cross-checked against criterion.
+- **`cartan-py`** consumed the old `cartan-dec` signatures. It is its own
+  workspace, so `cargo build --workspace` never checked it. Its declared MSRV
+  was also stale at 1.85.
+
+### Removed
+
+- **Six unused dependencies**: `rayon` and `serde` from `cartan-dec` and
+  `cartan-homog`, `thiserror` from `cartan-maxwell`, `rayon` and `indexmap` from
+  the workspace. `rayon` was referenced nowhere in the workspace, and
+  `cartan-dec` is in the default path, so every user compiled a thread pool for
+  nothing.
+- **`cartan-homog`'s `serde` feature.** It was in the default set and gated a
+  dependency the crate never used. Nothing in the workspace named it.
+
+### Known limitations
+
+- `Grassmann::log` recovers principal angles from their cosines, which loses
+  precision for small angles: on Gr(10, 3) a geodesic step of 1e-7 comes back
+  as 0.84e-7 when the angles are evenly spread. `dist` inherits this through
+  its small-angle fallback. The fix is the sine-based branch of Bjorck and
+  Golub, taking small angles from the singular values of `(I - QQ^T)P`. That is
+  a change of algorithm rather than of arithmetic and is left for its own
+  release. This predates 0.8.0.
+- `SpecialOrthogonal::log` at N = 10 costs 37 us on the inverse
+  scaling-and-squaring path. N = 3, which is what robotics uses, is 31 ns.
+
+### Packaging
+
+- `cartan-io` and `cartan-maxwell` shipped with no README; both now have one.
+- No crate shipped the licence text. `license = "MIT"` was set, but the file
+  lived only at the workspace root, outside every package directory. Each crate
+  now carries a copy.
+- Every published crate declares `readme`, `keywords`, `categories`,
+  `documentation` and `homepage`; four previously declared a subset.
+
+### Notes
+
+- geoopt's `transp` is a projection onto the target tangent space, not exact
+  parallel transport, which is the correct choice for an optimiser. The
+  comparison verifies this each run by checking it equals geoopt's own `proju`,
+  so a future change is reported rather than excused.
+- `cartan-core`, `cartan-dec` and `cartan-maxwell` now inherit the workspace
+  version instead of pinning their own.
+
+---
+
 ## [0.7.0]
 
 Breaking: the FEEC crates are gone from the published set, and the geometry
