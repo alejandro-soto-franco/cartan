@@ -1,11 +1,12 @@
 [package]
 name = "cartan-gpu"
 description = "Portable GPU compute primitives for the cartan ecosystem: wgpu device/buffer/kernel abstractions. FFT lives in the standalone gpufft crate (re-exported via the `fft` feature)."
-version = "0.6.0"
-edition = "2024"
-rust-version = "1.85"
-license = "MIT"
-repository = "https://github.com/alejandro-soto-franco/cartan"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
 keywords = ["gpu", "wgpu", "compute", "fft"]
 categories = ["science", "graphics"]
 documentation = "https://docs.rs/cartan-gpu"
@@ -26,7 +27,7 @@ bytemuck = { version = "1", features = ["derive"] }
 pollster = "0.4"
 thiserror = { version = "2", default-features = false, features = ["std"] }
 log = "0.4"
-gpufft = { path = "../../gpufft/gpufft", version = "0.1", default-features = false, optional = true }
+gpufft = { version = "0.1.3", default-features = false, optional = true }
 
 [dev-dependencies]
 env_logger = "0.11"
@@ -36,9 +37,4 @@ approx = { version = "0.5", default-features = false, features = ["std"] }
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
-[workspace]
 
-[profile.release]
-opt-level = 3
-lto = "thin"
-codegen-units = 4

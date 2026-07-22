@@ -96,6 +96,7 @@ the flag it needs, so the whole surface stays visible regardless of your build.
 | [`cartan-homog`](https://docs.rs/cartan-homog) | mean-field and full-field homogenisation on SPD |
 | [`cartan-io`](https://docs.rs/cartan-io) | VTK, ParaView and Blender export |
 | [`cartan-maxwell`](https://docs.rs/cartan-maxwell) | Maxwell evolution on an evolving Regge background |
+| [`cartan-gpu`](https://docs.rs/cartan-gpu) | wgpu compute primitives; single precision, see its README |
 | [`cartan-py`](https://pypi.org/project/cartan/) | Python bindings via PyO3, with numpy interop |
 
 The FEEC layer comes from the upstream [`formoniq`](https://crates.io/crates/formoniq)
