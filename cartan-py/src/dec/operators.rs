@@ -24,11 +24,10 @@ use cartan_manifolds::euclidean::Euclidean;
 use crate::convert::{dmatrix_to_pyarray, dvector_to_pyarray};
 
 /// Convert a sparse CSC matrix to a dense DMatrix for numpy export.
-fn csmat_to_dmatrix(m: &sprs::CsMat<f64>) -> DMatrix<f64> {
-    let (rows, cols) = (m.rows(), m.cols());
-    let mut dense = DMatrix::<f64>::zeros(rows, cols);
-    for (col_idx, col) in m.outer_iterator().enumerate() {
-        for (row_idx, &val) in col.iter() {
+fn csmat_to_dmatrix(m: &nalgebra_sparse::CscMatrix<f64>) -> DMatrix<f64> {
+    let mut dense = DMatrix::<f64>::zeros(m.nrows(), m.ncols());
+    for (col_idx, col) in m.col_iter().enumerate() {
+        for (&row_idx, &val) in col.row_indices().iter().zip(col.values()) {
             dense[(row_idx, col_idx)] = val;
         }
     }
@@ -114,7 +113,7 @@ impl PyExteriorDerivative {
         let d1 = self.inner.d1();
         format!(
             "ExteriorDerivative(d0=({}, {}), d1=({}, {}))",
-            d0.rows(), d0.cols(), d1.rows(), d1.cols()
+            d0.nrows(), d0.ncols(), d1.nrows(), d1.ncols()
         )
     }
 }
@@ -326,7 +325,7 @@ impl PyOperators {
     }
 
     pub fn __repr__(&self) -> String {
-        let n = self.inner.laplace_beltrami.rows();
+        let n = self.inner.laplace_beltrami.nrows();
         format!("Operators(n_vertices={})", n)
     }
 }

@@ -4,7 +4,7 @@
 name = "cartan-py"
 version = "0.6.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.89"
 license = "MIT"
 description = "Python bindings for the cartan Riemannian geometry library"
 repository = "https://github.com/alejandro-soto-franco/cartan"
@@ -24,6 +24,6 @@ cartan-optim = { path = "../cartan-optim", features = ["std"] }
 cartan-geo = { path = "../cartan-geo", features = ["std"] }
 cartan-dec = { path = "../cartan-dec" }
 cartan-stochastic = { path = "../cartan-stochastic" }
-sprs = { version = "0.11", default-features = false }
+nalgebra-sparse = { version = "0.12" }
 rand = { version = "0.9", features = ["std_rng", "std", "os_rng", "thread_rng"] }
 rand_distr = { version = "0.5" }
