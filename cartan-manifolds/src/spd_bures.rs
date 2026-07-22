@@ -162,6 +162,23 @@ impl<const N: usize> Manifold for SpdBuresWasserstein<N> {
         0.5 * (l_u * v).trace()
     }
 
+    /// Bures-Wasserstein distance, in closed form.
+    ///
+    /// ```text
+    /// d(P, Q)^2 = tr(P) + tr(Q) - 2 tr((P^{1/2} Q P^{1/2})^{1/2})
+    /// ```
+    ///
+    /// This is the 2-Wasserstein distance between centred Gaussians with these
+    /// covariances. The default `Manifold::dist` would route through `log`,
+    /// which solves a Lyapunov equation to produce a tangent vector whose norm
+    /// is all that is wanted; the closed form needs two symmetric square roots
+    /// and three traces.
+    fn dist(&self, p: &Self::Point, q: &Self::Point) -> Result<Real, CartanError> {
+        // Clamped at zero: the identity is a difference of comparable
+        // quantities, so a pair at distance zero can land a few ulp negative.
+        Ok(bw_distance_sq(p, q).max(0.0).sqrt())
+    }
+
     fn exp(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Point {
         // Exp_P(V) = (I + L_P[V])^T · P · (I + L_P[V]).
         let l_v = solve_lyapunov_sym(p, v);
