@@ -8,7 +8,7 @@ Regenerate with `python/make_fixtures.py` and the three harnesses.
 
 ## Agreement
 
-Every comparison agrees to better than `1e-12`. Largest deviation across all 84 comparisons: `9.415e-14`.
+Every comparison agrees to better than `1e-12`. Largest deviation across all 84 comparisons: `7.994e-14`.
 
 ### Verified convention difference: geoopt transport
 
@@ -35,27 +35,27 @@ Rows whose values did not agree are omitted rather than reported.
 
 | case | op | cartan (ns) | Manifolds.jl | numba | numba buf | geomstats | geoopt |
 |---|---|---|---|---|---|---|---|
-| spd 3 | dist | 368 | 1405 (3.8x) | 1641 (4.5x) | - | 12854 (34.9x) | - |
-| spd 3 | exp | 916 | 3443 (3.8x) | 3585 (3.9x) | - | 32912 (35.9x) | - |
-| spd 3 | log | 867 | 3492 (4.0x) | 3529 (4.1x) | - | 35717 (41.2x) | - |
-| spd 6 | dist | 1317 | 2830 (2.1x) | 3452 (2.6x) | - | 15348 (11.7x) | - |
-| spd 6 | exp | 3006 | 8399 (2.8x) | 8572 (2.9x) | - | 37080 (12.3x) | - |
-| spd 6 | log | 2889 | 9060 (3.1x) | 8324 (2.9x) | - | 39704 (13.7x) | - |
-| spd 10 | dist | 3538 | 6926 (2.0x) | 7402 (2.1x) | - | 21039 (5.9x) | - |
-| spd 10 | exp | 7469 | 17462 (2.3x) | 19339 (2.6x) | - | 45114 (6.0x) | - |
-| spd 10 | log | 7386 | 17403 (2.4x) | 20280 (2.7x) | - | 47820 (6.5x) | - |
-| sphere 3 | dist | 5 | 8 (1.5x) | 42 (7.7x) | 5 (0.8x) | 7494 (1369.6x) | 6702 (1224.8x) |
-| sphere 3 | exp | 15 | 32 (2.2x) | 34 (2.4x) | 16 (1.1x) | 18194 (1248.3x) | 14196 (974.0x) |
-| sphere 3 | log | 14 | 45 (3.1x) | 56 (3.9x) | 15 (1.1x) | 15238 (1063.9x) | 20519 (1432.6x) |
-| sphere 3 | transport | 6 | 32 (5.0x) | 92 (14.3x) | 15 (2.4x) | 25678 (3979.5x) | - |
-| sphere 10 | dist | 6 | 11 (1.7x) | 39 (6.1x) | 6 (0.9x) | 7725 (1203.7x) | 6552 (1020.9x) |
-| sphere 10 | exp | 21 | 37 (1.7x) | 45 (2.1x) | 20 (0.9x) | 19005 (892.2x) | 14187 (666.0x) |
-| sphere 10 | log | 22 | 59 (2.7x) | 72 (3.3x) | 21 (1.0x) | 15759 (728.3x) | 20308 (938.6x) |
-| sphere 10 | transport | 21 | 42 (2.0x) | 99 (4.6x) | 21 (1.0x) | 26380 (1238.5x) | - |
-| sphere 50 | dist | 33 | 13 (0.4x) | 70 (2.1x) | 11 (0.3x) | 7514 (228.0x) | 6392 (193.9x) |
-| sphere 50 | exp | 62 | 64 (1.0x) | 114 (1.8x) | 30 (0.5x) | 18645 (298.3x) | 13796 (220.7x) |
-| sphere 50 | log | 53 | 82 (1.5x) | 162 (3.1x) | 39 (0.7x) | 15459 (290.6x) | 19858 (373.3x) |
-| sphere 50 | transport | 90 | 89 (1.0x) | 267 (3.0x) | 56 (0.6x) | 26009 (287.5x) | - |
+| spd 3 | dist | 291 | 1405 (4.8x) | 1641 (5.6x) | - | 12854 (44.1x) | - |
+| spd 3 | exp | 483 | 3443 (7.1x) | 3585 (7.4x) | - | 32912 (68.1x) | - |
+| spd 3 | log | 485 | 3492 (7.2x) | 3529 (7.3x) | - | 35717 (73.7x) | - |
+| spd 6 | dist | 1278 | 2830 (2.2x) | 3452 (2.7x) | - | 15348 (12.0x) | - |
+| spd 6 | exp | 2630 | 8399 (3.2x) | 8572 (3.3x) | - | 37080 (14.1x) | - |
+| spd 6 | log | 2528 | 9060 (3.6x) | 8324 (3.3x) | - | 39704 (15.7x) | - |
+| spd 10 | dist | 3457 | 6926 (2.0x) | 7402 (2.1x) | - | 21039 (6.1x) | - |
+| spd 10 | exp | 7042 | 17462 (2.5x) | 19339 (2.7x) | - | 45114 (6.4x) | - |
+| spd 10 | log | 6979 | 17403 (2.5x) | 20280 (2.9x) | - | 47820 (6.9x) | - |
+| sphere 3 | dist | 5 | 8 (1.5x) | 42 (7.9x) | 5 (0.9x) | 7494 (1418.4x) | 6702 (1268.5x) |
+| sphere 3 | exp | 14 | 32 (2.2x) | 34 (2.4x) | 16 (1.2x) | 18194 (1275.1x) | 14196 (994.9x) |
+| sphere 3 | log | 14 | 45 (3.2x) | 56 (4.0x) | 15 (1.1x) | 15238 (1077.8x) | 20519 (1451.4x) |
+| sphere 3 | transport | 6 | 32 (5.4x) | 92 (15.3x) | 15 (2.5x) | 25678 (4266.9x) | - |
+| sphere 10 | dist | 6 | 11 (1.7x) | 39 (6.3x) | 6 (0.9x) | 7725 (1241.6x) | 6552 (1053.1x) |
+| sphere 10 | exp | 21 | 37 (1.8x) | 45 (2.2x) | 20 (1.0x) | 19005 (927.0x) | 14187 (692.0x) |
+| sphere 10 | log | 21 | 59 (2.8x) | 72 (3.5x) | 21 (1.0x) | 15759 (764.9x) | 20308 (985.7x) |
+| sphere 10 | transport | 21 | 42 (2.0x) | 99 (4.8x) | 21 (1.0x) | 26380 (1272.0x) | - |
+| sphere 50 | dist | 33 | 13 (0.4x) | 70 (2.1x) | 11 (0.3x) | 7514 (230.5x) | 6392 (196.1x) |
+| sphere 50 | exp | 61 | 64 (1.1x) | 114 (1.9x) | 30 (0.5x) | 18645 (304.5x) | 13796 (225.3x) |
+| sphere 50 | log | 51 | 82 (1.6x) | 162 (3.2x) | 39 (0.8x) | 15459 (300.9x) | 19858 (386.5x) |
+| sphere 50 | transport | 88 | 89 (1.0x) | 267 (3.0x) | 56 (0.6x) | 26009 (294.6x) | - |
 
 ### numba: compiled kernel against the Python call
 
@@ -94,10 +94,10 @@ actually pays. Both are given because quoting either alone misleads.
 | comparator | median ratio | cases |
 |---|---|---|
 | manifolds.jl | 2.2x | 21 |
-| numba | 3.0x | 21 |
+| numba | 3.3x | 21 |
 | numba-buffer | 0.9x | 12 |
-| geomstats | 287.5x | 21 |
-| geoopt | 938.6x | 9 |
+| geomstats | 294.6x | 21 |
+| geoopt | 985.7x | 9 |
 
 ## Caveats
 
