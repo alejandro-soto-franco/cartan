@@ -14,8 +14,12 @@ members = [
     "cartan-io",
     "cartan-maxwell",
     "benchmarks/rust",
+    "cartan-gpu",
 ]
-exclude = ["experiments", "cartan-py", "cartan-gpu"]
+# cartan-cuda pins a nightly toolchain (it depends on cuda-oxide, a rustc
+# backend) and is publish = false while cuda-oxide is unpublished, so it stays
+# out of the stable workspace.
+exclude = ["experiments", "cartan-py", "cartan-cuda"]
 
 [workspace.package]
 version = "0.8.0"
