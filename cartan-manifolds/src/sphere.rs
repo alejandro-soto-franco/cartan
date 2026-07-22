@@ -210,6 +210,71 @@ impl<const N: usize> Manifold for Sphere<N> {
         }
     }
 
+    /// Exponential map written in place, with no temporary and no returned
+    /// copy.
+    ///
+    /// `copy_from` followed by a single `axpy` forms `a p + b v` in one pass,
+    /// where the value-returning form builds an intermediate vector and then
+    /// walks it again. The renormalisation stays: it is load-bearing, as
+    /// `test_exp_stays_on_the_sphere` records.
+    fn exp_into(&self, p: &Self::Point, v: &Self::Tangent, out: &mut Self::Point) {
+        let v_norm = v.norm();
+        let (a, b) = if v_norm < ANGLE_EPS {
+            // Taylor: Exp_p(v) ~ (1 - ||v||^2/2) p + v.
+            (1.0 - v_norm * v_norm / 2.0, 1.0)
+        } else {
+            (v_norm.cos(), v_norm.sin() / v_norm)
+        };
+
+        out.copy_from(p);
+        out.axpy(b, v, a); // out = b v + a p
+        let n = out.norm();
+        *out /= n;
+    }
+
+    /// Logarithmic map written in place.
+    ///
+    /// `out` is untouched when the call fails at the cut locus, so a caller
+    /// reusing a buffer cannot read a stale value as a fresh one.
+    fn log_into(
+        &self,
+        p: &Self::Point,
+        q: &Self::Point,
+        out: &mut Self::Tangent,
+    ) -> Result<(), CartanError> {
+        let cos_theta = p.dot(q).clamp(-1.0, 1.0);
+        let theta = cos_theta.acos();
+
+        if (PI - theta).abs() < ANGLE_EPS {
+            #[cfg(feature = "alloc")]
+            return Err(CartanError::CutLocus {
+                message: alloc::format!(
+                    "points are nearly antipodal on S^{}: angle = {:.2e}",
+                    N - 1,
+                    theta
+                ),
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::CutLocus {
+                message: "points are nearly antipodal (cut locus of sphere)",
+            });
+        }
+
+        if theta < ANGLE_EPS {
+            // Small angle: q - p, projected onto T_p.
+            out.copy_from(q);
+            out.axpy(-1.0, p, 1.0);
+            let d = p.dot(out);
+            out.axpy(-d, p, 1.0);
+        } else {
+            let k = theta / theta.sin();
+            out.copy_from(q);
+            out.axpy(-cos_theta, p, 1.0);
+            *out *= k;
+        }
+        Ok(())
+    }
+
     /// Project ambient vector onto tangent space T_p S^{N-1}.
     ///
     /// pi_p(v) = v - (p^T v) p
@@ -385,6 +450,12 @@ impl<const N: usize> ParallelTransport for Sphere<N> {
         // Left as nalgebra expressions deliberately. A three-pass indexed
         // rewrite measured 91 ns to 125 ns at N = 50, for the same reason exp
         // does: these expressions vectorise and indexed writes do not.
+        //
+        // The algebraic simplification (q - c p)/(1 + c) + p = (p + q)/(1 + c)
+        // was also measured. It removes w but needs v.q and v.p in place of
+        // v.w, and at N = 50 the extra pass costs more than the vector it
+        // saves: 91 ns to 149 ns. See `transport_into` for the form that does
+        // pay off, which avoids the temporaries instead of the arithmetic.
         let w = q - p * c;
         let beta = v.dot(&w);
         let transported = v - (w / one_plus_c + p) * beta;
@@ -394,6 +465,56 @@ impl<const N: usize> ParallelTransport for Sphere<N> {
         // -1: without this the residual reaches 4e-10 near the cut locus, which
         // `test_transport_tangency_holds_near_cut_locus` pins.
         Ok(self.project_tangent(q, &transported))
+    }
+
+    /// Parallel transport written in place, with no temporary and no returned
+    /// copy.
+    ///
+    /// This is where the algebraic collapse pays off. Using
+    /// `(q - c p)/(1 + c) + p = (p + q)/(1 + c)` and
+    /// `v.w = v.q - c (v.p)`, the direction vector `w` is never formed, so the
+    /// whole call is three inner products and three `axpy`s over `out`. The
+    /// same collapse loses in the value-returning form, where `(p + q) * k`
+    /// materialises a vector; here there is nothing to materialise.
+    fn transport_into(
+        &self,
+        p: &Self::Point,
+        q: &Self::Point,
+        u: &Self::Tangent,
+        out: &mut Self::Tangent,
+    ) -> Result<(), CartanError> {
+        let c = p.dot(q).clamp(-1.0, 1.0);
+        let one_plus_c = 1.0 + c;
+
+        if one_plus_c < CUT_LOCUS_EPS {
+            #[cfg(feature = "alloc")]
+            return Err(CartanError::CutLocus {
+                message: alloc::format!(
+                    "points are nearly antipodal on S^{}: 1 + cos(angle) = {:.2e}",
+                    N - 1,
+                    one_plus_c
+                ),
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::CutLocus {
+                message: "points are nearly antipodal (cut locus of sphere)",
+            });
+        }
+
+        // beta = u.w = u.q - c (u.p); the second term vanishes for an exactly
+        // tangent u and is kept so a small normal component behaves as it does
+        // in `transport`.
+        let beta = u.dot(q) - c * u.dot(p);
+        let k = beta / one_plus_c;
+
+        out.copy_from(u);
+        out.axpy(-k, p, 1.0);
+        out.axpy(-k, q, 1.0);
+
+        // Re-project, for the reason given on `transport`.
+        let t_dot_q = out.dot(q);
+        out.axpy(-t_dot_q, q, 1.0);
+        Ok(())
     }
 }
 
@@ -665,6 +786,73 @@ mod tests {
             "exp drifts {worst_perturbed:.3e} off the sphere when v carries a \
              normal component; renormalisation is load-bearing after all"
         );
+    }
+
+    /// The in-place forms must agree with the value-returning ones exactly.
+    /// They take different arithmetic routes, so this is the check that the
+    /// faster path did not become a slightly different function.
+    #[test]
+    fn test_into_variants_agree() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        macro_rules! check {
+            ($n:literal) => {{
+                let m = Sphere::<$n>;
+                let mut rng = StdRng::seed_from_u64(23);
+                for _ in 0..50 {
+                    let p = m.random_point(&mut rng);
+                    let q = m.random_point(&mut rng);
+                    let v = m.random_tangent(&p, &mut rng);
+
+                    let mut out = SVector::<Real, $n>::zeros();
+
+                    m.exp_into(&p, &v, &mut out);
+                    assert!(
+                        (out - m.exp(&p, &v)).norm() < 1e-12,
+                        "exp_into disagrees on S^{}",
+                        $n - 1
+                    );
+
+                    m.log_into(&p, &q, &mut out).unwrap();
+                    assert!(
+                        (out - m.log(&p, &q).unwrap()).norm() < 1e-12,
+                        "log_into disagrees on S^{}",
+                        $n - 1
+                    );
+
+                    m.transport_into(&p, &q, &v, &mut out).unwrap();
+                    assert!(
+                        (out - m.transport(&p, &q, &v).unwrap()).norm() < 1e-12,
+                        "transport_into disagrees on S^{}",
+                        $n - 1
+                    );
+                }
+            }};
+        }
+
+        check!(3);
+        check!(10);
+        check!(50);
+    }
+
+    /// A failed `log_into` must leave the destination alone, so a caller
+    /// reusing a buffer across iterations cannot read a stale value as though
+    /// it were fresh.
+    #[test]
+    fn test_log_into_leaves_out_untouched_on_failure() {
+        let m = Sphere::<3>;
+        let north = SVector::<Real, 3>::new(0.0, 0.0, 1.0);
+        let south = SVector::<Real, 3>::new(0.0, 0.0, -1.0);
+
+        let sentinel = SVector::<Real, 3>::new(7.0, 8.0, 9.0);
+        let mut out = sentinel;
+
+        assert!(m.log_into(&north, &south, &mut out).is_err());
+        assert_eq!(out, sentinel, "out was written despite the call failing");
+
+        assert!(m.transport_into(&north, &south, &sentinel, &mut out).is_err());
+        assert_eq!(out, sentinel, "out was written despite the call failing");
     }
 
     /// Antipodal points are the cut locus: transport along a minimising

@@ -39,6 +39,29 @@ and `cartan-homog`'s `serde` feature is removed. See below.
   Distance is now cheaper than `log`. Sphere distance is deliberately untouched:
   `2*asin(||p-q||/2)` avoids the cancellation `acos(p.q)` suffers near
   coincident points.
+- **In-place `exp_into`, `log_into` and `transport_into`.** The
+  value-returning forms must materialise and return a tangent vector, which at
+  ambient dimension 50 is 400 bytes moved per call. These write into a
+  caller-owned buffer instead. Both traits gain them with default
+  implementations that delegate, so no existing implementor breaks and only
+  manifolds where it pays need override; `Sphere` does, using `copy_from` and
+  `axpy` so no temporary is built either.
+
+  | op | N = 10 | N = 50 |
+  |---|---|---|
+  | `exp_into` | 1.18x | 1.12x |
+  | `log_into` | 1.42x | 1.61x |
+  | `transport_into` | 1.05x | 1.29x |
+
+  At N = 3 they are level with the value-returning forms, which stay the
+  clearer call there. `log_into` leaves `out` untouched when it fails at the
+  cut locus, so a caller reusing a buffer cannot read a stale value as a fresh
+  one.
+
+  `transport_into` uses the collapse
+  `(q - cp)/(1+c) + p = (p+q)/(1+c)`, so the direction vector is never formed.
+  The same collapse loses in the value-returning form, where `(p+q) * k`
+  materialises a vector: 91 ns to 149 ns at N = 50.
 - **`Sphere::transport` no longer calls `log`.** The two-log formula
   (Absil et al. 8.1.3) evaluated `log` in each direction, each paying an
   inverse trig call, a norm and a division. Written on the dot product alone it
