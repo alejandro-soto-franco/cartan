@@ -122,5 +122,41 @@ fn round_trip(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, sphere_ops, spd_ops, round_trip);
+/// The in-place forms against the value-returning ones.
+///
+/// The buffer is allocated once outside the loop, which is the pattern the
+/// `_into` API exists for. Anything that allocates per iteration would be
+/// measuring the allocator instead.
+fn into_variants(c: &mut Criterion) {
+    let mut group = c.benchmark_group("sphere_into");
+
+    macro_rules! bench_dim {
+        ($n:literal) => {{
+            let m = Sphere::<$n>;
+            let mut rng = StdRng::seed_from_u64(SEED);
+            let p = m.random_point(&mut rng);
+            let q = m.random_point(&mut rng);
+            let v = m.random_tangent(&p, &mut rng);
+            let mut out = SVector::<f64, $n>::zeros();
+
+            group.bench_with_input(BenchmarkId::new("exp_into", $n), &$n, |b, _| {
+                b.iter(|| m.exp_into(black_box(&p), black_box(&v), &mut out))
+            });
+            group.bench_with_input(BenchmarkId::new("log_into", $n), &$n, |b, _| {
+                b.iter(|| m.log_into(black_box(&p), black_box(&q), &mut out))
+            });
+            group.bench_with_input(BenchmarkId::new("transport_into", $n), &$n, |b, _| {
+                b.iter(|| m.transport_into(black_box(&p), black_box(&q), black_box(&v), &mut out))
+            });
+        }};
+    }
+
+    bench_dim!(3);
+    bench_dim!(10);
+    bench_dim!(50);
+
+    group.finish();
+}
+
+criterion_group!(benches, sphere_ops, spd_ops, round_trip, into_variants);
 criterion_main!(benches);
