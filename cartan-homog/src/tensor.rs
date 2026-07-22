@@ -67,16 +67,21 @@ impl TensorOrder for Order2 {
     }
 
     fn spd_geodesic_step(from: &Km3, to: &Km3, damping: f64) -> Result<Km3, HomogError> {
-        use cartan_core::Manifold;
-        use cartan_manifolds::Spd;
-        let spd = Spd::<3>;
-        match (Self::check_spd(from, 1e-14), Self::check_spd(to, 1e-14)) {
-            (Ok(p), Ok(q)) => {
+        // Spd sits behind cartan-manifolds' `std` gate, because the `sym` module
+        // it needs uses symmetric_eigen(), whose Jacobi iteration requires std.
+        // Under no_std we take the linear arm this function already uses when an
+        // operand fails its SPD check, so no new numerics enter.
+        #[cfg(feature = "std")]
+        {
+            use cartan_core::Manifold;
+            use cartan_manifolds::Spd;
+            let spd = Spd::<3>;
+            if let (Ok(p), Ok(q)) = (Self::check_spd(from, 1e-14), Self::check_spd(to, 1e-14)) {
                 let v = spd.log(&p, &q).map_err(|e| HomogError::Solver(alloc::format!("{e}")))?;
-                Ok(spd.exp(&p, &(v * damping)))
+                return Ok(spd.exp(&p, &(v * damping)));
             }
-            _ => Ok(Self::add(&Self::scale(from, 1.0 - damping), &Self::scale(to, damping))),
         }
+        Ok(Self::add(&Self::scale(from, 1.0 - damping), &Self::scale(to, damping)))
     }
 }
 
@@ -128,16 +133,18 @@ impl TensorOrder for Order4 {
     }
 
     fn spd_geodesic_step(from: &Km6, to: &Km6, damping: f64) -> Result<Km6, HomogError> {
-        use cartan_core::Manifold;
-        use cartan_manifolds::Spd;
-        let spd = Spd::<6>;
-        match (Self::check_spd(from, 1e-14), Self::check_spd(to, 1e-14)) {
-            (Ok(p), Ok(q)) => {
+        // See the Order2 implementation for why this is gated.
+        #[cfg(feature = "std")]
+        {
+            use cartan_core::Manifold;
+            use cartan_manifolds::Spd;
+            let spd = Spd::<6>;
+            if let (Ok(p), Ok(q)) = (Self::check_spd(from, 1e-14), Self::check_spd(to, 1e-14)) {
                 let v = spd.log(&p, &q).map_err(|e| HomogError::Solver(alloc::format!("{e}")))?;
-                Ok(spd.exp(&p, &(v * damping)))
+                return Ok(spd.exp(&p, &(v * damping)));
             }
-            _ => Ok(Self::add(&Self::scale(from, 1.0 - damping), &Self::scale(to, damping))),
         }
+        Ok(Self::add(&Self::scale(from, 1.0 - damping), &Self::scale(to, damping)))
     }
 }
 
