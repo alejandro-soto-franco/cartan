@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use cartan_dec::Mesh;
 use cartan_manifolds::Euclidean;
 use nalgebra::{Matrix3, Vector3};
-use sprs::{CsMat, TriMat};
+use nalgebra_sparse::{CooMatrix, CscMatrix};
 
 /// Per-tet conductivity (isotropic scalar K) plus precomputed barycentric gradients
 /// and volume. Built once per mesh, reused across directions.
@@ -70,9 +70,9 @@ pub fn build_tet_data(
 /// Dirichlet BCs handled downstream by row/column elimination on boundary vertices.
 pub fn assemble_stiffness(
     mesh: &Mesh<Euclidean<3>, 4, 3>, td: &TetData,
-) -> CsMat<f64> {
+) -> CscMatrix<f64> {
     let nv = mesh.n_vertices();
-    let mut tri = TriMat::<f64>::new((nv, nv));
+    let mut tri = CooMatrix::<f64>::new(nv, nv);
     for s in 0..mesh.n_simplices() {
         let tet = mesh.simplices[s];
         let g = &td.grads[s];
@@ -81,12 +81,12 @@ pub fn assemble_stiffness(
             for b in 0..4 {
                 let gab = g[a].dot(&g[b]);
                 if gab.abs() > 1e-30 || a == b {
-                    tri.add_triplet(tet[a], tet[b], w * gab);
+                    tri.push(tet[a], tet[b], w * gab);
                 }
             }
         }
     }
-    tri.to_csc()
+    CscMatrix::from(&tri)
 }
 
 /// RHS for the cell problem in direction `e_dir`: Σ_tets K_tet · vol_tet · (e_dir · ∇φ_i).
@@ -112,23 +112,23 @@ pub fn assemble_rhs(
 /// Apply homogeneous Dirichlet BCs (`χ = 0` on boundary vertices) by zeroing their
 /// rows/cols in the sparse matrix and setting `A[b, b] = 1`, `b[b] = 0`.
 pub fn apply_dirichlet_zero(
-    a: &mut sprs::CsMat<f64>, b: &mut nalgebra::DVector<f64>, boundary: &[usize],
+    a: &mut CscMatrix<f64>, b: &mut nalgebra::DVector<f64>, boundary: &[usize],
 ) {
     use std::collections::HashSet;
     let bset: HashSet<usize> = boundary.iter().copied().collect();
     // Rebuild as dense-to-sparse (cleaner than surgery on CSC). OK for MVP sizes.
-    let n = a.rows();
-    let mut tri = TriMat::<f64>::new((n, n));
-    for (&val, (i, j)) in a.iter() {
+    let n = a.nrows();
+    let mut tri = CooMatrix::<f64>::new(n, n);
+    for (i, j, &val) in a.triplet_iter() {
         if bset.contains(&i) { continue; }   // drop boundary rows
         if bset.contains(&j) { continue; }   // drop boundary cols (implicit zero)
-        tri.add_triplet(i, j, val);
+        tri.push(i, j, val);
     }
     for &bi in boundary {
-        tri.add_triplet(bi, bi, 1.0);
+        tri.push(bi, bi, 1.0);
         b[bi] = 0.0;
     }
-    *a = tri.to_csc();
+    *a = CscMatrix::from(&tri);
 }
 
 /// Apply periodic BCs to the cell-problem system by eliminating slave DOFs.
@@ -140,7 +140,7 @@ pub fn apply_dirichlet_zero(
 /// Additionally anchors one vertex (the "gauge vertex") to χ = 0 to remove the
 /// constant-null-space mode. By convention we pick vertex 0.
 pub fn apply_periodic(
-    a: &mut sprs::CsMat<f64>,
+    a: &mut CscMatrix<f64>,
     b: &mut nalgebra::DVector<f64>,
     pairs: &[(usize, usize)],
     gauge_vertex: usize,
@@ -150,13 +150,13 @@ pub fn apply_periodic(
     let mut master_of: BTreeMap<usize, usize> = BTreeMap::new();
     for &(s, m) in pairs { master_of.insert(s, m); }
 
-    let n = a.rows();
-    let mut tri = TriMat::<f64>::new((n, n));
+    let n = a.nrows();
+    let mut tri = CooMatrix::<f64>::new(n, n);
     // First pass: fold every (i, j) entry to its canonical (master(i), master(j)).
-    for (&val, (i, j)) in a.iter() {
+    for (i, j, &val) in a.triplet_iter() {
         let mi = *master_of.get(&i).unwrap_or(&i);
         let mj = *master_of.get(&j).unwrap_or(&j);
-        tri.add_triplet(mi, mj, val);
+        tri.push(mi, mj, val);
     }
     // Fold the RHS b similarly (rows only).
     let mut b_new = nalgebra::DVector::<f64>::zeros(n);
@@ -167,17 +167,17 @@ pub fn apply_periodic(
     // Pin each slave row to identity: χ[slave] - χ[master] = 0.
     // Implement by inserting (slave, slave) = 1, (slave, master) = -1, b[slave] = 0.
     for (&s, &m) in &master_of {
-        tri.add_triplet(s, s, 1.0);
-        tri.add_triplet(s, m, -1.0);
+        tri.push(s, s, 1.0);
+        tri.push(s, m, -1.0);
         b_new[s] = 0.0;
     }
     // Pin gauge vertex: χ[gauge] = 0.
     // Zero its master-row columns and rewrite as identity. Cheapest path: add a
     // large diagonal penalty on (gauge, gauge) so the Lagrange condition dominates.
-    tri.add_triplet(gauge_vertex, gauge_vertex, 1e20);
+    tri.push(gauge_vertex, gauge_vertex, 1e20);
     b_new[gauge_vertex] = 0.0;
 
-    *a = tri.to_csc();
+    *a = CscMatrix::from(&tri);
     *b = b_new;
 }
 
