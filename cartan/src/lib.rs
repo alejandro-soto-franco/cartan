@@ -1,41 +1,66 @@
 //! # cartan
 //!
-//! Riemannian geometry, manifold optimization, and geodesic computation in Rust.
+//! Riemannian geometry, manifold optimisation, and geodesic computation in Rust.
 //!
-//! This is the top-level facade crate. It re-exports the most commonly used
-//! items from the sub-crates so that downstream users only need one dependency:
-//! `cartan = "0.1"`.
-//!
-//! ## Crate structure
-//!
-//! - `cartan-core` -- abstract trait system (Manifold, Retraction, etc.)
-//! - `cartan-manifolds` -- concrete manifolds (Sphere, SO(N), SE(N), ...)
-//! - `cartan-optim` -- optimization algorithms (RGD, RCG, trust region)
-//! - `cartan-geo` -- geodesic and curvature tools
-//! - `cartan-dec` -- discrete exterior calculus: simplicial complexes, Hodge
-//!   operators, and covariant differential operators for PDE solvers (requires std)
-//!
-//! ## no_std / embedded usage
-//!
-//! The default `full` feature includes `cartan-dec`, which requires std.
-//! For embedded and no_std targets, disable default features and select a tier:
+//! This is the facade crate. It re-exports the family under short aliases so a
+//! downstream user needs one dependency:
 //!
 //! ```toml
-//! # no_std with allocator (recommended for most embedded targets)
-//! cartan = { version = "0.1", default-features = false, features = ["alloc"] }
-//!
-//! # std without cartan-dec (no mesh/PDE layer)
-//! cartan = { version = "0.1", default-features = false, features = ["std"] }
+//! cartan = "0.8"
 //! ```
 //!
-//! See the [README](https://github.com/alejandro-soto-franco/cartan#embedded-and-nostd-targets)
-//! for the full feature tier table.
+//! ## Three regimes
+//!
+//! One trait system spans geometry at points, at fields, and along paths:
+//!
+//! | regime | crates | what it does |
+//! |---|---|---|
+//! | points | `manifolds`, `optim`, `geo` | `exp`, `log`, transport, optimisation |
+//! | fields | `dec`, `remesh`, `io` | discrete exterior calculus, bundles, export |
+//! | paths | `stochastic` | frame bundle, horizontal lift, development |
+//!
+//! ## Features
+//!
+//! The default is `std` plus `dec`. Everything else is opt-in, so a user who
+//! wants `exp` and `log` does not compile a sparse solver.
+//!
+//! | feature | brings in | needs |
+//! |---|---|---|
+//! | `alloc` | core, manifolds, optim, geo | no_std with an allocator |
+//! | `std` | the above, with std | std |
+//! | `dec` (default) | [`cartan_dec`] | std |
+//! | `remesh` | [`cartan_remesh`] | `dec` |
+//! | `stochastic` | [`cartan_stochastic`] | std |
+//! | `homog` | [`cartan_homog`] mean-field schemes | alloc |
+//! | `full-field` | [`cartan_homog`] cell-problem solver | `homog`, `remesh`, std |
+//! | `io` | [`cartan_io`] VTK and Blender export | `dec` |
+//! | `maxwell` | [`cartan_maxwell`] | `io` |
+//! | `full` | all of the above | std |
+//!
+//! ## Embedded and no_std
+//!
+//! ```toml
+//! cartan = { version = "0.8", default-features = false, features = ["alloc"] }
+//! ```
+//!
+//! That gives the point-geometry stack and, by adding `homog`, the mean-field
+//! homogenisation schemes. CI builds this configuration for
+//! `thumbv7em-none-eabihf` on every run.
 //!
 //! ## Prelude
 //!
-//! Import `use cartan::prelude::*;` to bring all traits into scope.
-//! This lets you call `.exp()`, `.log()`, `.inner()` etc. on any manifold
-//! without individually importing each trait.
+//! `use cartan::prelude::*;` brings the geometry traits into scope, so `.exp()`,
+//! `.log()` and `.inner()` are callable on any manifold without naming each
+//! trait.
+//!
+//! ## Guide
+//!
+//! See [`guide`] for worked chapters. Every code block there is a doctest.
+
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
+pub mod guide;
 
 // Re-export sub-crates under descriptive aliases.
 //
@@ -43,11 +68,33 @@
 // Aliasing as `core` would shadow `std::core` and break macro hygiene
 // in downstream crates that use standard library macros.
 pub use cartan_core as traits;
-#[cfg(feature = "full")]
-pub use cartan_dec as dec;
 pub use cartan_geo as geo;
 pub use cartan_manifolds as manifolds;
 pub use cartan_optim as optim;
+
+#[cfg(feature = "dec")]
+#[cfg_attr(docsrs, doc(cfg(feature = "dec")))]
+pub use cartan_dec as dec;
+
+#[cfg(feature = "remesh")]
+#[cfg_attr(docsrs, doc(cfg(feature = "remesh")))]
+pub use cartan_remesh as remesh;
+
+#[cfg(feature = "stochastic")]
+#[cfg_attr(docsrs, doc(cfg(feature = "stochastic")))]
+pub use cartan_stochastic as stochastic;
+
+#[cfg(feature = "homog")]
+#[cfg_attr(docsrs, doc(cfg(feature = "homog")))]
+pub use cartan_homog as homog;
+
+#[cfg(feature = "io")]
+#[cfg_attr(docsrs, doc(cfg(feature = "io")))]
+pub use cartan_io as io;
+
+#[cfg(feature = "maxwell")]
+#[cfg_attr(docsrs, doc(cfg(feature = "maxwell")))]
+pub use cartan_maxwell as maxwell;
 
 /// Prelude module: import with `use cartan::prelude::*` to bring all traits into scope.
 ///
