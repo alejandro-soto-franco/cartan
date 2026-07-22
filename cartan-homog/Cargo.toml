@@ -6,6 +6,9 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/cartan-homog"
+homepage = "https://cartan.sotofranco.dev"
 keywords = ["homogenization", "micromechanics", "eshelby", "mori-tanaka", "spd"]
 categories = ["mathematics", "science", "algorithms"]
 

@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
 keywords = ["remesh", "riemannian", "triangle", "mesh", "adaptive"]
 categories = ["mathematics", "science", "algorithms"]
 documentation = "https://docs.rs/cartan-remesh"

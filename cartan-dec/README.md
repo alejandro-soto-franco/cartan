@@ -58,4 +58,4 @@ let lf = ops.apply_laplace_beltrami(&f);
 
 ## License
 
-[MIT](../LICENSE-MIT)
+[MIT](LICENSE-MIT)
