@@ -6,6 +6,11 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
+keywords = ["maxwell", "regge", "electromagnetism", "feec", "relativity"]
+categories = ["science", "simulation", "mathematics"]
+documentation = "https://docs.rs/cartan-maxwell"
+homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
 formoniq        = { workspace = true }
