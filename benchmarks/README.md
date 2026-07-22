@@ -25,6 +25,9 @@ uv venv --python 3.12 .venv
 uv pip install --python .venv/bin/python -r requirements.txt
 ```
 
+numba caps numpy below 2.5, so installing it moves the environment to numpy
+2.4.x. Still numpy 2.
+
 `geomstats` is pinned to a main-branch commit rather than to 2.8.0, because the
 released version imports `numpy.trapz`, removed in numpy 2.0. Its PyTorch
 backend imports the numpy backend transitively, so switching backends does not
@@ -48,6 +51,7 @@ julia --project=julia -e 'using Pkg; Pkg.instantiate()'
 cargo run --release -p cartan-bench --bin cartan-bench-crosslang
 JULIA_DEPOT_PATH=/home/julia/depot julia --project=julia julia/bench_geometry.jl
 .venv/bin/python python/bench_crosslang.py
+.venv/bin/python python/bench_numba.py
 
 # 3. Compare and write the report.
 .venv/bin/python python/compare_crosslang.py --date "$(date +%F)"

@@ -35,6 +35,7 @@ SOURCES = {
     "manifolds.jl": RESULTS / "julia_geometry.jsonl",
     # geomstats and geoopt share one file, split on the `lib` field.
     "_python": RESULTS / "python_geometry.jsonl",
+    "_numba": RESULTS / "numba_geometry.jsonl",
 }
 
 
@@ -109,7 +110,7 @@ def main() -> None:
     args = ap.parse_args()
 
     recs = load()
-    comparators = ["manifolds.jl", "geomstats", "geoopt"]
+    comparators = ["manifolds.jl", "numba", "numba-buffer", "geomstats", "geoopt"]
 
     # `transport_projection` is a probe used to classify geoopt's transport,
     # not an operation cartan implements, so it never enters the main tables.
@@ -240,8 +241,8 @@ def main() -> None:
     lines.append("Median nanoseconds per call. A ratio above 1 means cartan is faster.")
     lines.append("Rows whose values did not agree are omitted rather than reported.")
     lines.append("")
-    lines.append("| case | op | cartan (ns) | Manifolds.jl | geomstats | geoopt |")
-    lines.append("|---|---|---|---|---|---|")
+    lines.append("| case | op | cartan (ns) | Manifolds.jl | numba | numba buf | geomstats | geoopt |")
+    lines.append("|---|---|---|---|---|---|---|---|")
     for r in rows:
         cells = []
         for c in comparators:
@@ -251,6 +252,26 @@ def main() -> None:
             f"| {r['case']} | {r['op']} | {r['cartan_ns']:.0f} | " + " | ".join(cells) + " |"
         )
     lines.append("")
+
+    numba_rows = [(m, d, o) for (m, d, o) in keys
+                  if ("numba", m, d, o) in recs
+                  and recs[("numba", m, d, o)].get("called_ns") is not None]
+    if numba_rows:
+        lines.append("### numba: compiled kernel against the Python call")
+        lines.append("")
+        lines.append("The `numba` column above is the compiled kernel with the batch loop")
+        lines.append("inside nopython mode, which is the fair comparison against Rust and")
+        lines.append("Julia machine code. Calling that kernel from Python adds argument")
+        lines.append("unboxing and dispatch on every call, and that is what a Python program")
+        lines.append("actually pays. Both are given because quoting either alone misleads.")
+        lines.append("")
+        lines.append("| case | op | kernel (ns) | called from Python (ns) | dispatch overhead |")
+        lines.append("|---|---|---|---|---|")
+        for m, d, o in numba_rows:
+            r = recs[("numba", m, d, o)]
+            k, c = r["median_ns"], r["called_ns"]
+            lines.append(f"| {m} {d} | {o} | {k:.0f} | {c:.0f} | {c - k:.0f} |")
+        lines.append("")
 
     lines.append("### Median speedup")
     lines.append("")
@@ -280,6 +301,21 @@ def main() -> None:
     lines.append("  precise of the three, though Python call overhead dwarfs that anyway.")
     lines.append("- Julia timings exclude compilation, which BenchmarkTools warms away. A")
     lines.append("  cold Julia process pays that cost once and this table does not show it.")
+    lines.append("- Two numba columns. `numba` is hand-written kernels with the same")
+    lines.append("  algorithms cartan uses, returning a value like every other column.")
+    lines.append("  `numba buf` additionally writes into a caller-owned buffer, uses scalar")
+    lines.append("  loops instead of array expressions, and enables `fastmath`. That removes")
+    lines.append("  every allocation, which is most of the cost at small dimension: sphere")
+    lines.append("  transport at dim 3 goes 92 ns to 15 ns. `fastmath` alone buys nothing")
+    lines.append("  until allocation is gone, then roughly doubles dim 50.")
+    lines.append("- `numba buf` therefore compares a mutating interface against a")
+    lines.append("  value-returning one, and permits reassociation cartan does not. It is")
+    lines.append("  the ceiling of what this algorithm reaches under numba, not a")
+    lines.append("  like-for-like API comparison. Values still agree to 5.6e-17.")
+    lines.append("- Both numba columns are the compiled kernel with the loop inside")
+    lines.append("  nopython mode. Reaching it from Python costs 109 ns to 724 ns of")
+    lines.append("  dispatch per call, which exceeds the kernel itself for every sphere")
+    lines.append("  case. The table below gives both.")
     lines.append("- geoopt is measured on float64 CPU tensors. It is built for batched GPU")
     lines.append("  autograd, so single-point CPU timings are not what it optimises for.")
     lines.append("- Parallel transport is compared on the sphere only: the SPD convention")

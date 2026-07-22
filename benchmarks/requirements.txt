@@ -12,3 +12,5 @@ numpy
 scipy
 mpmath
 matplotlib
+# numba caps numpy below 2.5, so it pins the environment to numpy 2.4.x.
+numba
