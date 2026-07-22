@@ -59,7 +59,7 @@ cartan-io         = { path = "../cartan-io",         version = "0.8", optional =
 cartan-maxwell    = { path = "../cartan-maxwell",    version = "0.8", optional = true }
 
 [dev-dependencies]
-rand = { workspace = true, features = ["std_rng", "std"] }
+rand = { workspace = true, features = ["std_rng", "std", "os_rng", "thread_rng"] }
 rand_distr = { workspace = true }
 nalgebra = { workspace = true }
 
