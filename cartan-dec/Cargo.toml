@@ -1,7 +1,7 @@
 [package]
 name = "cartan-dec"
 description = "Discrete exterior calculus on Riemannian manifolds: simplicial complexes, Hodge operators, and covariant differential operators built on cartan-core"
-version = "0.7.0"
+version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -12,8 +12,8 @@ documentation = "https://docs.rs/cartan-dec"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core      = { path = "../cartan-core", version = "0.7" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.7" }
+cartan-core      = { path = "../cartan-core", version = "0.8" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.8" }
 nalgebra         = { workspace = true }
 sprs             = { workspace = true }
 thiserror        = { workspace = true }
