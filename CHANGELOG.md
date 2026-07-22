@@ -39,6 +39,25 @@ and `cartan-homog`'s `serde` feature is removed. See below.
   Distance is now cheaper than `log`. Sphere distance is deliberately untouched:
   `2*asin(||p-q||/2)` avoids the cancellation `acos(p.q)` suffers near
   coincident points.
+- **Four inner products no longer form a matrix product to read its trace.**
+  `Corr`, `QTensor3`, `SpecialOrthogonal` and `SpecialEuclidean` each built an
+  N x N product and summed its diagonal. For `SO` and `SE` the quantity is
+  `tr(A^T B)`, which is the Frobenius inner product exactly, so it becomes a
+  dot. For `Corr` and `QTensor3` it is `tr(UV)`, which is not, so it is
+  accumulated as `sum_ij U_ij V_ji` and stays correct for a non-symmetric
+  argument.
+- **Three distances stopped falling back to `||log||`.**
+  `SpdBuresWasserstein::dist` now calls the closed form the crate already
+  shipped as `bw_distance_sq`. `Corr::dist` uses the flat-manifold form
+  directly. `Grassmann::dist` reads principal angles from the singular values
+  of `Q^T P` without computing the singular vectors `log` needs, falling back
+  to the tangent route for small angles where `arccos` loses precision.
+
+  | operation | before | after | |
+  |---|---|---|---|
+  | `Corr::dist` N=20 | 1134 ns | 276 ns | 4.1x |
+  | `SpdBuresWasserstein::dist` N=10 | 17059 ns | 6431 ns | 2.7x |
+  | `Grassmann::dist` Gr(20,5) | 2796 ns | 1242 ns | 2.3x |
 - **SPD `exp` and `log` factor P by Cholesky.** The affine-invariant formulae
   hold for any `A` with `P = A A^T`, not only the symmetric root: writing
   `A = P^{1/2} R` with `R` orthogonal, `R` passes through `log` and `exp`
@@ -166,6 +185,27 @@ and `cartan-homog`'s `serde` feature is removed. See below.
   nothing.
 - **`cartan-homog`'s `serde` feature.** It was in the default set and gated a
   dependency the crate never used. Nothing in the workspace named it.
+
+### Known limitations
+
+- `Grassmann::log` recovers principal angles from their cosines, which loses
+  precision for small angles: on Gr(10, 3) a geodesic step of 1e-7 comes back
+  as 0.84e-7 when the angles are evenly spread. `dist` inherits this through
+  its small-angle fallback. The fix is the sine-based branch of Bjorck and
+  Golub, taking small angles from the singular values of `(I - QQ^T)P`. That is
+  a change of algorithm rather than of arithmetic and is left for its own
+  release. This predates 0.8.0.
+- `SpecialOrthogonal::log` at N = 10 costs 37 us on the inverse
+  scaling-and-squaring path. N = 3, which is what robotics uses, is 31 ns.
+
+### Packaging
+
+- `cartan-io` and `cartan-maxwell` shipped with no README; both now have one.
+- No crate shipped the licence text. `license = "MIT"` was set, but the file
+  lived only at the workspace root, outside every package directory. Each crate
+  now carries a copy.
+- Every published crate declares `readme`, `keywords`, `categories`,
+  `documentation` and `homepage`; four previously declared a subset.
 
 ### Notes
 
