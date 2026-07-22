@@ -2,6 +2,7 @@
 //! Closed-form depolarising factor N3(ω) for isotropic reference, Order2.
 //! Order4 branch for Mura 1987 spheroid tensor.
 
+use crate::float::{acos, atan2, cos, ln, powf, sin, sqrt};
 use crate::{error::HomogError, kelvin_mandel::iso_detect_order2,
             shapes::{IntegrationOpts, Shape, Sphere},
             tensor::{Km3, Km6, Order2, Order4}};
@@ -24,21 +25,21 @@ impl Spheroid {
             // Limits: w->0 gives 1 (strong depolarisation across thin disk),
             //         w->1 gives 1/3 (sphere).
             let one_minus_w2 = 1.0 - w * w;
-            1.0 / one_minus_w2 - w / one_minus_w2.powf(1.5) * w.acos()
+            1.0 / one_minus_w2 - w / powf(one_minus_w2, 1.5) * acos(w)
         } else {
             // Prolate: N_z = (1/(w²-1)) · (w/√(w²-1) · ln(w + √(w²-1)) - 1).
             // Limits: w->∞ gives 0 (weak depolarisation along needle axis),
             //         w->1 gives 1/3.
             let w2_minus_1 = w * w - 1.0;
-            let s = w2_minus_1.sqrt();
-            (w / s * (w + s).ln() - 1.0) / w2_minus_1
+            let s = sqrt(w2_minus_1);
+            (w / s * ln(w + s) - 1.0) / w2_minus_1
         }
     }
 }
 
 fn rotation_axis_angle(axis: &Vector3<f64>, angle: f64) -> Matrix3<f64> {
-    let c = angle.cos();
-    let s = angle.sin();
+    let c = cos(angle);
+    let s = sin(angle);
     let t = 1.0 - c;
     let (x, y, z) = (axis.x, axis.y, axis.z);
     Matrix3::new(
@@ -60,7 +61,7 @@ fn rotation_from_z_to(to: &Vector3<f64>) -> Matrix3<f64> {
     let cross = from.cross(to);
     let s = cross.norm();
     let axis = cross / s;
-    rotation_axis_angle(&axis, s.atan2(c))
+    rotation_axis_angle(&axis, atan2(s, c))
 }
 
 impl Shape<Order2> for Spheroid {

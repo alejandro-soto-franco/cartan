@@ -1,5 +1,6 @@
 //! Generic triaxial ellipsoid with Carlson RD depolarising factors.
 
+use crate::float::sqrt;
 use crate::{error::HomogError, kelvin_mandel::iso_detect_order2,
             shapes::{IntegrationOpts, Shape},
             tensor::{Km3, Km6, Order2, Order4}};
@@ -40,9 +41,9 @@ pub fn carlson_rd(mut x: f64, mut y: f64, mut z: f64) -> f64 {
     let mut sum = 0.0;
     let mut fac = 1.0;
     for _ in 0..64 {
-        let sqrtx = x.sqrt();
-        let sqrty = y.sqrt();
-        let sqrtz = z.sqrt();
+        let sqrtx = sqrt(x);
+        let sqrty = sqrt(y);
+        let sqrtz = sqrt(z);
         let alamb = sqrtx * (sqrty + sqrtz) + sqrty * sqrtz;
         sum += fac / (sqrtz * (z + alamb));
         fac *= 0.25;
@@ -62,7 +63,7 @@ pub fn carlson_rd(mut x: f64, mut y: f64, mut z: f64) -> f64 {
             return 3.0 * sum
                 + fac * (1.0 + ed * (-3.0 / 14.0 + 0.25 * ed - 9.0 / 22.0 * delz * ee)
                               + delz * (ec / 6.0 + delz * (-9.0 / 22.0 * ec + 0.75 * delz * ea)))
-                      / (ave * ave.sqrt());
+                      / (ave * sqrt(ave));
         }
     }
     f64::NAN
