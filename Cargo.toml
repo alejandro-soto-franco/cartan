@@ -38,6 +38,7 @@ serde_json = { version = "1", default-features = false }
 approx = { version = "0.5", default-features = false }
 hashbrown = { version = "0.15", default-features = false }
 num-complex = { version = "0.4", default-features = false }
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
 
 # Upstream formoniq FEEC stack. Pinned exactly: 0.2.0 is the first published
 # release and the crate graph was renamed wholesale just before it, so the API
