@@ -28,13 +28,13 @@
 //! |---|---|---|
 //! | `alloc` | core, manifolds, optim, geo | no_std with an allocator |
 //! | `std` | the above, with std | std |
-//! | `dec` (default) | [`cartan_dec`] | std |
-//! | `remesh` | [`cartan_remesh`] | `dec` |
-//! | `stochastic` | [`cartan_stochastic`] | std |
-//! | `homog` | [`cartan_homog`] mean-field schemes | alloc |
-//! | `full-field` | [`cartan_homog`] cell-problem solver | `homog`, `remesh`, std |
-//! | `io` | [`cartan_io`] VTK and Blender export | `dec` |
-//! | `maxwell` | [`cartan_maxwell`] | `io` |
+//! | `dec` (default) | `cartan-dec` | std |
+//! | `remesh` | `cartan-remesh` | `dec` |
+//! | `stochastic` | `cartan-stochastic` | std |
+//! | `homog` | `cartan-homog` mean-field schemes | alloc |
+//! | `full-field` | `cartan-homog` cell-problem solver | `homog`, `remesh`, std |
+//! | `io` | `cartan-io` VTK and Blender export | `dec` |
+//! | `maxwell` | `cartan-maxwell` | `io` |
 //! | `full` | all of the above | std |
 //!
 //! ## Embedded and no_std

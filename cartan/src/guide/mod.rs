@@ -9,11 +9,14 @@
 //! | [`getting_started`] | points | nothing |
 //! | [`manifolds`] | points | nothing |
 //! | [`optimisation`] | points | nothing |
-//! | [`fields`] | fields | `dec` |
-//! | [`bundles`] | fields | `dec` |
-//! | [`stochastic`] | paths | `stochastic` |
-//! | [`homogenisation`] | fields | `homog` |
-//! | [`interop`] | export | `io` |
+//! | `fields` | fields | `dec` |
+//! | `bundles` | fields | `dec` |
+//! | `stochastic` | paths | `stochastic` |
+//! | `homogenisation` | fields | `homog` |
+//! | `interop` | export | `io` |
+//!
+//! The gated chapters are listed without links because they are absent from a
+//! build that does not enable their feature. docs.rs enables all of them.
 
 pub mod getting_started;
 pub mod manifolds;
