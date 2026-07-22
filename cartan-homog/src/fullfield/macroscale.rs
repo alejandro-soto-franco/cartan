@@ -26,6 +26,7 @@ use alloc::vec::Vec;
 use cartan_dec::Mesh;
 use cartan_manifolds::Euclidean;
 use nalgebra::{Matrix3, Vector3};
+use nalgebra_sparse::{CooMatrix, CscMatrix};
 
 pub struct SlabProblem {
     /// Slab dimensions.
@@ -109,7 +110,7 @@ impl SlabProblem {
             volumes.push(vol);
         }
 
-        let mut tri = sprs::TriMat::<f64>::new((nv, nv));
+        let mut tri = CooMatrix::<f64>::new(nv, nv);
         for s in 0..nt {
             let tet = mesh.simplices[s];
             let g = &grads[s];
@@ -120,12 +121,12 @@ impl SlabProblem {
                     let kg_b = k * g[b];
                     let gab = g[a].dot(&kg_b);
                     if gab.abs() > 1e-30 || a == b {
-                        tri.add_triplet(tet[a], tet[b], w * gab);
+                        tri.push(tet[a], tet[b], w * gab);
                     }
                 }
             }
         }
-        let mut a_mat = tri.to_csc();
+        let mut a_mat = CscMatrix::from(&tri);
         let mut b_rhs = nalgebra::DVector::<f64>::zeros(nv);
 
         // Dirichlet BCs: P = p_top at z = H, P = p_bot at z = 0.
@@ -173,28 +174,28 @@ impl SlabProblem {
 
 /// Apply Dirichlet BCs `P[i] = val` by row surgery.
 fn apply_dirichlet_values(
-    a: &mut sprs::CsMat<f64>, b: &mut nalgebra::DVector<f64>, prescribed: &[(usize, f64)],
+    a: &mut CscMatrix<f64>, b: &mut nalgebra::DVector<f64>, prescribed: &[(usize, f64)],
 ) {
     use std::collections::HashMap;
     let prescribed_map: HashMap<usize, f64> =
         prescribed.iter().copied().collect();
-    let n = a.rows();
-    let mut tri = sprs::TriMat::<f64>::new((n, n));
+    let n = a.nrows();
+    let mut tri = CooMatrix::<f64>::new(n, n);
     // First pass: for each (i, j) entry, if i is prescribed, skip (row surgery).
     // If j is prescribed, fold val into b[i] and skip the column entry.
-    for (&val, (i, j)) in a.iter() {
+    for (i, j, &val) in a.triplet_iter() {
         if prescribed_map.contains_key(&i) { continue; }
         if let Some(&v_j) = prescribed_map.get(&j) {
             b[i] -= val * v_j;
             continue;
         }
-        tri.add_triplet(i, j, val);
+        tri.push(i, j, val);
     }
     for (&idx, &v) in &prescribed_map {
-        tri.add_triplet(idx, idx, 1.0);
+        tri.push(idx, idx, 1.0);
         b[idx] = v;
     }
-    *a = tri.to_csc();
+    *a = CscMatrix::from(&tri);
 }
 
 #[cfg(test)]
