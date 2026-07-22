@@ -6,169 +6,106 @@ All notable changes to cartan are documented here.
 
 ## [0.8.0]
 
-### The facade is now the dependency to reach for
+Breaking: six sparse signatures change type, `full` widens to the whole family,
+and `cartan-homog`'s `serde` feature is removed. See below.
 
-`cartan` re-exported five of eleven crates, so `remesh`, `stochastic`, `homog`,
-`io` and `maxwell` could not be reached through `use cartan::` at all. It now
-carries a capability feature per crate:
+### Changed
 
-```toml
-cartan = "0.8"                                        # std + dec, as before
-cartan = { version = "0.8", features = ["full"] }     # everything
-cartan = { version = "0.8", default-features = false, features = ["alloc"] }
-```
-
-Features are `alloc`, `std`, `dec`, `remesh`, `stochastic`, `homog`,
-`full-field`, `io`, `maxwell` and `full`. Gated re-exports carry `doc(cfg)`
-badges, so the docs.rs page shows the whole family and names the flag each item
-needs.
-
-**Breaking.** `full` widens from "std plus dec" to the whole family. Existing
-users of that feature get a larger build, not a broken one. The default feature
-set still resolves to std plus dec.
-
-### no_std actually works now
-
-Two defects shipped in 0.7.0, both because no CI job had ever built for a target
-without std. `--no-default-features` on x86_64 proves only that the source avoids
-std; std stays linkable, so the gap was invisible.
-
-- **The `cartan` facade never declared `#![no_std]`.** The embedded configuration
-  its own documentation recommended compiled on a host and failed on hardware.
-- **`cartan-homog` declared an `alloc` tier that produced 17 errors** on
-  `thumbv7em-none-eabihf`: fifteen std-only float methods and two imports of a
-  std-gated `Spd`.
-
-Both are fixed. Float transcendentals route through `libm` behind a `#[cfg]`
-shim, matching the existing pattern in `cartan-core`. The `Spd` geodesic damping
-step is gated behind std and falls back to the linear damping arm the function
-already carried, so no new numerics enter.
-
-CI now builds the facade, `cartan-core` bare, and every alloc-tier crate for
-`thumbv7em-none-eabihf`, plus a feature-matrix job that builds each capability
-feature alone.
-
-**Behaviour change at the alloc tier:** `SelfConsistent` damps its fixed-point
-iteration linearly rather than along SPD geodesics, because the geodesic step
-needs an eigen decomposition that requires std. It reaches the same fixed point
-more slowly.
-
-### One sparse matrix type
-
-0.7.0's move to the upstream formoniq stack left the workspace split: `cartan-io`
-and `cartan-maxwell` on `nalgebra-sparse`, `cartan-dec` and `cartan-homog` on
-`sprs`. Anyone composing dec with maxwell met both. `sprs` is now retired.
-
-**Breaking.** Six public signatures change type, all from `sprs::CsMat` to
-`nalgebra_sparse::CscMatrix`:
-
-| item |
-|---|
-| `cartan_dec::exterior::ExteriorDerivative::d0` |
-| `cartan_dec::exterior::ExteriorDerivative::d1` |
-| `cartan_dec::line_bundle::BochnerLaplacian::matrix` |
-| `cartan_homog::fullfield::solver::Ilu0::factor` |
-| `cartan_homog::fullfield::solver::solve_dense_lu` |
-| `cartan_homog::fullfield::solver::Amg::build` |
-
-The target is CSC rather than CSR because every assembly here builds CSC and the
-matvec loops walk columns accordingly. The operators are unchanged: the full
-numerical validation suite, including the 84-case cross-check at
-`d_AI < 3e-15`, passes without modification.
-
-### Guide
-
-A `cartan::guide` module of doctested chapters covering the three regimes:
-`getting_started`, `manifolds`, `optimisation`, `fields`, `bundles`,
-`stochastic`, `homogenisation` and `interop`. Every code block runs under
-`cargo test --doc`, so a chapter that drifts from the API fails CI. Writing them
-caught a README quickstart that had never compiled.
-
-### Dead dependencies removed
-
-An audit of every member's declared dependencies against its source found six
-referenced nowhere: `rayon` and `serde` in both `cartan-dec` and `cartan-homog`,
-`thiserror` in `cartan-maxwell`, and `rayon` plus `indexmap` at workspace level.
-`rayon` was used nowhere in the workspace, and `cartan-dec` sits in the default
-path, so every user compiled a thread pool for nothing.
-
-**Breaking.** `cartan-homog`'s `serde` feature is removed. It was in the default
-set and gated a dependency the crate never used.
-
-### SPD distance no longer forms the logarithm
-
-`Spd::dist` inherited the default `||Log_P(Q)||_P`, which cost four
-eigendecompositions: three inside `log`, to build `P^{1/2}`, `P^{-1/2}` and
-`log(M)`, and a fourth inside `inner` via `sym_inv`. Only the spectrum of
-`P^{-1} Q` reaches the answer, so none of those matrices need to exist.
-
-It now reads the eigenvalues off `L^{-1} Q L^{-T}`, where `P = L L^T` is the
-Cholesky factor: symmetric, so the cheaper symmetric solver applies, and
-similar to `P^{-1} Q`, so the spectrum is the same. Eigenvectors are never
-requested.
-
-| case | before | after | |
-|---|---|---|---|
-| SPD(3) | 1830 ns | 405 ns | 4.5x |
-| SPD(6) | 5745 ns | 1426 ns | 4.0x |
-| SPD(10) | 14653 ns | 3884 ns | 3.8x |
-
-Distance is now cheaper than `log`, which it always should have been. Against
-Manifolds.jl the same cases move from 0.5x-0.8x, slower, to 1.8x-3.5x, faster.
-
-Three tests pin the result to the definition it replaced: agreement with
-`||Log_P(Q)||_P` across 75 random pairs at N = 2, 3 and 6; symmetry and
-vanishing on the diagonal, which a formula built from one operand's Cholesky
-factor could plausibly break; and affine invariance, the property that
-characterises the metric.
-
-The benchmark rig below is what surfaced this.
-
-### Cross-language benchmarks
-
-`benchmarks/CROSSLANG.md` compares cartan against Manifolds.jl, geomstats and
-geoopt. All four read one fixture file, so agreement is measured on identical
-inputs rather than on separately-seeded random draws.
-
-**Agreement is the headline: 51 of 51 comparisons match to better than 1e-12,
-worst deviation 9.4e-14**, across exp, log, dist and parallel transport on the
-sphere and the SPD cone. Timing rows are gated on the values having matched.
-
-Speed against Manifolds.jl is mixed and the report says so: cartan is roughly
-1.6x to 2.6x faster on SPD exp and log, and slower on SPD distance and on
-sphere transport. Against the Python libraries it is two to three orders of
-magnitude faster, which mostly measures interpreter overhead.
-
-Two methodology defects were found and fixed while building it, both of which
-would have produced published numbers that were simply wrong:
-
-- Per-call timing charged `Instant::now` overhead to every sample, reporting a
-  15 ns `exp` as 40 ns. All harnesses now batch.
-- With loop-invariant inputs the optimiser hoisted the whole call out of the
-  batch, reporting 0 ns and an 80x speedup. Inputs are now black-boxed.
-
-The Rust harness is cross-checked against criterion, which measures
-independently and agrees to within a nanosecond.
-
-A third finding is recorded rather than papered over: geoopt's `transp` is a
-projection onto the target tangent space, not exact parallel transport, which
-is the right choice for an optimiser. The comparison verifies that
-classification each run by checking geoopt's transport equals its own `proju`,
-so if geoopt ever switches, the mismatch is reported as real.
-
-`cargo bench -p cartan-manifolds` adds a criterion suite over exp, log, dist and
-transport for `Sphere` and `Spd`, for regression tracking.
-
-### Also
-
-- `cartan-homog` gains an `examples/rve_to_effective.rs` sweep that asserts every
-  scheme stays inside the Reuss-Voigt bracket.
-- `cartan-core`, `cartan-dec` and `cartan-maxwell` now inherit the workspace
-  version rather than pinning their own.
-- `cartan-py`'s declared MSRV was stale at 1.85 against a nalgebra 0.35 floor of
-  1.89.
+- **The facade re-exports all ten sub-crates**, one capability feature each:
+  `dec`, `remesh`, `stochastic`, `homog`, `full-field`, `io`, `maxwell`, plus
+  the `alloc` and `std` tiers and `full`. Previously it re-exported five, so
+  `remesh`, `stochastic`, `homog`, `io` and `maxwell` were unreachable through
+  `use cartan::`. Default is still `std` plus `dec`. Gated re-exports carry
+  `doc(cfg)` badges, so docs.rs shows the whole surface and names the flag each
+  item needs.
+- **`full` now means the whole family**, not "std plus dec". Existing users of
+  that feature get a larger build, not a broken one.
+- **`sprs` is replaced by `nalgebra-sparse` throughout.** `cartan-io` and
+  `cartan-maxwell` already used it; `cartan-dec` and `cartan-homog` have joined
+  them, so the workspace no longer carries two sparse types. Six public
+  signatures change from `sprs::CsMat` to `nalgebra_sparse::CscMatrix`:
+  `exterior::ExteriorDerivative::{d0, d1}`, `line_bundle::BochnerLaplacian::matrix`,
+  and `fullfield::solver::{Ilu0::factor, solve_dense_lu, Amg::build}`. CSC, not
+  CSR: every assembly here builds CSC and the matvec loops walk columns to
+  match. The operators are unchanged and the 84-case numerical cross-check
+  passes without modification.
+- **`Spd::dist` no longer forms the logarithm.** It inherited the default
+  `||Log_P(Q)||_P`, costing four eigendecompositions: three in `log` for
+  `P^{1/2}`, `P^{-1/2}` and `log(M)`, a fourth in `inner` via `sym_inv`. Only
+  the spectrum of `P^{-1} Q` reaches the answer. Eigenvalues now come off
+  `L^{-1} Q L^{-T}` with `P = L L^T` the Cholesky factor: symmetric, so the
+  cheaper solver applies, and similar to `P^{-1} Q`, so the spectrum matches.
+  SPD(3) 1830 to 405 ns, SPD(6) 5745 to 1426 ns, SPD(10) 14653 to 3884 ns.
+  Distance is now cheaper than `log`. Sphere distance is deliberately untouched:
+  `2*asin(||p-q||/2)` avoids the cancellation `acos(p.q)` suffers near
+  coincident points.
+- **`SelfConsistent` damps linearly at the `alloc` tier**, rather than along SPD
+  geodesics, because the geodesic step needs an eigen decomposition that
+  requires std. Same fixed point, slower convergence. Under std it is unchanged.
 - README rebuilt as an on-ramp; the per-crate inventory moves to
-  `CAPABILITIES.md`.
+  `CAPABILITIES.md`. MSRV badge corrected from 1.85 to 1.89.
+
+### Added
+
+- **`cartan::guide`**: doctested chapters over the three regimes, points, fields
+  and paths. `getting_started`, `manifolds`, `optimisation`, `fields`,
+  `bundles`, `stochastic`, `homogenisation`, `interop`. Run by
+  `cargo test --doc`, so a chapter that drifts from the API fails CI.
+- **Cross-language benchmarks** (`benchmarks/CROSSLANG.md`) against
+  Manifolds.jl, geomstats and geoopt. All four read one fixture file, so
+  agreement is measured on identical inputs. 51 of 51 comparisons match to
+  better than 1e-12, worst 9.4e-14, over exp, log, dist and transport on the
+  sphere and SPD cone. Timing rows are gated on the values having matched.
+  Against Manifolds.jl: 1.5x to 3.5x on SPD, mixed on the sphere, slower on
+  sphere transport. Against the Python libraries, two to three orders of
+  magnitude, which largely measures interpreter overhead.
+- **Criterion suite**: `cargo bench -p cartan-manifolds`, over exp, log, dist
+  and transport for `Sphere` and `Spd`.
+- **Bare-metal CI**: builds the facade, `cartan-core` bare, and every alloc-tier
+  crate for `thumbv7em-none-eabihf`. A feature-matrix job builds each capability
+  feature alone and runs the guide doctests.
+- **`cartan-homog/examples/rve_to_effective.rs`**: sweeps volume fraction across
+  six schemes and asserts each stays inside the Reuss-Voigt bracket.
+
+### Fixed
+
+- **The `cartan` facade never declared `#![no_std]`.** The embedded
+  configuration its own documentation recommended compiled on a host, where std
+  stays linkable, and failed on any target without one.
+- **`cartan-homog`'s `alloc` tier did not build**: 17 errors on
+  `thumbv7em-none-eabihf`, 15 std-only float methods and 2 imports of a
+  std-gated `Spd`. Transcendentals now route through `libm` behind a `#[cfg]`
+  shim, matching `cartan-core`. The SPD geodesic step is gated behind std and
+  falls back to the linear damping arm the function already carried.
+- Both shipped because no CI job had ever targeted a platform without std.
+  `--no-default-features` on x86_64 proves only that the source avoids std.
+- **Benchmark timing methodology**, twice. Per-call timing charged
+  `Instant::now` overhead to every sample, reporting a 15 ns `exp` as 40 ns.
+  Batching fixed that and exposed the next: with loop-invariant inputs the
+  optimiser hoisted the call out of the batch, reporting 0 ns. Inputs are now
+  black-boxed and the harness is cross-checked against criterion.
+- **`cartan-py`** consumed the old `cartan-dec` signatures. It is its own
+  workspace, so `cargo build --workspace` never checked it. Its declared MSRV
+  was also stale at 1.85.
+
+### Removed
+
+- **Six unused dependencies**: `rayon` and `serde` from `cartan-dec` and
+  `cartan-homog`, `thiserror` from `cartan-maxwell`, `rayon` and `indexmap` from
+  the workspace. `rayon` was referenced nowhere in the workspace, and
+  `cartan-dec` is in the default path, so every user compiled a thread pool for
+  nothing.
+- **`cartan-homog`'s `serde` feature.** It was in the default set and gated a
+  dependency the crate never used. Nothing in the workspace named it.
+
+### Notes
+
+- geoopt's `transp` is a projection onto the target tangent space, not exact
+  parallel transport, which is the correct choice for an optimiser. The
+  comparison verifies this each run by checking it equals geoopt's own `proju`,
+  so a future change is reported rather than excused.
+- `cartan-core`, `cartan-dec` and `cartan-maxwell` now inherit the workspace
+  version instead of pinning their own.
 
 ---
 
