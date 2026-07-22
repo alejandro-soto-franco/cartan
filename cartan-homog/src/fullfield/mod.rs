@@ -33,7 +33,7 @@ pub enum BoundaryConditions {
     DirichletZero,
     /// Identify opposite faces of the cube as the same DOF; anchor one vertex to
     /// χ = 0 to eliminate the constant null space. Produces the textbook
-    /// periodic-cell-problem answer that ECHOES and Mori-Tanaka target.
+    /// periodic-cell-problem answer that Mori-Tanaka targets.
     Periodic,
 }
 

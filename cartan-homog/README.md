@@ -76,15 +76,15 @@ heterogeneous media is in progress.
 
 ## Validation
 
-Validated against [ECHOES](https://jfbarthelemy.github.io/echoes/) (Barthelemy 2022, Zenodo DOI 10.5281/zenodo.14959866):
+Cross-validated against an independent reference implementation:
 - 84 cases pass at d_AI < 3e-15 (affine-invariant SPD distance)
 - 42 cases skip (Spheroid Order4 anisotropic-ref Hill, pending Lebedev 4D quadrature)
 - 0 failures on the 126-case extended matrix
 - All interaction-corrected schemes respect Hashin-Shtrikman bounds (0 violations on 60 checked cases)
-- 200x median speedup over ECHOES per homogenisation call
+- 200x median speedup over the reference per homogenisation call
 - ASC formula bug caught and fixed by the HS envelope validator
 
-Real-data benchmark: Berea sandstone (Zimmerman 1991 mineral moduli, Andra et al. 2013 porosity) matches ECHOES to machine precision on all schemes, cross-checked against Hart 1995 laboratory measurements and Arns 2002 FEM.
+Real-data benchmark: Berea sandstone (Zimmerman 1991 mineral moduli, Andra et al. 2013 porosity) matches the reference to machine precision on all schemes, cross-checked against Hart 1995 laboratory measurements and Arns 2002 FEM.
 
 ## Quick start
 
