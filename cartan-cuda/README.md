@@ -21,7 +21,11 @@ Measured against the CPU implementation on an RTX 5060 Laptop:
 | 10 | 4096 | 3.33e-16 | 3.89e-16 |
 | 50 | 2048 | 1.67e-16 | 2.71e-16 |
 
-That is machine precision. An f32 path could not be held within 1e-6.
+And the affine-invariant distance on SPD(3), 4096 pairs, to **9.58e-15**
+relative.
+
+That is machine precision throughout. An f32 path could not be held within
+1e-6.
 
 ## Kernels are Rust
 
@@ -44,7 +48,18 @@ pub fn sphere_tangent_norm(v: &[f64], dim: u32, mut out: DisjointSlice<f64>) {
 }
 ```
 
-## Why each operation is two kernels
+## SPD(3) is one kernel, not two
+
+Distance returns a single scalar per pair, so it fits the one-element-per-thread
+shape directly. Each thread does the whole job: Cholesky of `P`, the spectrum of
+`L^-1 Q L^-T` by cyclic Jacobi, then `sqrt(sum log^2(lambda))`. The matrix
+logarithm is never formed, which is the same reasoning the CPU path uses.
+
+Jacobi suits a GPU for the reason it suits small matrices generally: it is
+branch-light, needs no pivoting, and works entirely in registers on a 3x3. The
+eigenvectors are not accumulated, since only the spectrum reaches the answer.
+
+## Why the sphere operations are two kernels
 
 `DisjointSlice` gives each thread exactly one output element, which is what
 makes the writes provably non-overlapping. A batched `exp` produces `dim`
@@ -64,11 +79,23 @@ cargo oxide run cartan-cuda
 Needs the pinned nightly in `rust-toolchain.toml`, a CUDA toolkit with
 libNVVM, and `cargo-oxide`. Check with `cargo oxide doctor`.
 
-If a build fails with `FORBIDDEN CRATE IN DEVICE CODE` on a function that
-should be supported, the cached backend at `~/.cargo/cuda-oxide/` may be older
-than your cuda-oxide checkout. `cargo oxide setup` rebuilds the in-repo
-backend but does not refresh that cache; copy the freshly built
-`librustc_codegen_cuda.so` over it.
+Point it at a specific backend rather than relying on the global cache:
+
+```bash
+export CUDA_OXIDE_BACKEND=~/cuda-oxide/crates/rustc-codegen-cuda/target/x86_64-unknown-linux-gnu/debug/librustc_codegen_cuda.so
+```
+
+This matters. `cargo-oxide` resolves the backend in the order: `CUDA_OXIDE_BACKEND`,
+project `.cargo/cuda-oxide.toml`, local repo build, cached build at
+`~/.cargo/cuda-oxide/`, then auto-fetch from git. A build run from outside the
+cuda-oxide checkout falls through to that cache, and `cargo oxide setup`
+rebuilds the in-repo backend without refreshing it, so the cache can be
+arbitrarily old. Ours was two months stale and rejected `acos` with
+`FORBIDDEN CRATE IN DEVICE CODE`, while the in-repo examples using the same
+call compiled fine.
+
+`rm -rf ~/.cargo/cuda-oxide` is the documented remedy; the env var above avoids
+depending on the cache at all.
 
 ## Device-code constraints
 
