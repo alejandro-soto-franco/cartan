@@ -1,4 +1,4 @@
-//! GpuBuffer<T> - typed storage-buffer wrapper.
+//! `GpuBuffer<T>`, a typed storage-buffer wrapper.
 //!
 //! Holds a `wgpu::Buffer` plus element count. Host to GPU via
 //! `from_slice`; GPU to host via `to_vec`, which uses a staging buffer
