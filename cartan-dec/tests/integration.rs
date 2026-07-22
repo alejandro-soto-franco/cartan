@@ -79,16 +79,16 @@ fn exterior_derivative_exactness() {
 fn d0_dimensions() {
     let mesh = FlatMesh::unit_square_grid(3);
     let ext = ExteriorDerivative::from_mesh(&mesh);
-    assert_eq!(ext.d0().rows(), mesh.n_boundaries());
-    assert_eq!(ext.d0().cols(), mesh.n_vertices());
+    assert_eq!(ext.d0().nrows(), mesh.n_boundaries());
+    assert_eq!(ext.d0().ncols(), mesh.n_vertices());
 }
 
 #[test]
 fn d1_dimensions() {
     let mesh = FlatMesh::unit_square_grid(3);
     let ext = ExteriorDerivative::from_mesh(&mesh);
-    assert_eq!(ext.d1().rows(), mesh.n_simplices());
-    assert_eq!(ext.d1().cols(), mesh.n_boundaries());
+    assert_eq!(ext.d1().nrows(), mesh.n_simplices());
+    assert_eq!(ext.d1().ncols(), mesh.n_boundaries());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -466,7 +466,7 @@ fn sparse_exterior_matches_dense() {
     let d0_sp = ext.d0();
     for r in 0..ne {
         for c in 0..nv {
-            let sp_val = d0_sp.get(r, c).copied().unwrap_or(0.0);
+            let sp_val = d0_sp.get_entry(r, c).map(|e| e.into_value()).unwrap_or(0.0);
             let dn_val = d0_dense[(r, c)];
             assert!(
                 (sp_val - dn_val).abs() < 1e-15,
@@ -492,7 +492,7 @@ fn sparse_exterior_matches_dense() {
     let d1_sp = ext.d1();
     for r in 0..nt {
         for c in 0..ne {
-            let sp_val = d1_sp.get(r, c).copied().unwrap_or(0.0);
+            let sp_val = d1_sp.get_entry(r, c).map(|e| e.into_value()).unwrap_or(0.0);
             let dn_val = d1_dense[(r, c)];
             assert!(
                 (sp_val - dn_val).abs() < 1e-15,
@@ -520,10 +520,10 @@ fn sparse_exterior_k_generic_dimensions() {
     let mesh = FlatMesh::unit_square_grid(3);
     let ext = ExteriorDerivative::from_mesh_sparse(&mesh);
     assert_eq!(ext.degree(), 2);
-    assert_eq!(ext.d0().rows(), mesh.n_boundaries());
-    assert_eq!(ext.d0().cols(), mesh.n_vertices());
-    assert_eq!(ext.d1().rows(), mesh.n_simplices());
-    assert_eq!(ext.d1().cols(), mesh.n_boundaries());
+    assert_eq!(ext.d0().nrows(), mesh.n_boundaries());
+    assert_eq!(ext.d0().ncols(), mesh.n_vertices());
+    assert_eq!(ext.d1().nrows(), mesh.n_simplices());
+    assert_eq!(ext.d1().ncols(), mesh.n_boundaries());
 }
 
 // -------------------------------------------------------------------------
@@ -914,11 +914,11 @@ fn tet_mesh_k4_exterior_dimensions() {
     let ext = ExteriorDerivative::from_mesh_sparse_generic(&mesh);
     assert_eq!(ext.degree(), 2);
     // d[0]: 4 faces x 4 vertices
-    assert_eq!(ext.d0().rows(), 4);
-    assert_eq!(ext.d0().cols(), 4);
+    assert_eq!(ext.d0().nrows(), 4);
+    assert_eq!(ext.d0().ncols(), 4);
     // d[1]: 1 tet x 4 faces
-    assert_eq!(ext.d1().rows(), 1);
-    assert_eq!(ext.d1().cols(), 4);
+    assert_eq!(ext.d1().nrows(), 1);
+    assert_eq!(ext.d1().ncols(), 4);
 }
 
 #[test]
@@ -952,20 +952,20 @@ fn from_graph_d0_is_signed_incidence_and_builds_graph_laplacian() {
     assert!(ext.check_exactness().abs() < 1e-15);
 
     let d0 = ext.d0();
-    assert_eq!(d0.shape(), (2, 3));
-    assert_eq!(*d0.get(0, 0).unwrap(), -1.0);
-    assert_eq!(*d0.get(0, 1).unwrap(), 1.0);
-    assert_eq!(*d0.get(1, 1).unwrap(), -1.0);
-    assert_eq!(*d0.get(1, 2).unwrap(), 1.0);
+    assert_eq!((d0.nrows(), d0.ncols()), (2, 3));
+    assert_eq!(d0.get_entry(0, 0).unwrap().into_value(), -1.0);
+    assert_eq!(d0.get_entry(0, 1).unwrap().into_value(), 1.0);
+    assert_eq!(d0.get_entry(1, 1).unwrap().into_value(), -1.0);
+    assert_eq!(d0.get_entry(1, 2).unwrap().into_value(), 1.0);
 
     // L = d0^T diag(w) d0 with unit weights is the graph Laplacian.
-    let d0t = d0.transpose_view().to_csc();
+    let d0t = d0.transpose();
     let l = &d0t * d0;
-    assert_eq!(*l.get(1, 1).unwrap(), 2.0); // middle vertex degree 2
-    assert_eq!(*l.get(0, 0).unwrap(), 1.0); // endpoint degree 1
-    assert_eq!(*l.get(0, 1).unwrap(), -1.0); // adjacency
+    assert_eq!(l.get_entry(1, 1).unwrap().into_value(), 2.0); // middle vertex degree 2
+    assert_eq!(l.get_entry(0, 0).unwrap().into_value(), 1.0); // endpoint degree 1
+    assert_eq!(l.get_entry(0, 1).unwrap().into_value(), -1.0); // adjacency
     for r in 0..3 {
-        let s: f64 = (0..3).map(|c| *l.get(r, c).unwrap_or(&0.0)).sum();
+        let s: f64 = (0..3).map(|c| l.get_entry(r, c).map(|e| e.into_value()).unwrap_or(0.0)).sum();
         assert!(s.abs() < 1e-15, "row {r} of graph Laplacian must sum to 0");
     }
 }
