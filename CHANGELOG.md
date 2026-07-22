@@ -39,6 +39,15 @@ and `cartan-homog`'s `serde` feature is removed. See below.
   Distance is now cheaper than `log`. Sphere distance is deliberately untouched:
   `2*asin(||p-q||/2)` avoids the cancellation `acos(p.q)` suffers near
   coincident points.
+- **SPD `exp` and `log` factor P by Cholesky.** The affine-invariant formulae
+  hold for any `A` with `P = A A^T`, not only the symmetric root: writing
+  `A = P^{1/2} R` with `R` orthogonal, `R` passes through `log` and `exp`
+  unchanged because `log(R^T X R) = R^T log(X) R` and cancels on the other
+  side. So `Log_P(Q) = L log(L^{-1} Q L^{-T}) L^T` with `L` the Cholesky
+  factor, which trades a full eigendecomposition for a Cholesky and two
+  triangular solves and leaves one decomposition per call instead of two. A
+  non-factorable `P` falls back to the symmetric root, which floors its
+  eigenvalues.
 - **SPD `exp` and `log` share one eigendecomposition.** Both called
   `sym_sqrt(p)` and `sym_sqrt_inv(p)`, which decompose the same matrix and
   differ only in the scalar map applied to its eigenvalues, so the
@@ -54,15 +63,20 @@ and `cartan-homog`'s `serde` feature is removed. See below.
 
   | SPD op | before | after | |
   |---|---|---|---|
-  | `exp` N=3 | 1448 ns | 424 ns | 3.4x |
-  | `exp` N=10 | 11339 ns | 6378 ns | 1.8x |
-  | `log` N=3 | 1386 ns | 424 ns | 3.3x |
-  | `log` N=10 | 11343 ns | 6517 ns | 1.7x |
+  | `exp` N=3 | 1448 ns | 252 ns | 5.7x |
+  | `exp` N=6 | 4713 ns | 1586 ns | 3.0x |
+  | `exp` N=10 | 11339 ns | 4176 ns | 2.7x |
+  | `log` N=3 | 1386 ns | 250 ns | 5.5x |
+  | `log` N=6 | 4541 ns | 1620 ns | 2.8x |
+  | `log` N=10 | 11343 ns | 4046 ns | 2.8x |
 
-  Against Manifolds.jl, SPD(3) `exp` moves from 2.4x to 7.1x, and the overall
-  median from 1.9x to 2.2x. Cross-language agreement is unchanged at 84 of 84,
-  with the worst deviation improving from 9.4e-14 to 8.0e-14, which is
-  consistent with Jacobi's better relative accuracy on small eigenvalues.
+  Against Manifolds.jl, SPD(3) `exp` moves from 2.4x to 13.9x and SPD(10) from
+  1.5x to 4.3x; the overall median goes from 1.9x to 2.2x. Cross-language
+  agreement holds at 84 of 84 throughout, so every one of these is removed
+  work rather than altered arithmetic.
+
+  `sym_eigenvalues` also gets a Jacobi loop that skips the eigenvector
+  accumulation, since the affine-invariant distance discards it.
 - **In-place `exp_into`, `log_into` and `transport_into`.** The
   value-returning forms must materialise and return a tangent vector, which at
   ambient dimension 50 is 400 bytes moved per call. These write into a

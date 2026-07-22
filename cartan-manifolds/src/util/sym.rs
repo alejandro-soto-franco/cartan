@@ -162,8 +162,7 @@ fn sym_eigen_s<const N: usize>(m: &SMatrix<Real, N, N>) -> (SMatrix<Real, N, N>,
 #[inline]
 pub(crate) fn sym_eigenvalues<const N: usize>(m: &SMatrix<Real, N, N>) -> DVector<Real> {
     if N <= JACOBI_MAX_N {
-        let (_, d) = jacobi_eigen(m);
-        DVector::from_column_slice(d.as_slice())
+        DVector::from_column_slice(jacobi_eigenvalues(m).as_slice())
     } else {
         DMatrix::from_column_slice(N, N, m.as_slice()).symmetric_eigenvalues()
     }
@@ -270,6 +269,69 @@ fn jacobi_eigen<const N: usize>(m: &SMatrix<Real, N, N>) -> (SMatrix<Real, N, N>
 
     let d = SVector::<Real, N>::from_fn(|i, _| a[(i, i)]);
     (v, d)
+}
+
+/// Eigenvalues by cyclic Jacobi, without accumulating the eigenvectors.
+///
+/// Same rotations as [`jacobi_eigen`], minus the rotation of `V`. That update
+/// touches `2N` entries per rotation, the same order as the update to `A`
+/// itself, so dropping it is worth roughly a third of the work. The
+/// eigenvalues-only consumers, the affine-invariant distance among them, were
+/// paying for eigenvectors they discarded.
+fn jacobi_eigenvalues<const N: usize>(m: &SMatrix<Real, N, N>) -> SVector<Real, N> {
+    let mut a = *m;
+
+    for _ in 0..JACOBI_MAX_SWEEPS {
+        let mut off = 0.0;
+        for i in 0..N {
+            for j in (i + 1)..N {
+                off += a[(i, j)] * a[(i, j)];
+            }
+        }
+        if off <= Real::EPSILON * Real::EPSILON {
+            break;
+        }
+
+        for pp in 0..N {
+            for qq in (pp + 1)..N {
+                let apq = a[(pp, qq)];
+                if apq == 0.0 {
+                    continue;
+                }
+
+                let theta = (a[(qq, qq)] - a[(pp, pp)]) / (2.0 * apq);
+                let t = if theta >= 0.0 {
+                    1.0 / (theta + (theta * theta + 1.0).sqrt())
+                } else {
+                    -1.0 / (-theta + (theta * theta + 1.0).sqrt())
+                };
+                let c = 1.0 / (t * t + 1.0).sqrt();
+                let s = t * c;
+
+                let app = a[(pp, pp)];
+                let aqq = a[(qq, qq)];
+                a[(pp, pp)] = app - t * apq;
+                a[(qq, qq)] = aqq + t * apq;
+                a[(pp, qq)] = 0.0;
+                a[(qq, pp)] = 0.0;
+
+                for k in 0..N {
+                    if k != pp && k != qq {
+                        let akp = a[(k, pp)];
+                        let akq = a[(k, qq)];
+                        let np = c * akp - s * akq;
+                        let nq = s * akp + c * akq;
+                        a[(k, pp)] = np;
+                        a[(pp, k)] = np;
+                        a[(k, qq)] = nq;
+                        a[(qq, k)] = nq;
+                    }
+                }
+            }
+        }
+    }
+
+    SVector::<Real, N>::from_fn(|i, _| a[(i, i)])
 }
 
 /// Rebuild `V diag(fd) V^T` from an eigendecomposition.
@@ -429,6 +491,36 @@ mod tests {
                 (vtv - SMatrix::<Real, 3, 3>::identity()).norm() < 1e-12,
                 "eigenvectors are not orthonormal"
             );
+        }
+    }
+
+    /// The eigenvalues-only Jacobi is a separate loop from the full one, so a
+    /// divergence between them would be silent: the distance would drift while
+    /// every decomposition-based result stayed correct.
+    #[test]
+    fn test_jacobi_eigenvalues_matches_full_decomposition() {
+        let cases = [
+            SMatrix::<Real, 3, 3>::from_row_slice(&[4.0, 2.0, 1.0, 2.0, 3.0, 0.5, 1.0, 0.5, 2.0]),
+            SMatrix::<Real, 3, 3>::identity() * 2.5,
+            SMatrix::<Real, 3, 3>::from_row_slice(&[
+                1.0, 0.0, 0.0, 0.0, 1e-13, 0.0, 0.0, 0.0, 1.0,
+            ]),
+            SMatrix::<Real, 3, 3>::from_row_slice(&[3.0, 0.0, 0.0, 0.0, 7.0, 0.0, 0.0, 0.0, 1.0]),
+        ];
+
+        for m in cases {
+            let (_, full) = jacobi_eigen(&m);
+            let only = jacobi_eigenvalues(&m);
+
+            // Same rotations in the same order, so these should agree exactly;
+            // the tolerance is there only to survive a future reordering.
+            let mut a: Vec<Real> = full.iter().copied().collect();
+            let mut b: Vec<Real> = only.iter().copied().collect();
+            a.sort_by(|x, y| x.partial_cmp(y).unwrap());
+            b.sort_by(|x, y| x.partial_cmp(y).unwrap());
+            for (x, y) in a.iter().zip(b.iter()) {
+                assert!((x - y).abs() < 1e-14, "eigenvalues diverge: {x} vs {y}");
+            }
         }
     }
 
