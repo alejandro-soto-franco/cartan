@@ -47,4 +47,4 @@ let result = minimize_rgd(
 
 ## License
 
-[MIT](../LICENSE-MIT)
+[MIT](LICENSE-MIT)

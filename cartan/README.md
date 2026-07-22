@@ -56,4 +56,4 @@ no_std support, and the published rendered documentation site at
 
 ## License
 
-[MIT](../LICENSE-MIT)
+[MIT](LICENSE-MIT)
