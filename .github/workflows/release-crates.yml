@@ -32,7 +32,9 @@ jobs:
 
       # Dependency-ordered: a crate appears only after every path dependency
       # (and dev-dependency) it relies on. cartan-io precedes cartan-maxwell
-      # because maxwell carries a dev-dependency on it. The FEEC layer is not
+      # because maxwell carries a dev-dependency on it. cartan-gpu leads: it
+      # depends on no other workspace crate, only on wgpu and the published
+      # gpufft. The FEEC layer is not
       # published from here; it comes from the upstream formoniq crates, which
       # cartan-io and cartan-maxwell consume as ordinary registry dependencies.
       - name: Release order
@@ -42,6 +44,7 @@ jobs:
           {
             echo 'crates<<EOF'
             cat <<'ORDER'
+          cartan-gpu
           cartan-core
           cartan-manifolds
           cartan-stochastic
