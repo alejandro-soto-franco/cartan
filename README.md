@@ -262,7 +262,7 @@ let lu = ops.apply_bochner_laplacian(&u, ricci_correction);
 let lq = ops.apply_lichnerowicz_laplacian(&q, curvature_correction);
 ```
 
-Also provided: sparse `ExteriorDerivative` (d₀, d₁ via `sprs`), K-generic `HodgeStar`, upwind `apply_scalar_advection_generic` / `apply_divergence_generic` (tangent-vector API for any manifold), and backward-compatible flat-mesh wrappers.
+Also provided: sparse `ExteriorDerivative` (d₀, d₁ via `nalgebra-sparse`), K-generic `HodgeStar`, upwind `apply_scalar_advection_generic` / `apply_divergence_generic` (tangent-vector API for any manifold), and backward-compatible flat-mesh wrappers.
 
 ### cartan-remesh
 
