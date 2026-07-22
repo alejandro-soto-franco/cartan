@@ -18,7 +18,7 @@
 //! - Hirani. "Discrete Exterior Calculus." Caltech PhD thesis, 2003. Chapter 3.
 
 use nalgebra::DMatrix;
-use sprs::{CsMat, TriMat};
+use nalgebra_sparse::{CooMatrix, CscMatrix};
 
 use cartan_core::Manifold;
 
@@ -30,7 +30,7 @@ use crate::mesh::{FlatMesh, Mesh};
 /// For a triangle mesh (K=3): `d[0]` (edges x vertices) and `d[1]` (faces x edges).
 pub struct ExteriorDerivative {
     /// `d[k]` maps k-cochains to (k+1)-cochains. Stored as CSC sparse matrices.
-    pub d: Vec<CsMat<f64>>,
+    pub d: Vec<CscMatrix<f64>>,
 }
 
 impl ExteriorDerivative {
@@ -62,18 +62,18 @@ impl ExteriorDerivative {
         // d[0]: nb x nv
         // For each boundary face [v0, v1, ..., v_{B-1}], the boundary operator
         // assigns alternating signs: d0[b, v_k] = (-1)^k.
-        let mut tri0 = TriMat::new((nb, nv));
+        let mut tri0 = CooMatrix::new(nb, nv);
         for (b, boundary) in mesh.boundaries.iter().enumerate() {
             for (k, &v) in boundary.iter().enumerate() {
                 let sign = if k % 2 == 0 { -1.0 } else { 1.0 };
-                tri0.add_triplet(b, v, sign);
+                tri0.push(b, v, sign);
             }
         }
-        let d0 = tri0.to_csc();
+        let d0 = CscMatrix::from(&tri0);
 
         // d[1]: ns x nb
         // Uses the precomputed simplex_boundary_ids and boundary_signs.
-        let mut tri1 = TriMat::new((ns, nb));
+        let mut tri1 = CooMatrix::new(ns, nb);
         for (s, (local_b, local_s)) in mesh
             .simplex_boundary_ids
             .iter()
@@ -81,10 +81,10 @@ impl ExteriorDerivative {
             .enumerate()
         {
             for k in 0..K {
-                tri1.add_triplet(s, local_b[k], local_s[k]);
+                tri1.push(s, local_b[k], local_s[k]);
             }
         }
-        let d1 = tri1.to_csc();
+        let d1 = CscMatrix::from(&tri1);
 
         Self { d: vec![d0, d1] }
     }
@@ -104,13 +104,13 @@ impl ExteriorDerivative {
     /// built directly here. The resulting operator chain has length one, so
     /// `degree()` is 1, `check_exactness()` is trivially 0, and `d1()` is absent.
     pub fn from_graph(n_vertices: usize, edges: &[(usize, usize)]) -> Self {
-        let mut tri = TriMat::new((edges.len(), n_vertices));
+        let mut tri = CooMatrix::new(edges.len(), n_vertices);
         for (e, &(i, j)) in edges.iter().enumerate() {
-            tri.add_triplet(e, i, -1.0);
-            tri.add_triplet(e, j, 1.0);
+            tri.push(e, i, -1.0);
+            tri.push(e, j, 1.0);
         }
         Self {
-            d: vec![tri.to_csc()],
+            d: vec![CscMatrix::from(&tri)],
         }
     }
 
@@ -147,12 +147,12 @@ impl ExteriorDerivative {
     }
 
     /// Backward-compatible accessor: d0 (0-forms to 1-forms).
-    pub fn d0(&self) -> &CsMat<f64> {
+    pub fn d0(&self) -> &CscMatrix<f64> {
         &self.d[0]
     }
 
     /// Backward-compatible accessor: d1 (1-forms to 2-forms).
-    pub fn d1(&self) -> &CsMat<f64> {
+    pub fn d1(&self) -> &CscMatrix<f64> {
         &self.d[1]
     }
 
@@ -168,10 +168,55 @@ impl ExteriorDerivative {
         let mut max_err = 0.0f64;
         for k in 0..self.d.len().saturating_sub(1) {
             let prod = &self.d[k + 1] * &self.d[k];
-            for &val in prod.data() {
+            for &val in prod.values() {
                 max_err = max_err.max(val.abs());
             }
         }
         max_err
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Assembly here pushes one contribution per incident simplex, so shared
+    // (i, j) entries receive several pushes and must sum on conversion. Every
+    // assembled operator depends on it, and the field-level tests would not
+    // catch a change, so the property is asserted directly for both formats.
+    #[test]
+    fn coo_to_csr_sums_duplicate_entries() {
+        use nalgebra_sparse::{CooMatrix, CsrMatrix};
+
+        let mut coo = CooMatrix::<f64>::new(2, 2);
+        coo.push(0, 0, 1.0);
+        coo.push(0, 0, 2.0);
+        coo.push(0, 0, 4.0);
+        coo.push(1, 1, -3.0);
+        coo.push(0, 1, 0.5);
+
+        let csr = CsrMatrix::from(&coo);
+
+        assert_eq!(csr.get_entry(0, 0).unwrap().into_value(), 7.0, "duplicates must sum");
+        assert_eq!(csr.get_entry(1, 1).unwrap().into_value(), -3.0);
+        assert_eq!(csr.get_entry(0, 1).unwrap().into_value(), 0.5);
+        assert_eq!(csr.nnz(), 3, "summed duplicates occupy one entry");
+    }
+
+    // Assembly here builds CSC, so the same property is checked for the
+    // conversion the operators actually use.
+    #[test]
+    fn coo_to_csc_sums_duplicate_entries() {
+        use nalgebra_sparse::{CooMatrix, CscMatrix};
+
+        let mut coo = CooMatrix::<f64>::new(2, 2);
+        coo.push(0, 0, 1.0);
+        coo.push(0, 0, 2.0);
+        coo.push(0, 0, 4.0);
+        coo.push(1, 1, -3.0);
+
+        let csc = CscMatrix::from(&coo);
+
+        assert_eq!(csc.get_entry(0, 0).unwrap().into_value(), 7.0, "duplicates must sum");
+        assert_eq!(csc.get_entry(1, 1).unwrap().into_value(), -3.0);
+        assert_eq!(csc.nnz(), 2, "summed duplicates occupy one entry");
     }
 }

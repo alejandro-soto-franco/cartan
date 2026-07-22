@@ -6,11 +6,16 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
+keywords = ["vtk", "paraview", "blender", "mesh", "visualization"]
+categories = ["science", "visualization", "encoding"]
+documentation = "https://docs.rs/cartan-io"
+homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core      = { path = "../cartan-core", version = "0.7" }
-cartan-dec       = { path = "../cartan-dec", version = "0.7" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.7" }
+cartan-core      = { path = "../cartan-core", version = "0.8" }
+cartan-dec       = { path = "../cartan-dec", version = "0.8" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.8" }
 simplicial       = { workspace = true }
 derham           = { workspace = true }
 nalgebra         = { workspace = true }

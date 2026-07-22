@@ -9,18 +9,18 @@
 
 use crate::error::HomogError;
 use nalgebra::{DMatrix, DVector};
-use sprs::CsMat;
+use nalgebra_sparse::CscMatrix;
 use alloc::vec::Vec;
 
 /// Preconditioned conjugate-gradient solve for `A x = b`, A symmetric positive definite.
 /// Returns (x, iterations, final_residual).
 pub fn pcg_jacobi(
-    a: &CsMat<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+    a: &CscMatrix<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
 ) -> Result<(DVector<f64>, usize, f64), HomogError> {
     let n = b.len();
     let diag = {
         let mut d = DVector::<f64>::zeros(n);
-        for (&val, (i, j)) in a.iter() {
+        for (i, j, &val) in a.triplet_iter() {
             if i == j { d[i] = val; }
         }
         d
@@ -35,7 +35,7 @@ pub fn pcg_jacobi(
     };
     let apply_a = |v: &DVector<f64>| -> DVector<f64> {
         let mut out = DVector::<f64>::zeros(v.len());
-        for (&val, (i, j)) in a.iter() {
+        for (i, j, &val) in a.triplet_iter() {
             out[i] += val * v[j];
         }
         out
@@ -76,11 +76,11 @@ pub struct Ilu0 {
 }
 
 impl Ilu0 {
-    pub fn factor(a: &CsMat<f64>) -> Self {
-        let n = a.rows();
+    pub fn factor(a: &CscMatrix<f64>) -> Self {
+        let n = a.nrows();
         // Build per-row sparse representation from A.
         let mut rows: Vec<Vec<(usize, f64)>> = vec![Vec::new(); n];
-        for (&val, (i, j)) in a.iter() {
+        for (i, j, &val) in a.triplet_iter() {
             rows[i].push((j, val));
         }
         for row in rows.iter_mut() {
@@ -167,12 +167,12 @@ impl Ilu0 {
 
 /// ILU(0)-preconditioned conjugate-gradient solve.
 pub fn pcg_ilu0(
-    a: &CsMat<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+    a: &CscMatrix<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
 ) -> Result<(DVector<f64>, usize, f64), HomogError> {
     let ilu = Ilu0::factor(a);
     let apply_a = |v: &DVector<f64>| -> DVector<f64> {
         let mut out = DVector::<f64>::zeros(v.len());
-        for (&val, (i, j)) in a.iter() { out[i] += val * v[j]; }
+        for (i, j, &val) in a.triplet_iter() { out[i] += val * v[j]; }
         out
     };
     let n = b.len();
@@ -203,10 +203,10 @@ pub fn pcg_ilu0(
 
 /// Dense LU solve for `A x = b`. Pays a O(n^3) cost; use for small n or when
 /// PCG fails to converge due to high contrast / periodic conditioning.
-pub fn solve_dense_lu(a: &CsMat<f64>, b: &DVector<f64>) -> Result<DVector<f64>, HomogError> {
+pub fn solve_dense_lu(a: &CscMatrix<f64>, b: &DVector<f64>) -> Result<DVector<f64>, HomogError> {
     let n = b.len();
     let mut dense = DMatrix::<f64>::zeros(n, n);
-    for (&val, (i, j)) in a.iter() {
+    for (i, j, &val) in a.triplet_iter() {
         dense[(i, j)] += val;
     }
     let lu = dense.lu();
@@ -224,7 +224,7 @@ pub fn solve_dense_lu(a: &CsMat<f64>, b: &DVector<f64>) -> Result<DVector<f64>, 
 /// interpolate back, correct, one Jacobi post-smooth.
 pub struct Amg {
     /// Fine-level matrix (sparse).
-    pub a_fine: CsMat<f64>,
+    pub a_fine: CscMatrix<f64>,
     /// Coarse-level LU factorisation, precomputed once in `build` and reused
     /// across every `apply` call. Reconstructing the factor per V-cycle was
     /// the v1.3 AMG performance bug that made CI hang on the capstone test.
@@ -239,12 +239,12 @@ pub struct Amg {
 }
 
 impl Amg {
-    pub fn build(a: &CsMat<f64>, theta: f64) -> Self {
-        let n = a.rows();
+    pub fn build(a: &CscMatrix<f64>, theta: f64) -> Self {
+        let n = a.nrows();
 
         // Fine diagonal.
         let mut diag_fine = DVector::<f64>::zeros(n);
-        for (&val, (i, j)) in a.iter() {
+        for (i, j, &val) in a.triplet_iter() {
             if i == j { diag_fine[i] += val; }
         }
 
@@ -253,7 +253,7 @@ impl Amg {
         let mut strong: alloc::vec::Vec<alloc::vec::Vec<usize>> = alloc::vec![alloc::vec::Vec::new(); n];
         // Collect off-diagonal entries per row then filter by strength criterion.
         let mut row_map: alloc::vec::Vec<BTreeMap<usize, f64>> = alloc::vec![BTreeMap::new(); n];
-        for (&val, (i, j)) in a.iter() {
+        for (i, j, &val) in a.triplet_iter() {
             if i != j {
                 *row_map[i].entry(j).or_insert(0.0) += val;
             }
@@ -287,7 +287,7 @@ impl Amg {
         // Build P^T A P densely (coarse dimensions are small by construction),
         // then factor once so `apply` can reuse the LU across V-cycle calls.
         let mut a_coarse = DMatrix::<f64>::zeros(n_coarse, n_coarse);
-        for (&val, (i, j)) in a.iter() {
+        for (i, j, &val) in a.triplet_iter() {
             let ki = aggregate_of[i];
             let kj = aggregate_of[j];
             a_coarse[(ki, kj)] += val;
@@ -312,7 +312,7 @@ impl Amg {
         // Pre-smooth: Jacobi step.
         for _ in 0..1 {
             let mut ax = DVector::<f64>::zeros(n);
-            for (&val, (i, j)) in self.a_fine.iter() {
+            for (i, j, &val) in self.a_fine.triplet_iter() {
                 ax[i] += val * x[j];
             }
             let res = r - &ax;
@@ -325,7 +325,7 @@ impl Amg {
 
         // Residual at fine level.
         let mut ax = DVector::<f64>::zeros(n);
-        for (&val, (i, j)) in self.a_fine.iter() { ax[i] += val * x[j]; }
+        for (i, j, &val) in self.a_fine.triplet_iter() { ax[i] += val * x[j]; }
         let residual_fine = r - ax;
 
         // Restrict to coarse.
@@ -345,7 +345,7 @@ impl Amg {
 
         // Post-smooth: one more Jacobi step.
         let mut ax = DVector::<f64>::zeros(n);
-        for (&val, (i, j)) in self.a_fine.iter() { ax[i] += val * x[j]; }
+        for (i, j, &val) in self.a_fine.triplet_iter() { ax[i] += val * x[j]; }
         let res = r - &ax;
         for i in 0..n {
             if self.diag_fine[i].abs() > 1e-30 {
@@ -358,13 +358,13 @@ impl Amg {
 
 /// AMG-preconditioned conjugate gradient.
 pub fn pcg_amg(
-    a: &CsMat<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+    a: &CscMatrix<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
 ) -> Result<(DVector<f64>, usize, f64), HomogError> {
     let amg = Amg::build(a, 0.25);
     let n = b.len();
     let apply_a = |v: &DVector<f64>| -> DVector<f64> {
         let mut out = DVector::<f64>::zeros(v.len());
-        for (&val, (i, j)) in a.iter() { out[i] += val * v[j]; }
+        for (i, j, &val) in a.triplet_iter() { out[i] += val * v[j]; }
         out
     };
     let mut x = DVector::<f64>::zeros(n);
@@ -395,7 +395,7 @@ pub fn pcg_amg(
 /// Solve ladder: Jacobi-PCG -> ILU(0)-PCG -> AMG-PCG -> dense LU.
 /// Each step is tried in turn with the given `tol`/`max_iter`.
 pub fn solve_with_fallback(
-    a: &CsMat<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+    a: &CscMatrix<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
 ) -> Result<(DVector<f64>, usize, f64), HomogError> {
     match pcg_jacobi(a, b, tol, max_iter) {
         Ok(t) => return Ok(t),
@@ -420,15 +420,15 @@ pub fn solve_with_fallback(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sprs::TriMat;
+    use nalgebra_sparse::CooMatrix;
 
     #[test]
     fn pcg_solves_diagonal_system() {
-        let mut tri = TriMat::<f64>::new((3, 3));
-        tri.add_triplet(0, 0, 2.0);
-        tri.add_triplet(1, 1, 3.0);
-        tri.add_triplet(2, 2, 4.0);
-        let a = tri.to_csc();
+        let mut tri = CooMatrix::<f64>::new(3, 3);
+        tri.push(0, 0, 2.0);
+        tri.push(1, 1, 3.0);
+        tri.push(2, 2, 4.0);
+        let a = CscMatrix::from(&tri);
         let b = DVector::from_vec(alloc::vec![2.0, 6.0, 12.0]);
         let (x, iters, res) = pcg_jacobi(&a, &b, 1e-12, 100).unwrap();
         assert!(res < 1e-10);
@@ -444,18 +444,18 @@ mod tests {
         // negative off-diagonals. AMG should converge in few iterations.
         let n_side = 6;
         let n = n_side * n_side;
-        let mut tri = TriMat::<f64>::new((n, n));
+        let mut tri = CooMatrix::<f64>::new(n, n);
         for j in 0..n_side {
             for i in 0..n_side {
                 let k = j * n_side + i;
-                tri.add_triplet(k, k, 4.0);
-                if i > 0         { tri.add_triplet(k, k - 1, -1.0); }
-                if i < n_side - 1 { tri.add_triplet(k, k + 1, -1.0); }
-                if j > 0         { tri.add_triplet(k, k - n_side, -1.0); }
-                if j < n_side - 1 { tri.add_triplet(k, k + n_side, -1.0); }
+                tri.push(k, k, 4.0);
+                if i > 0         { tri.push(k, k - 1, -1.0); }
+                if i < n_side - 1 { tri.push(k, k + 1, -1.0); }
+                if j > 0         { tri.push(k, k - n_side, -1.0); }
+                if j < n_side - 1 { tri.push(k, k + n_side, -1.0); }
             }
         }
-        let a = tri.to_csc();
+        let a = CscMatrix::from(&tri);
         let b = DVector::from_vec(alloc::vec![1.0; n]);
         let (_x, iters, res) = pcg_amg(&a, &b, 1e-10, 200).unwrap();
         assert!(res < 1e-8, "AMG-PCG residual {res}");
@@ -466,19 +466,19 @@ mod tests {
     fn ilu0_pcg_solves_small_tridiagonal() {
         // Tridiag [2, -1, -1, 2, -1, ..., -1, 2] is SPD; ILU(0) is exact here.
         let n = 10;
-        let mut tri = TriMat::<f64>::new((n, n));
+        let mut tri = CooMatrix::<f64>::new(n, n);
         for i in 0..n {
-            tri.add_triplet(i, i, 2.0);
-            if i > 0 { tri.add_triplet(i, i - 1, -1.0); tri.add_triplet(i - 1, i, -1.0); }
+            tri.push(i, i, 2.0);
+            if i > 0 { tri.push(i, i - 1, -1.0); tri.push(i - 1, i, -1.0); }
         }
-        let a = tri.to_csc();
+        let a = CscMatrix::from(&tri);
         let b = DVector::from_vec(alloc::vec![1.0; n]);
         let (x, iters, res) = pcg_ilu0(&a, &b, 1e-12, 50).unwrap();
         assert!(res < 1e-10, "ILU-PCG residual {res}");
         assert!(iters < n, "ILU-PCG should converge in <n iters, got {iters}");
         // Reconstruct A*x and compare with b.
         let mut ax = DVector::<f64>::zeros(n);
-        for (&val, (i, j)) in a.iter() { ax[i] += val * x[j]; }
+        for (i, j, &val) in a.triplet_iter() { ax[i] += val * x[j]; }
         for i in 0..n { assert!((ax[i] - b[i]).abs() < 1e-8); }
     }
 }

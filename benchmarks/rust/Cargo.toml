@@ -20,6 +20,10 @@ path = "src/pipeline_main.rs"
 name = "cartan-bench-berea"
 path = "src/berea_main.rs"
 
+[[bin]]
+name = "cartan-bench-crosslang"
+path = "src/crosslang_main.rs"
+
 [dependencies]
 cartan-core = { path = "../../cartan-core", features = ["std"] }
 cartan-manifolds = { path = "../../cartan-manifolds", features = ["std"] }

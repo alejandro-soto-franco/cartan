@@ -1,11 +1,16 @@
 [package]
 name = "cartan-maxwell"
 description = "Maxwell evolution on a prescribed evolving simplicial-Riemannian (Regge) background"
-version = "0.7.0"
+version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
+keywords = ["maxwell", "regge", "electromagnetism", "feec", "relativity"]
+categories = ["science", "simulation", "mathematics"]
+documentation = "https://docs.rs/cartan-maxwell"
+homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
 formoniq        = { workspace = true }
@@ -14,9 +19,8 @@ exterior        = { workspace = true }
 derham          = { workspace = true }
 nalgebra        = { workspace = true }
 nalgebra-sparse = { workspace = true }
-thiserror       = { workspace = true }
 
 [dev-dependencies]
 approx    = { workspace = true }
 nalgebra  = { workspace = true }
-cartan-io = { path = "../cartan-io", version = "0.7" }
+cartan-io = { path = "../cartan-io", version = "0.8" }

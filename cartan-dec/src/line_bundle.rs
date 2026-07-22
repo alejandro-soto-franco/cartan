@@ -12,7 +12,7 @@
 //!
 
 use num_complex::Complex;
-use sprs::{CsMat, TriMat};
+use nalgebra_sparse::{CooMatrix, CscMatrix};
 
 use crate::hodge::HodgeStar;
 use crate::mesh::Mesh;
@@ -328,7 +328,7 @@ pub struct BochnerLaplacian<const K: u32> {
     /// Number of vertices.
     pub n_vertices: usize,
     /// Sparse matrix (nv x nv, complex).
-    matrix: CsMat<Complex<f64>>,
+    matrix: CscMatrix<Complex<f64>>,
 }
 
 impl<const K: u32> BochnerLaplacian<K> {
@@ -348,7 +348,7 @@ impl<const K: u32> BochnerLaplacian<K> {
         let star1 = hodge.star1();
 
         // Build triplets for the sparse matrix.
-        let mut triplets = TriMat::new((nv, nv));
+        let mut triplets = CooMatrix::new(nv, nv);
 
         // Precompute inverse dual areas for row scaling.
         let inv_star0: Vec<f64> = (0..nv)
@@ -368,15 +368,15 @@ impl<const K: u32> BochnerLaplacian<K> {
             let phase = Complex::from_polar(1.0, -(K as f64) * omega);
 
             // Off-diagonal: star_0^{-1} * (-w) * exp(-iK*Omega)
-            triplets.add_triplet(vi, vj, inv_star0[vi] * (-w * phase));
-            triplets.add_triplet(vj, vi, inv_star0[vj] * (-w * phase.conj()));
+            triplets.push(vi, vj, inv_star0[vi] * (-w * phase));
+            triplets.push(vj, vi, inv_star0[vj] * (-w * phase.conj()));
 
             // Diagonal contributions: star_0^{-1} * w
-            triplets.add_triplet(vi, vi, Complex::new(inv_star0[vi] * w, 0.0));
-            triplets.add_triplet(vj, vj, Complex::new(inv_star0[vj] * w, 0.0));
+            triplets.push(vi, vi, Complex::new(inv_star0[vi] * w, 0.0));
+            triplets.push(vj, vj, Complex::new(inv_star0[vj] * w, 0.0));
         }
 
-        let raw = triplets.to_csc();
+        let raw = CscMatrix::from(&triplets);
 
         Self {
             n_vertices: nv,
@@ -390,8 +390,8 @@ impl<const K: u32> BochnerLaplacian<K> {
         let mut output = vec![Complex::new(0.0, 0.0); self.n_vertices];
 
         // Sparse matrix-vector multiply.
-        for (col, col_view) in self.matrix.outer_iterator().enumerate() {
-            for (row, &val) in col_view.iter() {
+        for (col, col_view) in self.matrix.col_iter().enumerate() {
+            for (&row, &val) in col_view.row_indices().iter().zip(col_view.values()) {
                 output[row] += val * input[col];
             }
         }
@@ -400,7 +400,7 @@ impl<const K: u32> BochnerLaplacian<K> {
     }
 
     /// Reference to the underlying sparse matrix.
-    pub fn matrix(&self) -> &CsMat<Complex<f64>> {
+    pub fn matrix(&self) -> &CscMatrix<Complex<f64>> {
         &self.matrix
     }
 }

@@ -69,16 +69,16 @@ pub fn apply_divergence_generic<M: Manifold, const K: usize, const B: usize>(
     let star1_u1form = u1form.component_mul(hodge.star1());
 
     // Step 3: Apply d0^T (sparse transpose multiply).
-    // d0 is CSC, so transpose_view gives CSR. For CSR, outer_iterator
-    // iterates over rows of d0^T.
-    let d0t = ext.d0().transpose_view();
+    // Column j of d0 holds the entries of row j of d0^T, so iterating d0's
+    // columns computes d0^T * v directly and no transpose is materialised.
+    let d0 = ext.d0();
     let mut d0t_star1_u = DVector::<f64>::zeros(nv);
-    for (row_idx, row) in d0t.outer_iterator().enumerate() {
+    for (col_idx, col) in d0.col_iter().enumerate() {
         let mut sum = 0.0;
-        for (col_idx, &val) in row.iter() {
-            sum += val * star1_u1form[col_idx];
+        for (&row_idx, &val) in col.row_indices().iter().zip(col.values()) {
+            sum += val * star1_u1form[row_idx];
         }
-        d0t_star1_u[row_idx] = sum;
+        d0t_star1_u[col_idx] = sum;
     }
 
     // Step 4: Apply star0_inv.

@@ -221,13 +221,15 @@ impl<const N: usize> Manifold for SpecialOrthogonal<N> {
     ///
     /// Ref: Milnor (1976), Lemma 1.2 (bi-invariant metrics from adjoint-invariant inner products).
     fn inner(&self, _p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
-        // (1/2) tr(U^T V): take the trace of the product U^T * V, multiply by 1/2.
-        // nalgebra's `.trace()` sums the diagonal of a matrix; `u.tr_mul(v)` computes
-        // U^T * V efficiently (using the transposed multiplication primitive).
+        // (1/2) tr(U^T V). That trace is exactly the Frobenius inner product,
+        // for any U and V:
         //
-        // NOTE: We use `(u.transpose() * v).trace()` for clarity. The equivalent
-        // `u.tr_mul(v).trace()` is faster for large N but identical numerically.
-        (u.transpose() * v).trace() * 0.5
+        //   tr(U^T V) = sum_i (U^T V)_ii = sum_i sum_j U_ji V_ji = <U, V>_F
+        //
+        // so no symmetry is assumed. Forming the N x N product and reading its
+        // diagonal computes N^3 entries to use N of them; the dot is O(N^2)
+        // and gives the same value.
+        u.dot(v) * 0.5
     }
 
     /// Exponential map: Exp_R(V) = R · exp(R^T V).

@@ -188,6 +188,32 @@ fn transport_op<const N: usize>(
 // Manifold
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// `L^{-1} X L^{-T}`, symmetrised, for the Cholesky factor `L` of the base
+/// point.
+///
+/// Both the exponential and the logarithm conjugate by an inverse square root
+/// of `P`. The affine-invariant formulae hold for *any* factor `A` with
+/// `P = A A^T`, not only the symmetric root: writing `A = P^{1/2} R` with `R`
+/// orthogonal, `R` passes through `log` and `exp` unchanged because
+/// `log(R^T X R) = R^T log(X) R`, and cancels against `R^T` on the other side.
+///
+/// So the symmetric root can be replaced by a Cholesky factor, trading a full
+/// eigendecomposition for a Cholesky and two triangular solves. That leaves
+/// one eigendecomposition per call instead of two.
+///
+/// Returns `None` if `P` is not positive definite enough for the solves, which
+/// leaves the caller to fall back to the symmetric-root path.
+fn cholesky_congruence<const N: usize>(
+    l: &SMatrix<Real, N, N>,
+    x: &SMatrix<Real, N, N>,
+) -> Option<SMatrix<Real, N, N>> {
+    let a = l.solve_lower_triangular(x)?;
+    let m = l.solve_lower_triangular(&a.transpose())?;
+    // Symmetric in exact arithmetic; the eigensolvers assume it, so the
+    // rounding asymmetry is removed rather than left to them.
+    Some(sym_symmetrize(&m))
+}
+
 impl<const N: usize> Manifold for Spd<N> {
     /// An SPD matrix: SMatrix<Real, N, N>.
     type Point = SMatrix<Real, N, N>;
@@ -218,16 +244,102 @@ impl<const N: usize> Manifold for Spd<N> {
         (p_inv * u * p_inv * v).trace()
     }
 
+    /// Geodesic distance, computed without forming the logarithm.
+    ///
+    /// ```text
+    /// d(P, Q)^2 = sum_i log^2(lambda_i),   lambda_i = eig(P^{-1} Q)
+    /// ```
+    ///
+    /// The default `Manifold::dist` is `||Log_P(Q)||_P`. Taken literally that
+    /// costs four eigendecompositions here: three inside `log`, to build
+    /// `P^{1/2}`, `P^{-1/2}` and `log(M)`, and a fourth inside `inner` via
+    /// `sym_inv`. Only the spectrum of `P^{-1} Q` actually reaches the answer,
+    /// so none of those matrices need to exist.
+    ///
+    /// The spectrum is read off `L^{-1} Q L^{-T}`, where `P = L L^T` is the
+    /// Cholesky factor. That matrix is symmetric, so the cheaper symmetric
+    /// eigensolver applies, and it is similar to `P^{-1} Q`, so it carries the
+    /// same eigenvalues. A Cholesky costs a fraction of the eigendecomposition
+    /// it replaces, and only eigenvalues are requested, not eigenvectors.
+    ///
+    /// Eigenvalues are floored at 1e-14 before the logarithm, matching
+    /// `sym_log`, so a point that has lost positive-definiteness to roundoff
+    /// degrades the same way it would through the general path.
+    ///
+    /// SPD(N) is a Cartan-Hadamard manifold with empty cut locus, so this is
+    /// defined for every pair and fails only if `P` is not positive definite.
+    fn dist(&self, p: &Self::Point, q: &Self::Point) -> Result<Real, CartanError> {
+        let chol = p.cholesky().ok_or_else(|| {
+            #[cfg(feature = "alloc")]
+            {
+                CartanError::NumericalFailure {
+                    operation: "dist(SPD(N))".to_string(),
+                    message: "Cholesky of the base point failed; P is not positive definite"
+                        .to_string(),
+                }
+            }
+            #[cfg(not(feature = "alloc"))]
+            {
+                CartanError::NumericalFailure {
+                    operation: "dist(SPD(N))",
+                    message: "Cholesky of the base point failed; P is not positive definite",
+                }
+            }
+        })?;
+        let l = chol.l();
+
+        // A = L^{-1} Q, then M = L^{-1} A^T = L^{-1} Q L^{-T}, using that Q is
+        // symmetric. Two triangular solves, no explicit inverse.
+        let singular = || {
+            #[cfg(feature = "alloc")]
+            {
+                CartanError::NumericalFailure {
+                    operation: "dist(SPD(N))".to_string(),
+                    message: "triangular solve against the Cholesky factor failed".to_string(),
+                }
+            }
+            #[cfg(not(feature = "alloc"))]
+            {
+                CartanError::NumericalFailure {
+                    operation: "dist(SPD(N))",
+                    message: "triangular solve against the Cholesky factor failed",
+                }
+            }
+        };
+        let a = l.solve_lower_triangular(q).ok_or_else(singular)?;
+        let m = l.solve_lower_triangular(&a.transpose()).ok_or_else(singular)?;
+
+        let sum_sq: Real = crate::util::sym::sym_eigenvalues(&m)
+            .iter()
+            .map(|&lambda| {
+                let ln = lambda.max(1e-14).ln();
+                ln * ln
+            })
+            .sum();
+
+        Ok(sum_sq.sqrt())
+    }
+
     /// Exponential map (affine-invariant geodesic):
     ///
     /// ```text
     /// Exp_P(V) = P^{1/2} exp(P^{-1/2} V P^{-1/2}) P^{1/2}
     /// ```
     fn exp(&self, p: &Self::Point, v: &Self::Tangent) -> Self::Point {
-        let sqrt_p = sym_sqrt(p);
-        let sqrt_p_inv = sym_sqrt_inv(p);
-        let s = sqrt_p_inv * v * sqrt_p_inv; // P^{-1/2} V P^{-1/2}, symmetric
-        sqrt_p * sym_exp(&s) * sqrt_p // P^{1/2} exp(S) P^{1/2}
+        // Exp_P(V) = L exp(L^{-1} V L^{-T}) L^T with P = L L^T; see
+        // `cholesky_congruence` for why any factor of P will do.
+        if let Some(chol) = p.cholesky() {
+            let l = chol.l();
+            if let Some(s) = cholesky_congruence(&l, v) {
+                return l * sym_exp(&s) * l.transpose();
+            }
+        }
+
+        // P has lost positive definiteness to rounding; the symmetric root
+        // floors its eigenvalues and still returns something usable.
+        let (sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
+        let s = sqrt_p_inv * v * sqrt_p_inv;
+        sqrt_p * sym_exp(&s) * sqrt_p
     }
 
     /// Logarithmic map (affine-invariant geodesic):
@@ -238,10 +350,19 @@ impl<const N: usize> Manifold for Spd<N> {
     ///
     /// Globally defined: SPD(N) is a Cartan-Hadamard manifold (no cut locus).
     fn log(&self, p: &Self::Point, q: &Self::Point) -> Result<Self::Tangent, CartanError> {
-        let sqrt_p = sym_sqrt(p);
-        let sqrt_p_inv = sym_sqrt_inv(p);
-        let m = sqrt_p_inv * q * sqrt_p_inv; // P^{-1/2} Q P^{-1/2}, symmetric PD
-        Ok(sqrt_p * sym_log(&m) * sqrt_p) // P^{1/2} log(M) P^{1/2}
+        // Log_P(Q) = L log(L^{-1} Q L^{-T}) L^T with P = L L^T; see
+        // `cholesky_congruence` for why any factor of P will do.
+        if let Some(chol) = p.cholesky() {
+            let l = chol.l();
+            if let Some(m) = cholesky_congruence(&l, q) {
+                return Ok(l * sym_log(&m) * l.transpose());
+            }
+        }
+
+        // Fallback for a P that is not positive definite enough to factor.
+        let (sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
+        let m = sqrt_p_inv * q * sqrt_p_inv;
+        Ok(sqrt_p * sym_log(&m) * sqrt_p)
     }
 
     /// Project ambient matrix onto T_P SPD(N): symmetrize.
@@ -541,6 +662,137 @@ mod tests {
 
     fn sample_spd_3b() -> SMatrix<Real, 3, 3> {
         SMatrix::<Real, 3, 3>::from_row_slice(&[3.0, 1.0, 0.5, 1.0, 4.0, 1.5, 0.5, 1.5, 2.5])
+    }
+
+    /// `exp` and `log` factor P by Cholesky rather than by its symmetric
+    /// square root. That is a different factor, justified by the congruence
+    /// argument on `cholesky_congruence`, so it is checked against the formula
+    /// it replaced rather than left to the round-trip tests.
+    #[test]
+    fn test_exp_log_match_symmetric_root_formula() {
+        use crate::util::sym::sym_sqrt_pair;
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        macro_rules! check {
+            ($n:literal) => {{
+                let m = Spd::<$n>;
+                let mut rng = StdRng::seed_from_u64(31);
+                for _ in 0..30 {
+                    let p = m.random_point(&mut rng);
+                    let q = m.random_point(&mut rng);
+                    let v = m.random_tangent(&p, &mut rng);
+
+                    let (sqrt_p, sqrt_p_inv) = sym_sqrt_pair(&p);
+
+                    let exp_ref = sqrt_p * sym_exp(&(sqrt_p_inv * v * sqrt_p_inv)) * sqrt_p;
+                    let exp_got = m.exp(&p, &v);
+                    let e = (exp_got - exp_ref).norm() / exp_ref.norm();
+                    assert!(e < 1e-10, "exp disagrees on SPD({}): {e:.3e}", $n);
+
+                    let log_ref = sqrt_p * sym_log(&(sqrt_p_inv * q * sqrt_p_inv)) * sqrt_p;
+                    let log_got = m.log(&p, &q).unwrap();
+                    let e = (log_got - log_ref).norm() / log_ref.norm();
+                    assert!(e < 1e-10, "log disagrees on SPD({}): {e:.3e}", $n);
+                }
+            }};
+        }
+
+        check!(2);
+        check!(3);
+        check!(6);
+    }
+
+    /// The result of `exp` must stay symmetric. A congruence by a triangular
+    /// factor is symmetric in exact arithmetic but not obviously so in
+    /// floating point, and an asymmetric point would poison every later
+    /// eigendecomposition.
+    #[test]
+    fn test_exp_result_is_symmetric() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        let m = Spd::<6>;
+        let mut rng = StdRng::seed_from_u64(17);
+        for _ in 0..30 {
+            let p = m.random_point(&mut rng);
+            let v = m.random_tangent(&p, &mut rng);
+            let e = m.exp(&p, &v);
+            let asym = (e - e.transpose()).norm() / e.norm();
+            assert!(asym < 1e-13, "exp result is asymmetric: {asym:.3e}");
+        }
+    }
+
+    // ── Distance agrees with its definition ─────────────────────────────────
+
+    /// `dist` has a specialised implementation that never forms the matrix
+    /// logarithm. This pins it to the definition it replaced,
+    /// `d(P, Q) = ||Log_P(Q)||_P`, so a divergence fails loudly rather than
+    /// silently returning a slightly different metric.
+    #[test]
+    fn test_dist_matches_norm_of_log() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        macro_rules! check {
+            ($n:literal) => {{
+                let m = Spd::<$n>;
+                let mut rng = StdRng::seed_from_u64(7);
+                for _ in 0..25 {
+                    let p = m.random_point(&mut rng);
+                    let q = m.random_point(&mut rng);
+
+                    let fast = m.dist(&p, &q).unwrap();
+                    let reference = m.norm(&p, &m.log(&p, &q).unwrap());
+
+                    assert_relative_eq!(fast, reference, epsilon = 1e-9, max_relative = 1e-9);
+                }
+            }};
+        }
+
+        check!(2);
+        check!(3);
+        check!(6);
+    }
+
+    /// The affine-invariant distance is symmetric and vanishes only on the
+    /// diagonal. A formula built from one operand's Cholesky factor could
+    /// plausibly break symmetry, so it is checked rather than assumed.
+    #[test]
+    fn test_dist_symmetric_and_zero_on_diagonal() {
+        let m = Spd::<3>;
+        let a = sample_spd_3();
+        let b = sample_spd_3b();
+
+        assert_relative_eq!(m.dist(&a, &b).unwrap(), m.dist(&b, &a).unwrap(), epsilon = 1e-12);
+        assert!(m.dist(&a, &a).unwrap() < 1e-12);
+        assert!(m.dist(&a, &b).unwrap() > 0.0);
+    }
+
+    /// Affine invariance: d(A P A^T, A Q A^T) = d(P, Q) for any invertible A.
+    /// This is the property that distinguishes the metric, and it is exactly
+    /// what an eigenvalue-based formula must preserve.
+    #[test]
+    fn test_dist_affine_invariant() {
+        let m = Spd::<3>;
+        let p = sample_spd_3();
+        let q = sample_spd_3b();
+
+        let a = SMatrix::<Real, 3, 3>::from_row_slice(&[
+            1.0, 0.5, 0.0,
+            0.0, 2.0, 0.3,
+            0.2, 0.0, 1.5,
+        ]);
+
+        let pa = a * p * a.transpose();
+        let qa = a * q * a.transpose();
+
+        assert_relative_eq!(
+            m.dist(&p, &q).unwrap(),
+            m.dist(&pa, &qa).unwrap(),
+            epsilon = 1e-9,
+            max_relative = 1e-9
+        );
     }
 
     // ── Basic geometry ──────────────────────────────────────────────────────

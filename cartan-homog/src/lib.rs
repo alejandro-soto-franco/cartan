@@ -1,10 +1,21 @@
 //! Mean-field and full-field homogenisation of random media, generic over tensor order.
+//!
+//! # Feature tiers
+//!
+//! The crate builds on `no_std` targets with `default-features = false,
+//! features = ["alloc"]`. One numerical behaviour differs at that tier:
+//! `SelfConsistent` damps its fixed-point iteration linearly rather than along
+//! SPD geodesics, because the geodesic step needs an eigen decomposition that
+//! requires std. It converges to the same fixed point, more slowly.
+//!
+//! `full-field`, `stochastic` and `gpu-fft` all require std.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
 
 pub mod error;
+mod float;
 pub mod tensor;
 pub mod kelvin_mandel;
 pub mod shapes;
