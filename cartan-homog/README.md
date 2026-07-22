@@ -110,3 +110,7 @@ rve.set_matrix("MATRIX");
 let k_eff = MoriTanaka.homogenize(&rve, &SchemeOpts::default()).unwrap();
 println!("k_eff = {:?}", k_eff.tensor);
 ```
+
+## License
+
+[MIT](LICENSE-MIT)

@@ -43,4 +43,4 @@ println!("remesh ops: {} splits, {} collapses", log.splits.len(), log.collapses.
 
 ## License
 
-[MIT](../LICENSE-MIT)
+[MIT](LICENSE-MIT)
