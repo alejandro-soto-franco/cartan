@@ -11,7 +11,7 @@
 //! Currently implemented for triangle meshes (K=3) in R^3 (D=3).
 
 use nalgebra::{Matrix3, SMatrix, SVector};
-use sprs::{CsMat, TriMat};
+use nalgebra_sparse::{CooMatrix, CscMatrix};
 
 use crate::mesh::Mesh;
 use cartan_core::Manifold;
@@ -118,12 +118,12 @@ pub struct ExtrinsicOperators {
     /// Number of faces.
     pub n_faces: usize,
     /// Divergence: maps 3*nv velocity to nv scalar (area change rate).
-    pub div: CsMat<f64>,
+    pub div: CscMatrix<f64>,
     /// Gradient: maps nv scalar (pressure) to 3*nv velocity. GRAD = -DIV^T.
-    pub grad: CsMat<f64>,
+    pub grad: CscMatrix<f64>,
     /// Viscosity Laplacian: 3*nv -> 3*nv, symmetric negative semi-definite.
     /// L = K^T A^{-1} K where K is the Killing operator.
-    pub viscosity_lap: CsMat<f64>,
+    pub viscosity_lap: CscMatrix<f64>,
     /// Face areas (for weighting).
     pub face_areas: Vec<f64>,
 }
@@ -163,8 +163,8 @@ impl ExtrinsicOperators {
         // We'll directly build the viscosity Laplacian L = sum_f (1/A_f) K_f^T K_f
         // and the divergence DIV = sum_f tr(K_f).
 
-        let mut div_triplets = TriMat::new((nv, 3 * nv));
-        let mut lap_triplets = TriMat::new((3 * nv, 3 * nv));
+        let mut div_triplets = CooMatrix::new(nv, 3 * nv);
+        let mut lap_triplets = CooMatrix::new(3 * nv, 3 * nv);
 
         for f in 0..nf {
             let simplex = &mesh.simplices[f];
@@ -222,7 +222,7 @@ impl ExtrinsicOperators {
                         for ib in 0..3 {
                             let val = ktk[(local_a * 3 + ia, local_b * 3 + ib)];
                             if val.abs() > 1e-30 {
-                                lap_triplets.add_triplet(va * 3 + ia, vb * 3 + ib, val);
+                                lap_triplets.push(va * 3 + ia, vb * 3 + ib, val);
                             }
                         }
                     }
@@ -241,18 +241,18 @@ impl ExtrinsicOperators {
                         let trace_val = k_f[(0, col)] + k_f[(1, col)] + k_f[(2, col)];
                         if trace_val.abs() > 1e-30 {
                             // Weight: area / 3 per vertex (dual cell contribution).
-                            div_triplets.add_triplet(v, vl * 3 + i, trace_val * area / 3.0);
+                            div_triplets.push(v, vl * 3 + i, trace_val * area / 3.0);
                         }
                     }
                 }
             }
         }
 
-        let div = div_triplets.to_csc();
-        let viscosity_lap = lap_triplets.to_csc();
+        let div = CscMatrix::from(&div_triplets);
+        let viscosity_lap = CscMatrix::from(&lap_triplets);
 
         // GRAD = -DIV^T
-        let grad = div.transpose_view().to_csc().map(|&v| -v);
+        let grad = -div.transpose();
 
         Self {
             n_vertices: nv,
@@ -293,16 +293,16 @@ impl ExtrinsicOperators {
 }
 
 /// Sparse matrix-vector multiply.
-fn sparse_matvec(mat: &CsMat<f64>, x: &[f64]) -> Vec<f64> {
-    let nrows = mat.rows();
+fn sparse_matvec(mat: &CscMatrix<f64>, x: &[f64]) -> Vec<f64> {
+    let nrows = mat.nrows();
     let mut y = vec![0.0; nrows];
     // CSC: iterate over columns.
-    for (col, col_view) in mat.outer_iterator().enumerate() {
+    for (col, col_view) in mat.col_iter().enumerate() {
         let xc = x[col];
         if xc.abs() < 1e-30 {
             continue;
         }
-        for (row, &val) in col_view.iter() {
+        for (&row, &val) in col_view.row_indices().iter().zip(col_view.values()) {
             y[row] += val * xc;
         }
     }

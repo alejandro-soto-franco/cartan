@@ -97,12 +97,12 @@ fn test_extrinsic_operators_dimensions() {
     let ops = ExtrinsicOperators::from_mesh(&mesh);
 
     let nv = mesh.n_vertices();
-    assert_eq!(ops.div.rows(), nv);
-    assert_eq!(ops.div.cols(), 3 * nv);
-    assert_eq!(ops.grad.rows(), 3 * nv);
-    assert_eq!(ops.grad.cols(), nv);
-    assert_eq!(ops.viscosity_lap.rows(), 3 * nv);
-    assert_eq!(ops.viscosity_lap.cols(), 3 * nv);
+    assert_eq!(ops.div.nrows(), nv);
+    assert_eq!(ops.div.ncols(), 3 * nv);
+    assert_eq!(ops.grad.nrows(), 3 * nv);
+    assert_eq!(ops.grad.ncols(), nv);
+    assert_eq!(ops.viscosity_lap.nrows(), 3 * nv);
+    assert_eq!(ops.viscosity_lap.ncols(), 3 * nv);
 }
 
 #[test]
@@ -113,10 +113,10 @@ fn test_viscosity_lap_symmetric() {
 
     let _n = 3 * mesh.n_vertices();
     // Check symmetry: L[i,j] == L[j,i] for sampled entries.
-    for col_view in ops.viscosity_lap.outer_iterator().enumerate() {
-        let (col, view) = col_view;
-        for (row, &val) in view.iter() {
-            if let Some(&val_t) = ops.viscosity_lap.get(col, row) {
+    for (col, view) in ops.viscosity_lap.col_iter().enumerate() {
+        for (&row, &val) in view.row_indices().iter().zip(view.values()) {
+            if let Some(entry) = ops.viscosity_lap.get_entry(col, row) {
+                let val_t = entry.into_value();
                 assert!(
                     (val - val_t).abs() < 1e-10,
                     "L[{row},{col}] = {val}, L[{col},{row}] = {val_t}"
