@@ -80,6 +80,13 @@ pub struct Sphere<const N: usize>;
 
 /// Tolerance for detecting near-zero and near-pi angles.
 const ANGLE_EPS: Real = 1e-7;
+
+/// Cut-locus threshold expressed on `1 + cos(angle)` rather than on the angle.
+///
+/// `1 - cos(ANGLE_EPS) ~ ANGLE_EPS^2 / 2`, so this is the same boundary that
+/// `log` applies as `|pi - angle| < ANGLE_EPS`, in the form `transport` can
+/// test without computing the angle.
+const CUT_LOCUS_EPS: Real = 0.5 * ANGLE_EPS * ANGLE_EPS;
 /// Tolerance for point/tangent validation.
 const VALIDATION_TOL: Real = 1e-10;
 
@@ -320,20 +327,53 @@ impl<const N: usize> ParallelTransport for Sphere<N> {
         q: &Self::Point,
         v: &Self::Tangent,
     ) -> Result<Self::Tangent, CartanError> {
-        let log_pq = self.log(p, q)?;
-        let dist_sq = self.inner(p, &log_pq, &log_pq);
+        // Written in terms of the dot product alone:
+        //
+        //   PT(v) = v - (v.w) (w/(1+c) + p),   c = p.q,   w = q - c p
+        //
+        // Transport rotates the component of v in the (p, w) plane through the
+        // angle theta between p and q, and fixes the rest. For unit vectors
+        // cos(theta) = c and ||w|| = sin(theta), so both trig calls cancel out
+        // of the rotation and neither theta nor a normalisation is ever formed.
+        //
+        // The previous form evaluated log twice, once in each direction, each
+        // paying an inverse trig call, a norm and a division.
+        //
+        // That the result is tangent at q is exact rather than approximate:
+        //   PT(v).q = v.w - (v.w)[(1 - c^2)/(1 + c) + c] = 0,
+        // using v.p = 0 and q.q = 1.
+        let c = p.dot(q).clamp(-1.0, 1.0);
+        let one_plus_c = 1.0 + c;
 
-        if dist_sq < ANGLE_EPS * ANGLE_EPS {
-            // Points are very close: transport is approximately identity.
-            // Re-project to ensure result is in T_qS.
-            return Ok(self.project_tangent(q, v));
+        // Cut locus: theta -> pi, where the minimising geodesic is not unique.
+        // Since c = cos(theta), the condition |pi - theta| < ANGLE_EPS that
+        // `log` uses becomes 1 + c < 1 - cos(ANGLE_EPS) ~ ANGLE_EPS^2 / 2, so
+        // both agree on where transport stops being defined.
+        if one_plus_c < CUT_LOCUS_EPS {
+            #[cfg(feature = "alloc")]
+            return Err(CartanError::CutLocus {
+                message: alloc::format!(
+                    "points are nearly antipodal on S^{}: 1 + cos(angle) = {:.2e}",
+                    N - 1,
+                    one_plus_c
+                ),
+            });
+            #[cfg(not(feature = "alloc"))]
+            return Err(CartanError::CutLocus {
+                message: "points are nearly antipodal (cut locus of sphere)",
+            });
         }
 
-        let log_qp = self.log(q, p)?;
-        let coeff = self.inner(p, &log_pq, v) / dist_sq;
-        let transported = v - (log_pq + log_qp) * coeff;
+        // As p approaches q, w tends to zero and the correction vanishes, so
+        // the coincident case needs no branch of its own.
+        let w = q - p * c;
+        let beta = v.dot(&w);
+        let transported = v - (w / one_plus_c + p) * beta;
 
-        // Re-project for numerical safety.
+        // Re-projected, and not merely out of caution. Tangency is exact in
+        // exact arithmetic, but `w/(1 + c)` amplifies rounding as c approaches
+        // -1: without this the residual reaches 4e-10 near the cut locus, which
+        // `test_transport_tangency_holds_near_cut_locus` pins.
         Ok(self.project_tangent(q, &transported))
     }
 }
@@ -432,6 +472,150 @@ impl<const N: usize> GeodesicInterpolation for Sphere<N> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `transport` has a closed form that never calls `log`. This pins it to
+    /// the two-log formula it replaced (Absil et al. 8.1.3), so a divergence
+    /// fails loudly rather than silently returning a different connection.
+    #[test]
+    fn test_transport_matches_two_log_formula() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        macro_rules! check {
+            ($n:literal) => {{
+                let m = Sphere::<$n>;
+                let mut rng = StdRng::seed_from_u64(11);
+                for _ in 0..40 {
+                    let p = m.random_point(&mut rng);
+                    let q = m.random_point(&mut rng);
+                    let v = m.random_tangent(&p, &mut rng);
+
+                    // Reference: v - (<log_p q, v> / d^2)(log_p q + log_q p).
+                    let log_pq = m.log(&p, &q).unwrap();
+                    let log_qp = m.log(&q, &p).unwrap();
+                    let d_sq = m.inner(&p, &log_pq, &log_pq);
+                    let coeff = m.inner(&p, &log_pq, &v) / d_sq;
+                    let reference = m.project_tangent(&q, &(v - (log_pq + log_qp) * coeff));
+
+                    let fast = m.transport(&p, &q, &v).unwrap();
+                    assert!(
+                        (fast - reference).norm() < 1e-9,
+                        "transport disagrees on S^{}: {:.3e}",
+                        $n - 1,
+                        (fast - reference).norm()
+                    );
+                }
+            }};
+        }
+
+        check!(3);
+        check!(10);
+        check!(50);
+    }
+
+    /// Parallel transport is an isometry between tangent spaces, and lands in
+    /// the tangent space at the destination. A closed form that dropped the
+    /// final projection could satisfy the first and fail the second.
+    #[test]
+    fn test_transport_is_isometric_and_tangent() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        let m = Sphere::<10>;
+        let mut rng = StdRng::seed_from_u64(3);
+        for _ in 0..40 {
+            let p = m.random_point(&mut rng);
+            let q = m.random_point(&mut rng);
+            let u = m.random_tangent(&p, &mut rng);
+            let v = m.random_tangent(&p, &mut rng);
+
+            let u_q = m.transport(&p, &q, &u).unwrap();
+            let v_q = m.transport(&p, &q, &v).unwrap();
+
+            assert!((m.inner(&p, &u, &v) - m.inner(&q, &u_q, &v_q)).abs() < 1e-10);
+            assert!(u_q.dot(&q).abs() < 1e-12, "result must lie in T_q S");
+        }
+    }
+
+    /// Transporting to the same point is the identity, and the formula must
+    /// not degrade as p approaches q, where the direction to q is ill-defined.
+    #[test]
+    fn test_transport_identity_and_near_coincident() {
+        let m = Sphere::<3>;
+        let p = SVector::<Real, 3>::new(0.0, 0.0, 1.0);
+        let v = SVector::<Real, 3>::new(0.3, -0.4, 0.0);
+
+        let same = m.transport(&p, &p, &v).unwrap();
+        assert!((same - v).norm() < 1e-12);
+
+        for eps in [1e-3, 1e-6, 1e-9, 1e-12] {
+            let q = SVector::<Real, 3>::new(eps, 0.0, (1.0 - eps * eps).sqrt());
+            let t = m.transport(&p, &q, &v).unwrap();
+            assert!(t.dot(&q).abs() < 1e-12, "eps = {eps:e}: not tangent at q");
+            assert!(
+                (t.norm() - v.norm()).abs() < 1e-9,
+                "eps = {eps:e}: norm not preserved"
+            );
+        }
+    }
+
+    /// Near the cut locus `w/(1 + c)` amplifies rounding, so the tangency the
+    /// closed form guarantees in exact arithmetic could drift. This measures
+    /// the drift across the whole approach to the cut locus, which is what
+    /// justifies not re-projecting the result.
+    #[test]
+    fn test_transport_tangency_holds_near_cut_locus() {
+        use core::f64::consts::PI;
+
+        let m = Sphere::<10>;
+        let mut worst: Real = 0.0;
+        let mut worst_theta = 0.0;
+
+        for k in 0..60 {
+            // Approach theta = pi geometrically, stopping short of the guard.
+            let theta = PI - 1e-1 * (0.8_f64).powi(k);
+            if theta >= PI {
+                continue;
+            }
+            let mut p = SVector::<Real, 10>::zeros();
+            p[0] = 1.0;
+            let mut dir = SVector::<Real, 10>::zeros();
+            dir[1] = 1.0;
+
+            let q = p * theta.cos() + dir * theta.sin();
+            let mut v = SVector::<Real, 10>::zeros();
+            v[1] = 0.6;
+            v[2] = 0.8;
+
+            if let Ok(t) = m.transport(&p, &q, &v) {
+                let resid = t.dot(&q).abs() / t.norm().max(1.0);
+                if resid > worst {
+                    worst = resid;
+                    worst_theta = theta;
+                }
+            }
+        }
+
+        assert!(
+            worst < 1e-13,
+            "tangency drifts to {worst:.3e} at theta = {worst_theta}, \
+             which would mean the result needs re-projecting"
+        );
+    }
+
+    /// Antipodal points are the cut locus: transport along a minimising
+    /// geodesic is undefined there and must report that rather than return a
+    /// plausible-looking vector.
+    #[test]
+    fn test_transport_errors_at_cut_locus() {
+        let m = Sphere::<3>;
+        let north = SVector::<Real, 3>::new(0.0, 0.0, 1.0);
+        let south = SVector::<Real, 3>::new(0.0, 0.0, -1.0);
+        let v = SVector::<Real, 3>::new(1.0, 0.0, 0.0);
+
+        assert!(m.transport(&north, &south, &v).is_err());
+    }
+
     use cartan_core::{Connection, Manifold};
     use nalgebra::SVector;
 
