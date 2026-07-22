@@ -10,11 +10,10 @@ keywords = ["homogenization", "micromechanics", "eshelby", "mori-tanaka", "spd"]
 categories = ["mathematics", "science", "algorithms"]
 
 [features]
-default = ["std", "serde"]
+default = ["std"]
 std = ["alloc", "cartan-core/std", "cartan-manifolds/std", "nalgebra/std"]
 alloc = ["cartan-core/alloc", "cartan-manifolds/alloc", "nalgebra/alloc"]
-serde = ["dep:serde"]
-full-field = ["std", "dep:cartan-dec", "dep:cartan-remesh", "dep:sprs", "dep:rayon"]
+full-field = ["std", "dep:cartan-dec", "dep:cartan-remesh", "dep:sprs"]
 stochastic = ["std", "dep:cartan-stochastic", "dep:rand", "dep:rand_distr"]
 # Spectral (Moulinec–Suquet) homogenisation through gpufft's FFT.
 # Alternative to the FEM full-field path; the two methods discretise the
@@ -33,9 +32,7 @@ nalgebra   = { workspace = true, features = ["libm"] }
 # used in no_std mode. Matches the pattern in cartan-core.
 libm       = { version = "0.2", default-features = false }
 thiserror  = { workspace = true }
-serde      = { workspace = true, optional = true }
 sprs       = { workspace = true, optional = true }
-rayon      = { workspace = true, optional = true }
 rand       = { workspace = true, optional = true, default-features = false }
 rand_distr = { workspace = true, optional = true, default-features = false }
 # Spectral FFT via gpufft (published crate). Vulkan backend is sufficient for

@@ -32,7 +32,6 @@ nalgebra = { version = "0.35", default-features = false }
 itertools = { version = "0.13", default-features = false, features = ["use_std"] }
 rand = { version = "0.9", default-features = false }
 rand_distr = { version = "0.5", default-features = false }
-rayon = { version = "1" }
 thiserror = { version = "2", default-features = false }
 serde = { version = "1", features = ["derive"], default-features = false }
 serde_json = { version = "1", default-features = false }
@@ -40,7 +39,6 @@ sprs = { version = "0.11", default-features = false }
 approx = { version = "0.5", default-features = false }
 hashbrown = { version = "0.15", default-features = false }
 num-complex = { version = "0.4", default-features = false }
-indexmap = { version = "2", default-features = false, features = ["std", "rayon"] }
 
 # Upstream formoniq FEEC stack. Pinned exactly: 0.2.0 is the first published
 # release and the crate graph was renamed wholesale just before it, so the API
