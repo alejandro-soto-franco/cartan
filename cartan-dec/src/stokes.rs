@@ -9,7 +9,7 @@
 //! is solved by conjugate gradient.
 
 use nalgebra::SVector;
-use sprs::{CsMat, TriMat};
+use nalgebra_sparse::{CooMatrix, CscMatrix};
 
 use crate::extrinsic::ExtrinsicOperators;
 use crate::mesh::Mesh;
@@ -25,7 +25,7 @@ pub struct StokesSolverAL {
     /// Extrinsic operators (DIV, GRAD, L).
     ops: ExtrinsicOperators,
     /// Augmented system matrix: A = L + k * GRAD * DIV.
-    augmented: CsMat<f64>,
+    augmented: CscMatrix<f64>,
     /// Killing vector basis (rigid motions to project out).
     killing_basis: Vec<Vec<f64>>,
     /// Penalty parameter for augmented Lagrangian.
@@ -78,19 +78,19 @@ impl StokesSolverAL {
         // but we negate it to get PSD for the solver).
         // DIV^T * DIV is PSD.
         // So A is PSD (positive semi-definite), suitable for CG.
-        let dtd = &ops.div.transpose_view().to_csc() * &ops.div;
-        let neg_l = ops.viscosity_lap.map(|&v| -v);
-        let augmented_base = &neg_l + &(dtd.map(|&v| v * penalty));
+        let dtd = &ops.div.transpose() * &ops.div;
+        let neg_l = -&ops.viscosity_lap;
+        let augmented_base = &neg_l + &(dtd * penalty);
 
         // Add small regularisation to make strictly positive definite
         // (removes the Killing vector kernel numerically).
         let n = 3 * nv;
         let eps = 1e-8;
-        let mut reg = TriMat::new((n, n));
+        let mut reg = CooMatrix::new(n, n);
         for i in 0..n {
-            reg.add_triplet(i, i, eps);
+            reg.push(i, i, eps);
         }
-        let augmented = &augmented_base + &reg.to_csc();
+        let augmented = &augmented_base + &CscMatrix::from(&reg);
 
         // Compute Killing vector basis: rigid motions of R^3.
         // 3 translations + 3 rotations = 6D kernel.
@@ -273,15 +273,15 @@ fn compute_killing_basis<M: Manifold<Point = SVector<f64, D>>>(
 }
 
 /// Sparse matrix-vector multiply (real-valued).
-fn sparse_matvec_real(mat: &CsMat<f64>, x: &[f64]) -> Vec<f64> {
-    let nrows = mat.rows();
+fn sparse_matvec_real(mat: &CscMatrix<f64>, x: &[f64]) -> Vec<f64> {
+    let nrows = mat.nrows();
     let mut y = vec![0.0; nrows];
-    for (col, col_view) in mat.outer_iterator().enumerate() {
+    for (col, col_view) in mat.col_iter().enumerate() {
         let xc = x[col];
         if xc.abs() < 1e-30 {
             continue;
         }
-        for (row, &val) in col_view.iter() {
+        for (&row, &val) in col_view.row_indices().iter().zip(col_view.values()) {
             y[row] += val * xc;
         }
     }
