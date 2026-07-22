@@ -14,7 +14,7 @@ pub struct PennyCrack {
 
 impl PennyCrack {
     pub fn new(normal: Unit<Vector3<f64>>, density: f64) -> Self {
-        // tiny_aspect: default 1e-3 chosen to match ECHOES's penny-crack convention
+        // tiny_aspect: default 1e-3, the standard penny-crack convention
         // (spheroidal(1e-3)). Smaller values reproduce the Kachanov/Budiansky-O'Connell
         // limit more faithfully but cause conditioning issues in I + P:(δC)^{-1}
         // near the void limit. 1e-3 is a pragmatic compromise.
