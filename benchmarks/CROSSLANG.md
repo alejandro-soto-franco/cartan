@@ -8,7 +8,7 @@ Regenerate with `python/make_fixtures.py` and the three harnesses.
 
 ## Agreement
 
-Every comparison agrees to better than `1e-12`. Largest deviation across all 51 comparisons: `9.415e-14`.
+Every comparison agrees to better than `1e-12`. Largest deviation across all 84 comparisons: `9.415e-14`.
 
 ### Verified convention difference: geoopt transport
 
@@ -33,35 +33,69 @@ transport, these rows would be reported as real disagreements.
 Median nanoseconds per call. A ratio above 1 means cartan is faster.
 Rows whose values did not agree are omitted rather than reported.
 
-| case | op | cartan (ns) | Manifolds.jl | geomstats | geoopt |
-|---|---|---|---|---|---|
-| spd 3 | dist | 402 | 1405 (3.5x) | 12854 (32.0x) | - |
-| spd 3 | exp | 1448 | 3443 (2.4x) | 32912 (22.7x) | - |
-| spd 3 | log | 1386 | 3492 (2.5x) | 35717 (25.8x) | - |
-| spd 6 | dist | 1427 | 2830 (2.0x) | 15348 (10.8x) | - |
-| spd 6 | exp | 4713 | 8399 (1.8x) | 37080 (7.9x) | - |
-| spd 6 | log | 4541 | 9060 (2.0x) | 39704 (8.7x) | - |
-| spd 10 | dist | 3688 | 6926 (1.9x) | 21039 (5.7x) | - |
-| spd 10 | exp | 11339 | 17462 (1.5x) | 45114 (4.0x) | - |
-| spd 10 | log | 11343 | 17403 (1.5x) | 47820 (4.2x) | - |
-| sphere 3 | dist | 6 | 8 (1.4x) | 7494 (1283.6x) | 6702 (1148.0x) |
-| sphere 3 | exp | 16 | 32 (2.0x) | 18194 (1141.5x) | 14196 (890.6x) |
-| sphere 3 | log | 15 | 45 (2.9x) | 15238 (988.6x) | 20519 (1331.2x) |
-| sphere 3 | transport | 7 | 32 (4.9x) | 25678 (3868.4x) | - |
-| sphere 10 | dist | 7 | 11 (1.6x) | 7725 (1140.1x) | 6552 (967.0x) |
-| sphere 10 | exp | 23 | 37 (1.6x) | 19005 (835.1x) | 14187 (623.4x) |
-| sphere 10 | log | 23 | 59 (2.6x) | 15759 (693.1x) | 20308 (893.2x) |
-| sphere 10 | transport | 23 | 42 (1.9x) | 26380 (1167.2x) | - |
-| sphere 50 | dist | 35 | 13 (0.4x) | 7514 (213.4x) | 6392 (181.5x) |
-| sphere 50 | exp | 66 | 64 (1.0x) | 18645 (283.9x) | 13796 (210.1x) |
-| sphere 50 | log | 54 | 82 (1.5x) | 15459 (283.9x) | 19858 (364.7x) |
-| sphere 50 | transport | 96 | 89 (0.9x) | 26009 (271.1x) | - |
+| case | op | cartan (ns) | Manifolds.jl | numba | numba buf | geomstats | geoopt |
+|---|---|---|---|---|---|---|---|
+| spd 3 | dist | 402 | 1405 (3.5x) | 1641 (4.1x) | - | 12854 (32.0x) | - |
+| spd 3 | exp | 1448 | 3443 (2.4x) | 3585 (2.5x) | - | 32912 (22.7x) | - |
+| spd 3 | log | 1386 | 3492 (2.5x) | 3529 (2.5x) | - | 35717 (25.8x) | - |
+| spd 6 | dist | 1427 | 2830 (2.0x) | 3452 (2.4x) | - | 15348 (10.8x) | - |
+| spd 6 | exp | 4713 | 8399 (1.8x) | 8572 (1.8x) | - | 37080 (7.9x) | - |
+| spd 6 | log | 4541 | 9060 (2.0x) | 8324 (1.8x) | - | 39704 (8.7x) | - |
+| spd 10 | dist | 3688 | 6926 (1.9x) | 7402 (2.0x) | - | 21039 (5.7x) | - |
+| spd 10 | exp | 11339 | 17462 (1.5x) | 19339 (1.7x) | - | 45114 (4.0x) | - |
+| spd 10 | log | 11343 | 17403 (1.5x) | 20280 (1.8x) | - | 47820 (4.2x) | - |
+| sphere 3 | dist | 6 | 8 (1.4x) | 42 (7.2x) | 5 (0.8x) | 7494 (1283.6x) | 6702 (1148.0x) |
+| sphere 3 | exp | 16 | 32 (2.0x) | 34 (2.2x) | 16 (1.0x) | 18194 (1141.5x) | 14196 (890.6x) |
+| sphere 3 | log | 15 | 45 (2.9x) | 56 (3.6x) | 15 (1.0x) | 15238 (988.6x) | 20519 (1331.2x) |
+| sphere 3 | transport | 7 | 32 (4.9x) | 92 (13.9x) | 15 (2.3x) | 25678 (3868.4x) | - |
+| sphere 10 | dist | 7 | 11 (1.6x) | 39 (5.8x) | 6 (0.8x) | 7725 (1140.1x) | 6552 (967.0x) |
+| sphere 10 | exp | 23 | 37 (1.6x) | 45 (2.0x) | 20 (0.9x) | 19005 (835.1x) | 14187 (623.4x) |
+| sphere 10 | log | 23 | 59 (2.6x) | 72 (3.2x) | 21 (0.9x) | 15759 (693.1x) | 20308 (893.2x) |
+| sphere 10 | transport | 23 | 42 (1.9x) | 99 (4.4x) | 21 (0.9x) | 26380 (1167.2x) | - |
+| sphere 50 | dist | 35 | 13 (0.4x) | 70 (2.0x) | 11 (0.3x) | 7514 (213.4x) | 6392 (181.5x) |
+| sphere 50 | exp | 66 | 64 (1.0x) | 114 (1.7x) | 30 (0.5x) | 18645 (283.9x) | 13796 (210.1x) |
+| sphere 50 | log | 54 | 82 (1.5x) | 162 (3.0x) | 39 (0.7x) | 15459 (283.9x) | 19858 (364.7x) |
+| sphere 50 | transport | 96 | 89 (0.9x) | 267 (2.8x) | 56 (0.6x) | 26009 (271.1x) | - |
+
+### numba: compiled kernel against the Python call
+
+The `numba` column above is the compiled kernel with the batch loop
+inside nopython mode, which is the fair comparison against Rust and
+Julia machine code. Calling that kernel from Python adds argument
+unboxing and dispatch on every call, and that is what a Python program
+actually pays. Both are given because quoting either alone misleads.
+
+| case | op | kernel (ns) | called from Python (ns) | dispatch overhead |
+|---|---|---|---|---|
+| spd 3 | dist | 1641 | 1847 | 206 |
+| spd 3 | exp | 3585 | 3889 | 305 |
+| spd 3 | log | 3529 | 4035 | 506 |
+| spd 6 | dist | 3452 | 3671 | 218 |
+| spd 6 | exp | 8572 | 9337 | 765 |
+| spd 6 | log | 8324 | 9096 | 772 |
+| spd 10 | dist | 7402 | 7848 | 446 |
+| spd 10 | exp | 19339 | 20351 | 1012 |
+| spd 10 | log | 20280 | 20460 | 180 |
+| sphere 3 | dist | 42 | 157 | 115 |
+| sphere 3 | exp | 34 | 384 | 349 |
+| sphere 3 | log | 56 | 596 | 540 |
+| sphere 3 | transport | 92 | 507 | 415 |
+| sphere 10 | dist | 39 | 159 | 120 |
+| sphere 10 | exp | 45 | 408 | 362 |
+| sphere 10 | log | 72 | 453 | 380 |
+| sphere 10 | transport | 99 | 543 | 444 |
+| sphere 50 | dist | 70 | 179 | 109 |
+| sphere 50 | exp | 114 | 478 | 364 |
+| sphere 50 | log | 162 | 530 | 368 |
+| sphere 50 | transport | 267 | 724 | 457 |
 
 ### Median speedup
 
 | comparator | median ratio | cases |
 |---|---|---|
 | manifolds.jl | 1.9x | 21 |
+| numba | 2.5x | 21 |
+| numba-buffer | 0.8x | 12 |
 | geomstats | 271.1x | 21 |
 | geoopt | 890.6x | 9 |
 
@@ -80,6 +114,21 @@ Rows whose values did not agree are omitted rather than reported.
   precise of the three, though Python call overhead dwarfs that anyway.
 - Julia timings exclude compilation, which BenchmarkTools warms away. A
   cold Julia process pays that cost once and this table does not show it.
+- Two numba columns. `numba` is hand-written kernels with the same
+  algorithms cartan uses, returning a value like every other column.
+  `numba buf` additionally writes into a caller-owned buffer, uses scalar
+  loops instead of array expressions, and enables `fastmath`. That removes
+  every allocation, which is most of the cost at small dimension: sphere
+  transport at dim 3 goes 92 ns to 15 ns. `fastmath` alone buys nothing
+  until allocation is gone, then roughly doubles dim 50.
+- `numba buf` therefore compares a mutating interface against a
+  value-returning one, and permits reassociation cartan does not. It is
+  the ceiling of what this algorithm reaches under numba, not a
+  like-for-like API comparison. Values still agree to 5.6e-17.
+- Both numba columns are the compiled kernel with the loop inside
+  nopython mode. Reaching it from Python costs 109 ns to 724 ns of
+  dispatch per call, which exceeds the kernel itself for every sphere
+  case. The table below gives both.
 - geoopt is measured on float64 CPU tensors. It is built for batched GPU
   autograd, so single-point CPU timings are not what it optimises for.
 - Parallel transport is compared on the sphere only: the SPD convention
@@ -96,5 +145,5 @@ Rows whose values did not agree are omitted rather than reported.
 | julia | julia version 1.12.6 |
 | geomstats | 2.8.0 |
 | geoopt | 0.5.1 |
-| numpy | 2.5.1 |
+| numpy | 2.4.6 |
 | torch | 2.13.0 |
