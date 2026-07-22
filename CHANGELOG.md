@@ -95,6 +95,41 @@ path, so every user compiled a thread pool for nothing.
 **Breaking.** `cartan-homog`'s `serde` feature is removed. It was in the default
 set and gated a dependency the crate never used.
 
+### Cross-language benchmarks
+
+`benchmarks/CROSSLANG.md` compares cartan against Manifolds.jl, geomstats and
+geoopt. All four read one fixture file, so agreement is measured on identical
+inputs rather than on separately-seeded random draws.
+
+**Agreement is the headline: 51 of 51 comparisons match to better than 1e-12,
+worst deviation 9.4e-14**, across exp, log, dist and parallel transport on the
+sphere and the SPD cone. Timing rows are gated on the values having matched.
+
+Speed against Manifolds.jl is mixed and the report says so: cartan is roughly
+1.6x to 2.6x faster on SPD exp and log, and slower on SPD distance and on
+sphere transport. Against the Python libraries it is two to three orders of
+magnitude faster, which mostly measures interpreter overhead.
+
+Two methodology defects were found and fixed while building it, both of which
+would have produced published numbers that were simply wrong:
+
+- Per-call timing charged `Instant::now` overhead to every sample, reporting a
+  15 ns `exp` as 40 ns. All harnesses now batch.
+- With loop-invariant inputs the optimiser hoisted the whole call out of the
+  batch, reporting 0 ns and an 80x speedup. Inputs are now black-boxed.
+
+The Rust harness is cross-checked against criterion, which measures
+independently and agrees to within a nanosecond.
+
+A third finding is recorded rather than papered over: geoopt's `transp` is a
+projection onto the target tangent space, not exact parallel transport, which
+is the right choice for an optimiser. The comparison verifies that
+classification each run by checking geoopt's transport equals its own `proju`,
+so if geoopt ever switches, the mismatch is reported as real.
+
+`cargo bench -p cartan-manifolds` adds a criterion suite over exp, log, dist and
+transport for `Sphere` and `Spd`, for regression tracking.
+
 ### Also
 
 - `cartan-homog` gains an `examples/rve_to_effective.rs` sweep that asserts every
