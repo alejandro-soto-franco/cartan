@@ -16,9 +16,7 @@ cartan-core      = { path = "../cartan-core", version = "0.7" }
 cartan-manifolds = { path = "../cartan-manifolds", version = "0.7" }
 nalgebra         = { workspace = true }
 sprs             = { workspace = true }
-rayon            = { workspace = true }
 thiserror        = { workspace = true }
-serde            = { workspace = true }
 num-complex      = { workspace = true }
 
 [package.metadata.docs.rs]
