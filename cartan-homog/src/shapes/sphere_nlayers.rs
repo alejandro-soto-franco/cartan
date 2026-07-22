@@ -1,5 +1,6 @@
 //! n-layer concentric spheres with Herve-Zaoui effective-modulus recursion.
 
+use crate::float::powi;
 use crate::{error::HomogError,
             shapes::{IntegrationOpts, Shape, Sphere},
             tensor::{Km3, Km6, Order2, Order4}};
@@ -36,7 +37,7 @@ impl SphereNLayers {
         for i in 1..n {
             let r_inner = self.radii[i - 1];
             let r_outer = self.radii[i];
-            let v = (r_inner / r_outer).powi(3);
+            let v = powi(r_inner / r_outer, 3);
             let k_layer = self.layer_k[i];
             let dk = k_eff - k_layer;
             let num = 2.0 * k_layer + k_eff + 2.0 * v * dk;

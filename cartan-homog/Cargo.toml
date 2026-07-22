@@ -29,6 +29,9 @@ cartan-dec        = { path = "../cartan-dec",        version = "0.7", optional =
 cartan-remesh     = { path = "../cartan-remesh",     version = "0.7", optional = true }
 cartan-stochastic = { path = "../cartan-stochastic", version = "0.7", optional = true }
 nalgebra   = { workspace = true, features = ["libm"] }
+# libm supplies float transcendentals when std is off. Always present; only
+# used in no_std mode. Matches the pattern in cartan-core.
+libm       = { version = "0.2", default-features = false }
 thiserror  = { workspace = true }
 serde      = { workspace = true, optional = true }
 sprs       = { workspace = true, optional = true }
