@@ -44,12 +44,12 @@ Cartan-homog and ECHOES both predict `K_eff ≈ 24–27 GPa` for dry Berea at ϕ
 This ~4× gap is a well-known phenomenon in rock physics and is **not a homogenisation error**:
 
 1. Real Berea has grain-contact compliance, cemented boundaries with variable stiffness, and microcracks aligned along grain boundaries. These features act like oblate voids (aspect ≪ 1) with a much greater stiffness-reducing effect than isolated spheres.
-2. At 10 MPa effective stress, some grain contacts remain partially open. Full contact closure requires effective stress > ~50 MPa, at which point measured K_drained rises toward the MT prediction.
-3. Arns et al. 2002's FEM on actual μCT image voxels gives **≈ 13 GPa** at ϕ=0.22 — already far below the HS upper of ~27 GPa, because FEM resolves the actual grain-contact geometry that MT cannot.
+2. At 10 MPa effective stress, some grain contacts remain partially open. Full contact closure requires effective stress > ~50 MPa, at which point measured K_drained rises towards the MT prediction.
+3. Arns et al. 2002's FEM on actual μCT image voxels gives **≈ 13 GPa** at ϕ=0.22, already far below the HS upper of ~27 GPa, because FEM resolves the actual grain-contact geometry that MT cannot.
 
 **The "right" cartan-homog benchmark for real Berea stiffness would require**:
 - Either a crack-density augmentation (Budiansky-O'Connell style) with penny-crack phases at ρ ≈ 0.3–0.5 on top of the sphere-pore MT,
-- Or full-field voxel input (which v1.2 `FullField` supports for centred single inclusions but not yet for μCT-scanned voxel arrays — that's a v1.3 item).
+- Or full-field voxel input (which v1.2 `FullField` supports for centred single inclusions but not yet for μCT-scanned voxel arrays, a v1.3 item).
 
 ## Reproducing
 
@@ -64,8 +64,8 @@ python bench_berea_echoes.py --out ../results/berea_echoes.jsonl
 
 ## Real-data references
 
-- [Andrä et al. 2013 — Digital rock physics benchmarks Part II (Computers & Geosciences)](https://www.sciencedirect.com/science/article/abs/pii/S0098300412003172) — porosity 0.184–0.209, FEM/LB/FD cross-comparisons on Berea micro-CT.
-- [Arns et al. 2002 — Computation of linear elastic properties from micro-CT images](https://www.sciencedirect.com/science/article/abs/pii/S1365160901000578) — FEM K ≈ 13 GPa at φ=0.22.
-- [Hart & Wang 1995 — Complete poroelastic moduli of Berea and Indiana](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/95JB01242) — measured drained K_s = 6.6 GPa at 10 MPa.
-- [Zimmerman 1991 — Compressibility of sandstones](https://www.sciencedirect.com/book/9780444898005) — mineral moduli K₀ = 39.75 GPa, G₀ = 31.34 GPa.
-- [Hashin-Shtrikman 1963](https://www.mat.uniroma2.it/~braides/ICTP93/ICTP93Gibiansky.pdf) — variational bounds on two-phase isotropic composites.
+- [Andrä et al. 2013, Digital rock physics benchmarks Part II (Computers & Geosciences)](https://www.sciencedirect.com/science/article/abs/pii/S0098300412003172): porosity 0.184–0.209, FEM/LB/FD cross-comparisons on Berea micro-CT.
+- [Arns et al. 2002, Computation of linear elastic properties from micro-CT images](https://www.sciencedirect.com/science/article/abs/pii/S1365160901000578): FEM K ≈ 13 GPa at φ=0.22.
+- [Hart & Wang 1995, Complete poroelastic moduli of Berea and Indiana](https://agupubs.onlinelibrary.wiley.com/doi/10.1029/95JB01242): measured drained K_s = 6.6 GPa at 10 MPa.
+- [Zimmerman 1991, Compressibility of sandstones](https://www.sciencedirect.com/book/9780444898005): mineral moduli K₀ = 39.75 GPa, G₀ = 31.34 GPa.
+- [Hashin-Shtrikman 1963](https://www.mat.uniroma2.it/~braides/ICTP93/ICTP93Gibiansky.pdf): variational bounds on two-phase isotropic composites.

@@ -10,8 +10,8 @@ computation in Rust.
 ## What this crate does
 
 `cartan` is a re-export façade. Downstream users add `cartan = "0.5"` and
-get the most commonly used items from the subcrates under one namespace
-— no need to track sibling crate versions individually.
+get the most commonly used items from the subcrates under one namespace,
+with no need to track sibling crate versions individually.
 
 For finer-grained dependency control (e.g. embedded targets that want
 `cartan-core` without `cartan-manifolds`, or projects that want the FFT
@@ -22,7 +22,7 @@ stack without the optimisation layer), depend on the subcrates directly.
 | Subcrate | What it does |
 |---|---|
 | [`cartan-core`](../cartan-core) | Abstract trait system: `Manifold`, `Retraction`, `ParallelTransport`, `Connection`, `Curvature` |
-| [`cartan-manifolds`](../cartan-manifolds) | Concrete manifolds: `Sphere<N>`, `Grassmann<N,K>`, `Spd<N>`, `SO(N)`, `SE(N)`, `Stiefel<N,K>` |
+| [`cartan-manifolds`](../cartan-manifolds) | Manifold implementations: `Sphere<N>`, `Grassmann<N,K>`, `Spd<N>`, `SO(N)`, `SE(N)`, `Stiefel<N,K>` |
 | [`cartan-optim`](../cartan-optim) | Optimisation: RGD, RCG, RTR, Fréchet mean |
 | [`cartan-geo`](../cartan-geo) | Geodesics, curvature queries, Jacobi field integration |
 | [`cartan-dec`](../cartan-dec) | Discrete exterior calculus on simplicial meshes, k-atic line bundles, Stokes solver |

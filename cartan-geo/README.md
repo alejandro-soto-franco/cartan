@@ -10,13 +10,13 @@ Part of the [cartan](https://crates.io/crates/cartan) workspace.
 ## Overview
 
 `cartan-geo` provides higher-level geometric utilities built on the
-`Manifold` trait from `cartan-core` and the concrete manifolds from
-`cartan-manifolds`. It focuses on global geometry: parameterized geodesic
+`Manifold` trait from `cartan-core` and the manifolds from
+`cartan-manifolds`. It focuses on global geometry: parameterised geodesic
 curves, curvature queries, and Jacobi field integration.
 
 | Module | Contents |
 |--------|----------|
-| `geodesic` | `Geodesic<M>`, parameterized geodesic sampling, two-point construction |
+| `geodesic` | `Geodesic<M>`, parameterised geodesic sampling, two-point construction |
 | `curvature` | `CurvatureQuery<M>`, sectional, Ricci, and scalar curvature at a point |
 | `jacobi` | `integrate_jacobi`, RK4 Jacobi field ODE integration |
 | `holonomy` | Loop holonomy, disclination scanning (requires `std`) |

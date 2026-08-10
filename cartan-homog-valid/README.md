@@ -4,8 +4,8 @@ Validation harness for `cartan-homog`. ECHOES-generated NPZ fixtures + Rust test
 
 ## Fixture layout
 
-- `fixtures/basic/v1/` — committed basic set (< 100 KB total). Always runs.
-- `$CARTAN_HOMOG_FIXTURES_DIR/v1/` — extended set, held outside the tree. Skipped silently if unavailable.
+- `fixtures/basic/v1/`: committed basic set (< 100 KB total). Always runs.
+- `$CARTAN_HOMOG_FIXTURES_DIR/v1/`: extended set, held outside the tree. Skipped silently if unavailable.
 
 ## Regenerating fixtures
 

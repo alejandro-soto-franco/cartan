@@ -1,6 +1,6 @@
 # cartan-manifolds
 
-Concrete Riemannian manifold implementations for cartan.
+Riemannian manifold implementations for cartan.
 
 [![crates.io](https://img.shields.io/crates/v/cartan-manifolds.svg)](https://crates.io/crates/cartan-manifolds)
 [![docs.rs](https://docs.rs/cartan-manifolds/badge.svg)](https://docs.rs/cartan-manifolds)

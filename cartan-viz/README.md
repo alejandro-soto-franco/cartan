@@ -1,6 +1,6 @@
 # cartan-viz
 
-Flowforms-style stacked dashboard visualization for cartan `run_dir` outputs.
+Flowforms-style stacked dashboard visualisation for cartan `run_dir` outputs.
 
 Turns a `run_dir/` (produced by `cartan-maxwell`'s `maxwell_record` example) into
 a time-synced MP4/WebM dashboard video: PyVista 3D surface + E-glyphs on top,

@@ -75,7 +75,7 @@ pub fn sphere_tangent_norm(v: &[f64], dim: u32, mut out: DisjointSlice<f64>) {
 }
 ```
 
-## SPD(3) is one kernel, not two
+## SPD(3) in a single kernel
 
 Distance returns a single scalar per pair, so it fits the one-element-per-thread
 shape directly. Each thread does the whole job: Cholesky of `P`, the spectrum of

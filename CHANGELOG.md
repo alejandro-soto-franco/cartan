@@ -319,7 +319,7 @@ primitive changed. See below.
 - `cartan-dec`, `cartan-homog` and the rest of the stack are untouched, and
   `sprs` remains the workspace sparse-matrix default.
 
-### Added — v1.3 (full-field enhancements)
+### Added: v1.3 (full-field enhancements)
 
 - **DifferentialCompliance scheme** (`cartan-homog::schemes`): Norris-Davies
   dual variant of the differential scheme, integrating `dS*/df` on compliance.
@@ -329,7 +329,7 @@ primitive changed. See below.
   Ch. 10.12), not a bug.
 - **Lebedev quadrature for anisotropic-reference Hill tensor** (`cartan-homog::shapes::lebedev`):
   degree-14 grid on S² (exact up to degree-3 spherical harmonics). `Sphere::hill`
-  now falls through to Lebedev when the reference is not isotropic; previously
+  now falls through to Lebedev for an anisotropic reference; previously
   returned an error. Closes Task 28 from the v1 spec.
 - **μCT voxel import for FullField** (`cartan-homog::fullfield::voxelize`):
   `load_voxel_raw_u8(path, N)` reads N³ u8 phase-id binary files (Digital
@@ -347,7 +347,7 @@ primitive changed. See below.
   (HashMap cache), so the refined mesh is conforming. Complements the v1.2
   non-conforming barycentric refinement.
 
-### Added — v1.2 (full-field v1.2)
+### Added: v1.2 (full-field v1.2)
 
 - 3D tet-mesh barycentric refinement in `cartan-remesh::primitives_3d` (non-conforming).
 - Periodic BCs for the full-field cell problem (slave→master DOF elimination, gauge-vertex anchor).
@@ -355,20 +355,20 @@ primitive changed. See below.
 - Macroscale slab Darcy solver (`cartan-homog::fullfield::macroscale`).
 - Hausdorff gate for adaptive-refinement vs analytic transition-layer sets.
 
-### Added — v1.1 (full-field v1)
+### Added: v1.1 (full-field v1)
 
 - Full-field DEC cell-problem solver for Order2 RVEs (`cartan-homog::fullfield`).
 - Kuhn-triangulated periodic cube mesh builder.
 - P1-FEM stiffness + RHS assembly; volume-averaged effective tensor.
 - Reliability indicator `d_AI(C_MF, C_FF)` via affine-invariant SPD distance.
 
-### Added — v1 (homogenisation foundation)
+### Added: v1 (homogenisation foundation)
 
 - **cartan-homog** (new crate): mean-field and full-field homogenisation of
   random media on SPD manifolds, generic over tensor order (Order2 = 3×3
   conductivity, Order4 = 6×6 Kelvin-Mandel stiffness).
   - `TensorOrder` trait with `spd_geodesic_step` delegating to `cartan-manifolds::Spd<N>`.
-  - Shape catalog: `Sphere`, `Spheroid`, `PennyCrack`, `Ellipsoid` (Carlson RD),
+  - Shape catalogue: `Sphere`, `Spheroid`, `PennyCrack`, `Ellipsoid` (Carlson RD),
     `SphereNLayers` (Herve-Zaoui). `UserInclusion = Arc<dyn Shape<O>>`.
   - 10 schemes matching ECHOES's feature set: `VoigtBound`, `ReussBound`,
     `Dilute`, `DiluteStress`, `MoriTanaka`, `SelfConsistent` (SPD-geodesic
@@ -376,7 +376,7 @@ primitive changed. See below.
   - `--features stochastic`: `WishartRveEnsemble` with Karcher-mean aggregation
     via affine-invariant SPD metric.
   - `--features full-field` (β scaffold): `FullField<O>`, `PeriodicCubeMeshBuilder`,
-    voxelize/mesh/cell_problem/solver module tree, `reliability_indicator_order2`.
+    `voxelize`/`mesh`/`cell_problem`/`solver` module tree, `reliability_indicator_order2`.
     Full DEC cell-problem assembly is v1.1.
 
 - **cartan-homog-valid** (new crate, unpublished): ECHOES-backed numerical
@@ -422,20 +422,20 @@ primitive changed. See below.
   - Validated against the S² heat kernel: `E[z_T] ≈ e^{-T}` recovered to Monte
     Carlo precision at 400 paths.
 
-- **cartan-manifolds**: `SpdBuresWasserstein<N>` — the SPD cone with the
+- **cartan-manifolds**: `SpdBuresWasserstein<N>`: the SPD cone with the
   Bures-Wasserstein (optimal-transport) metric, an alternative to the existing
   affine-invariant `Spd<N>`. Coincides with the L²-Wasserstein metric on centred
   Gaussian measures.
   - Manifold impl with closed-form `inner`, `exp`, `log` via a Lyapunov solver
     in the P-eigenbasis.
   - Retraction delegates to `exp` (Cartan-Hadamard-like global completeness).
-  - `VectorTransport` via the Fréchet derivative of the retraction — enough
+  - `VectorTransport` via the Fréchet derivative of the retraction, enough
     structure to plug into `stochastic_development`. Exact `ParallelTransport`
     and `Curvature` impls are deferred until an elworthy/bismut consumer reads them.
   - Standalone `bw_distance_sq()` helper for the closed-form 2-Wasserstein
     squared distance between centred Gaussians.
 
-- **cartan-geo**: `integrate_jacobi_along_path` — RK4 Jacobi-field integration
+- **cartan-geo**: `integrate_jacobi_along_path`: RK4 Jacobi-field integration
   along arbitrary `C²` base curves, not just geodesics. Velocity is reconstructed
   per step via `log`. Enables Jacobi-along-SDE-path computation directly on
   trajectories produced by `stochastic_development`.
@@ -476,16 +476,16 @@ primitive changed. See below.
 
 ### Added
 
-- **cartan-core**: fiber bundle traits for covariant field transport on simplicial meshes.
-  - `Fiber` trait: abstract fiber type with SO(d) representation map `transport_by`.
+- **cartan-core**: fibre bundle traits for covariant field transport on simplicial meshes.
+  - `Fiber` trait: abstract fibre type with SO(d) representation map `transport_by`.
   - `FiberOps` trait: component-wise arithmetic for generic covariant Laplacian.
-  - `Section` / `VecSection`: fiber element per mesh vertex.
+  - `Section` / `VecSection`: fibre element per mesh vertex.
   - `DiscreteConnection<D>` trait: SO(D) frame transport per edge.
-  - `EdgeTransport2D` / `EdgeTransport3D`: concrete SO(2)/SO(3) storage.
+  - `EdgeTransport2D` / `EdgeTransport3D`: SO(2)/SO(3) storage.
   - `CovLaplacian`: generic covariant Laplacian over any `FiberOps + DiscreteConnection`. Positive-semidefinite (DEC convention).
-  - `U1Spin2` fiber: nematic on 2-manifolds (spin-2 phase rotation).
-  - `TangentFiber<D>` fiber: R^D vector with fundamental SO(D) representation.
-  - `NematicFiber3D` fiber: traceless symmetric 3x3, 5 components (Q -> R Q R^T).
+  - `U1Spin2` fibre: nematic on 2-manifolds (spin-2 phase rotation).
+  - `TangentFiber<D>` fibre: R^D vector with fundamental SO(D) representation.
+  - `NematicFiber3D` fibre: traceless symmetric 3x3, 5 components (Q -> R Q R^T).
 - **cartan-dec**: `levi_civita_2d()` builds `EdgeTransport2D` from triangle mesh geometry via `ConnectionAngles`. Verified against `BochnerLaplacian<2>` on icosphere.
 - **cartan-dec**: `cartesian_3d_connection()` builds `EdgeTransport3D` + `CovLaplacian` for periodic Cartesian grids with SO(3) identity transport.
 
@@ -498,8 +498,8 @@ primitive changed. See below.
 - **cartan-dec**: `line_bundle` module with `Section<K>` (complex section of L_k), `ConnectionAngles` (discrete Levi-Civita on primal and dual edges), `BochnerLaplacian<K>` (sparse Hermitian Laplacian on L_k), and `defect_charges` (exact discrete Poincare-Hopf topological charge).
 - **cartan-dec**: extrinsic operators module: `KillingOperator`, `ExtrinsicDiv`, `ExtrinsicGrad`, and viscosity Laplacian for surface Stokes problems.
 - **cartan-dec**: augmented Lagrangian Stokes solver on triangle meshes with Killing vector projection.
-- **cartan-dec**: circumcentric Hodge star for well-centered meshes.
-- **cartan-dec**: torus mesh generator with well-centered option.
+- **cartan-dec**: circumcentric Hodge star for `well_centered` meshes.
+- **cartan-dec**: torus mesh generator with a `well_centered` option.
 
 ---
 
@@ -507,12 +507,12 @@ primitive changed. See below.
 
 ### Added
 
-- **cartan-remesh** (new crate): adaptive remeshing primitives for triangle meshes on Riemannian manifolds. Five primitive operations (`split_edge`, `collapse_edge`, `flip_edge`, `shift_vertex`), all generic over `M: Manifold`. `collapse_edge` includes a foldover guard via signed-area orientation check. Length-cross-ratio (LCR) conformal regularization with reference snapshot, spring energy, and gradient placeholder. `adaptive_remesh` driver with curvature-CFL split criterion and foldover-guarded collapse pass. `needs_remesh` predicate. `RemeshLog` records all mutations for downstream field interpolation. `RemeshConfig` with curvature scale, edge length bounds, area bounds, and smoothing parameters.
+- **cartan-remesh** (new crate): adaptive remeshing primitives for triangle meshes on Riemannian manifolds. Five primitive operations (`split_edge`, `collapse_edge`, `flip_edge`, `shift_vertex`), all generic over `M: Manifold`. `collapse_edge` includes a foldover guard via signed-area orientation check. Length-cross-ratio (LCR) conformal regularisation with reference snapshot, spring energy, and gradient placeholder. `adaptive_remesh` driver with curvature-CFL split criterion and foldover-guarded collapse pass. `needs_remesh` predicate. `RemeshLog` records all mutations for downstream field interpolation. `RemeshConfig` with curvature scale, edge length bounds, area bounds, and smoothing parameters.
 - **cartan-dec**: sparse `ExteriorDerivative` via `sprs::CsMat<f64>` (replaces dense `nalgebra::DMatrix`). K-generic const-generic operators: `ExteriorDerivative`, `HodgeStar`, and `Operators` are now parameterised over `<M: Manifold, const K: usize, const B: usize>`. New `from_mesh_generic` constructors on `HodgeStar` and `Operators` for any manifold (not just flat `Euclidean<2>`).
 - **cartan-dec**: K-generic geometric primitives on `Mesh<M, K, B>`: `simplex_volume`, `boundary_volume`, `simplex_circumcenter`, `boundary_circumcenter` via Gram determinant and tangent-space equidistance system. `from_simplices_generic` constructor for arbitrary K. Dense linear algebra helpers (`dense_determinant`, `dense_solve`, `permutation_sign`).
 - **cartan-dec**: K-generic `apply_scalar_advection_generic` and `apply_divergence_generic` using tangent-vector velocity fields and adjacency-map traversal (O(V * avg_degree)).
 - **cartan-dec**: `rebuild_topology` on `Mesh<M, K, B>` for full boundary/sign/adjacency reconstruction after topology-changing mutations (split, collapse, flip).
-- **cartan-dec**: K=4 tetrahedral mesh support via `from_simplices_generic` (adjacency, volume, circumcenter verified; exactness requires full chain complex).
+- **cartan-dec**: K=4 tetrahedral mesh support via `from_simplices_generic` (adjacency, volume, `simplex_circumcenter` verified; exactness requires full chain complex).
 
 ### Changed
 
@@ -532,9 +532,9 @@ primitive changed. See below.
 
 ### Added
 
-- **Python bindings** (`pip install cartan`): full PyO3 bindings exposing every manifold, optimizer, geodesic tool, and DEC operator to Python 3.9+ with zero-copy numpy interop. A single abi3 wheel covers all supported Python versions.
+- **Python bindings** (`pip install cartan`): full PyO3 bindings exposing every manifold, optimiser, geodesic tool, and DEC operator to Python 3.9+ with zero-copy numpy interop. A single abi3 wheel covers all supported Python versions.
   - Manifolds: `Euclidean(n)`, `Sphere(n)`, `SO(n)`, `SE(n)`, `SPD(n)`, `Grassmann(n,k)`, `Corr(n)`, `QTensor3`, `FrameField3D`
-  - Optimization: `RGD`, `RCG`, `RTR`, `FrechetMean`
+  - Optimisation: `RGD`, `RCG`, `RTR`, `FrechetMean`
   - Geodesics: `Geodesic`, `CurvatureQuery`, Jacobi field integration
   - DEC: `Mesh`, `Operators`, advection, divergence
   - Holonomy: disclination scanning, winding number computation
@@ -596,7 +596,7 @@ v0.1.6 was partially uploaded to PyPI and superseded by v0.1.7. Use v0.1.7.
 
 ### Changed
 
-- `cartan-manifolds`: `qtensor`, `frame_field`, `corr`, `spd` modules reclassified from `alloc`-gated to `std`-gated. These modules require `symmetric_eigen()` (Jacobi iteration) which depends on std float behavior. `grassmann` remains `alloc`-gated since it uses `DMatrix`/SVD but not eigendecomposition.
+- `cartan-manifolds`: `qtensor`, `frame_field`, `corr`, `spd` modules reclassified from `alloc`-gated to `std`-gated. These modules require `symmetric_eigen()` (Jacobi iteration) which depends on std float behaviour. `grassmann` remains `alloc`-gated since it uses `DMatrix`/SVD but not eigendecomposition.
 - `cartan-manifolds/util`: `sym` module reclassified from `alloc`-gated to `std`-gated for the same reason.
 - `cartan-geo`: `disclination` and `holonomy` modules reclassified from `alloc`-gated to `std`-gated. Both depend on `std::collections` (HashMap, HashSet, VecDeque) and `frame_field::d2_gauge_fix` which is itself std-gated.
 - `cartan-manifolds/Cargo.toml`, `cartan-geo/Cargo.toml`: `nalgebra/std` and `nalgebra/alloc` are now threaded through the respective crate-level feature flags rather than being hardcoded on the dependency line.
@@ -629,7 +629,7 @@ v0.1.6 was partially uploaded to PyPI and superseded by v0.1.7. Use v0.1.7.
 - `cartan-manifolds`: Clippy `needless_return` in `Sphere::check_point`, `Sphere::check_tangent`, `Grassmann::check_point`, `Grassmann::check_tangent` (#[cfg] blocks).
 - `cartan-manifolds`: Clippy `op_ref` in `SpecialEuclidean::riemannian_hessian_vector_product` (unnecessary `&` on matrix operands).
 - `cartan-manifolds`: Clippy `doc_overindented_list_items` in `SpecialEuclidean::riemannian_hessian_vector_product` doc comment.
-- `cartan-dec`, `cartan-manifolds`: rustdoc `broken_intra_doc_links` in `hodge.rs`, `mesh.rs`, `grassmann.rs`, `sphere.rs`, `se.rs` (bracket sequences in math formulas misinterpreted as item links; escaped with `\[`, `\]` or wrapped in backticks).
+- `cartan-dec`, `cartan-manifolds`: rustdoc `broken_intra_doc_links` in `hodge.rs`, `mesh.rs`, `grassmann.rs`, `sphere.rs`, `se.rs` (bracket sequences in maths formulae misinterpreted as item links; escaped with `\[`, `\]` or wrapped in backticks).
 - `cartan-optim`: Remaining `ignore` doctest in `lib.rs` changed to `no_run`.
 - Code formatting (`cargo fmt`) applied across the full workspace.
 
@@ -660,5 +660,5 @@ Initial release.
 - `cartan-core`: all 7 traits (`Manifold`, `Retraction`, `ParallelTransport`, `VectorTransport`, `Connection`, `Curvature`, `GeodesicInterpolation`), `CartanError` (6 variants), `Real = f64`.
 - `cartan-manifolds`: `Euclidean<N>`, `Sphere<N>`, `SpecialOrthogonal<N>`, `SpecialEuclidean<N>`.
 - `cartan-optim`: RGD, RCG, Frechet mean.
-- `cartan-geo`: parameterized geodesics, curvature queries, Jacobi field integration.
+- `cartan-geo`: parameterised geodesics, curvature queries, Jacobi field integration.
 - Integration test harness (`manifold_harness`, `matrix_harness`).

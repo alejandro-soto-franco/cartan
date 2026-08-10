@@ -23,7 +23,7 @@ ECHOES (Jean-François Barthélémy's C++/Python library, Zenodo DOI
 | Metric | cartan | ECHOES | Ratio |
 |---|---|---|---|
 | Median per-call time | 110 ns | 21,350 ns | **194×** |
-| Speedup range (ECHOES / cartan) | — | — | 2× – 888× |
+| Speedup range (ECHOES / cartan) | n/a | n/a | 2× – 888× |
 
 **Accuracy (156 matched cases):**
 
@@ -79,10 +79,10 @@ python validate_bounds.py \
 
 Outputs:
 
-- `benchmarks/figures/out/homog_timing.png` — log-log scatter of per-call time;
+- `benchmarks/figures/out/homog_timing.png`: log-log scatter of per-call time;
   distribution of ECHOES-to-cartan speedup ratios.
-- `benchmarks/figures/out/homog_accuracy.png` — scatter of k_eff[0, 0] values.
-- `benchmarks/figures/out/homog_summary.json` — machine-readable summary.
+- `benchmarks/figures/out/homog_accuracy.png`: scatter of k_eff[0, 0] values.
+- `benchmarks/figures/out/homog_summary.json`: machine-readable summary.
 
 ## Real-data references used
 
@@ -100,7 +100,7 @@ Outputs:
 
 The per-call overhead of ECHOES is dominated by its Python ↔ C++ boundary
 (argument marshalling, GIL, reference-counted tensor construction). Once in
-C++, ECHOES itself is fast — the algorithmic cost is comparable to cartan's.
+C++, ECHOES itself is fast: the algorithmic cost is comparable to cartan's.
 The 200× median advantage therefore reflects what you gain by writing the
 homogenisation loop in Rust end-to-end, not any superior numerical method.
 For a one-shot call this is negligible (both take <25 μs); for parameter

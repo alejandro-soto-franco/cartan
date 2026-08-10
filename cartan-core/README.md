@@ -10,7 +10,7 @@ Part of the [cartan](https://crates.io/crates/cartan) workspace.
 ## Overview
 
 `cartan-core` defines the foundational trait hierarchy that all cartan
-manifolds, optimizers, and geometric tools depend on. It has minimal
+manifolds, optimisers, and geometric tools depend on. It has minimal
 dependencies (only `rand` for RNG trait bounds) and can be used standalone
 by downstream crates that implement custom manifolds against the cartan
 trait system.
@@ -32,9 +32,9 @@ All floating-point computation uses the `Real` type alias (currently `f64`),
 so that a future generic refactor is mechanical. The crate also provides
 `CartanError` for structured error handling across the workspace.
 
-## Fiber bundles and rotors
+## Fibre bundles and rotors
 
-`cartan-core` also defines associated fiber bundles over simplicial meshes:
+`cartan-core` also defines associated fibre bundles over simplicial meshes:
 the `Fiber` trait (with `U1Spin2`, `TangentFiber`, `NematicFiber3D`), discrete
 connections (`DiscreteConnection`, `EdgeTransport2D/3D`), and the covariant
 Laplacian `CovLaplacian`. Parallel transport can be carried either as SO(d)
