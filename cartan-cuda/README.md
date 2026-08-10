@@ -6,6 +6,33 @@ Batched double-precision manifold operations on CUDA, via
 Part of the [cartan](https://crates.io/crates/cartan) workspace, but **not
 published** and **not a workspace member**. See [Status](#status).
 
+## Using it
+
+`Device` owns a context, its stream and the compiled module, and takes batches
+as slices:
+
+```rust
+use cartan_cuda::Device;
+
+let dev = Device::new(0)?;
+
+// n * dim doubles each, row-major with stride dim.
+let exp = dev.sphere_exp(&p, &v, dim)?;
+let log = dev.sphere_log(&p, &q, dim)?;
+
+// n * 9 doubles each, row-major 3x3.
+let dist = dev.spd3_dist(&a, &b)?;
+```
+
+Construction is the expensive part, so hold one `Device` for as long as there
+is work for it. Shapes are checked on the host before anything reaches the
+device, and a ragged batch returns `CudaError::Shape` rather than reading out
+of bounds.
+
+The `harness` feature, on by default, pulls `cartan-core` and `cartan-manifolds`
+for the accuracy binary. Turn it off and the library carries nothing beyond the
+cuda-oxide crates.
+
 ## Why this exists
 
 Precision. `cartan-gpu` targets wgpu, and WGSL has no `f64`, so everything
@@ -82,7 +109,7 @@ libNVVM, and `cargo-oxide`. Check with `cargo oxide doctor`.
 Point it at a specific backend rather than relying on the global cache:
 
 ```bash
-export CUDA_OXIDE_BACKEND=~/cuda-oxide/crates/rustc-codegen-cuda/target/x86_64-unknown-linux-gnu/debug/librustc_codegen_cuda.so
+export CUDA_OXIDE_BACKEND=~/cuda-oxide/crates/rustc-codegen-cuda/target/debug/librustc_codegen_cuda.so
 ```
 
 This matters. `cargo-oxide` resolves the backend in the order: `CUDA_OXIDE_BACKEND`,
@@ -96,6 +123,26 @@ call compiled fine.
 
 `rm -rf ~/.cargo/cuda-oxide` is the documented remedy; the env var above avoids
 depending on the cache at all.
+
+A run that stops at `DriverError(803)` has hit a userspace driver newer than the
+loaded kernel module, which is what a driver upgrade without a reboot leaves
+behind. `nvidia-smi` reports the same thing as an NVML version mismatch. The
+compile path is unaffected, since PTX generation goes through libNVVM and never
+opens the device.
+
+## Host-side checks
+
+Compilation to PTX needs the backend, but the host half of the crate builds
+under the pinned nightly alone:
+
+```bash
+cargo test          # shape checking and the error type
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+That is what the `cartan-cuda` job in CI runs. A runner has no GPU and no
+libNVVM, so it never compiles a kernel or launches one; what it holds is the
+batched API and the signatures the kernels are called through.
 
 ## Device-code constraints
 
@@ -112,15 +159,22 @@ dependencies it can carry are narrower than an ordinary crate's.
 
 Not published, for three independent reasons:
 
-1. cuda-oxide is not on crates.io, and cargo rejects git dependencies at
-   publish time.
+1. Eight of the ten cuda-oxide crates this one reaches remain unpublished, and
+   cargo rejects git dependencies at publish time.
 2. It pins a nightly toolchain with `rustc-dev` and `llvm-tools`, because it
    is a rustc backend. cartan is stable with an MSRV of 1.89.
 3. It builds through `cargo oxide`, not `cargo build`.
 
+The first is the one that moves. `cuda-core` and `cuda-bindings` are on
+crates.io at 0.2.0, published from cutile-rs rather than cuda-oxide. Waiting
+are `cuda-device`, `cuda-host`, `cuda-macros`, `oxide-artifacts`,
+`reserved-oxide-symbols`, `cuda-artifact-finalizer`, `libnvvm-sys` and
+`nvjitlink-sys`. Once those land, the three git dependencies in `Cargo.toml`
+become version requirements and the crate publishes with no other change.
+
 None of that affects the rest of cartan: this crate has its own workspace and
-sits in the root `exclude` list, so the stable build and CI never see it. It
-becomes publishable when cuda-oxide does.
+sits in the root `exclude` list, so the stable build and the workspace jobs
+never see it.
 
 ## License
 

@@ -2,8 +2,10 @@ target
 Cargo.lock
 rustc-ice-*.txt
 
-# rustc-codegen-cuda intermediates, emitted next to the manifest
-cartan_cuda.ll
+# rustc-codegen-cuda intermediates, emitted next to the manifest. The linked
+# and optimised LLVM IR appear alongside the unlinked module, hence the glob.
+*.ll
 cartan_cuda.options
 cartan_cuda.target
 *.ptx
+.oxide-artifacts/

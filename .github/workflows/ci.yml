@@ -100,3 +100,29 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check workspace builds on the declared MSRV
         run: cargo check --workspace
+
+  cartan-cuda:
+    name: cartan-cuda (host side)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cartan-cuda
+    steps:
+      - uses: actions/checkout@v5
+      # No toolchain action: cartan-cuda/rust-toolchain.toml pins the nightly
+      # the codegen backend is built against, and rustup installs it, with
+      # rustc-dev and llvm-tools, on the first cargo call in that directory.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cartan-cuda
+      # The runner has no GPU and no libNVVM, so nothing here compiles kernels
+      # to PTX or launches one. What it does catch is the host half: the
+      # batched API, its shape checking, and every signature the kernels are
+      # called through, all of which drifted silently while the crate sat
+      # outside CI.
+      - name: Test
+        run: cargo test
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Formatting
+        run: cargo fmt --check

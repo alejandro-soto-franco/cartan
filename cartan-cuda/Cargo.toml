@@ -7,15 +7,35 @@ license = "MIT"
 repository = "https://github.com/alejandro-soto-franco/cartan"
 readme = "README.md"
 
-# Not published. cuda-oxide is not on crates.io, and cargo rejects git
-# dependencies at publish time, so this crate cannot ship until it is. It also
-# needs a pinned nightly and the `cargo oxide` subcommand, neither of which the
-# rest of cartan requires.
+# Not published. Eight of the ten cuda-oxide crates this one reaches are still
+# unpublished, and cargo rejects git dependencies at publish time, so it cannot
+# ship until they land. It also needs a pinned nightly and the `cargo oxide`
+# subcommand, neither of which the rest of cartan requires. See the README.
 publish = false
 
 # Its own workspace: the pinned nightly and the codegen backend must not leak
 # into cartan's stable build.
 [workspace]
+
+[lib]
+name = "cartan_cuda"
+path = "src/lib.rs"
+
+# The accuracy harness: every operation against the CPU implementation, exiting
+# non-zero on disagreement. `kernels::load` resolves the artifact by package
+# name, so the binary shares the library's compiled module.
+[[bin]]
+name = "cartan-cuda"
+path = "src/main.rs"
+required-features = ["harness"]
+
+[features]
+default = ["harness"]
+
+# The CPU reference and its random batches. On by default so
+# `cargo oxide run cartan-cuda` needs no flags; turn it off to depend on the
+# library alone, which carries nothing beyond the cuda-oxide crates.
+harness = ["dep:cartan-core", "dep:cartan-manifolds", "dep:nalgebra", "dep:rand"]
 
 [dependencies]
 cuda-device = { git = "https://github.com/NVlabs/cuda-oxide.git" }
@@ -23,8 +43,9 @@ cuda-host = { git = "https://github.com/NVlabs/cuda-oxide.git" }
 cuda-core = { git = "https://github.com/NVlabs/cuda-oxide.git" }
 
 # The CPU implementation the GPU results are checked against. Host-side only;
-# nothing here crosses into device code.
-cartan-core = { path = "../cartan-core" }
-cartan-manifolds = { path = "../cartan-manifolds" }
-nalgebra = { version = "0.35", features = ["std"] }
-rand = { version = "0.9", features = ["std", "std_rng"] }
+# nothing here crosses into device code, and nothing in the library reaches for
+# it either.
+cartan-core = { path = "../cartan-core", optional = true }
+cartan-manifolds = { path = "../cartan-manifolds", optional = true }
+nalgebra = { version = "0.35", features = ["std"], optional = true }
+rand = { version = "0.9", features = ["std", "std_rng"], optional = true }
