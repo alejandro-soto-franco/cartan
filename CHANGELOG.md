@@ -204,8 +204,8 @@ and `cartan-homog`'s `serde` feature is removed. See below.
 - **`SelfConsistent` damps linearly at the `alloc` tier**, rather than along SPD
   geodesics, because the geodesic step needs an eigen decomposition that
   requires std. Same fixed point, slower convergence. Under std it is unchanged.
-- README rebuilt as an on-ramp; the per-crate inventory moves to
-  `CAPABILITIES.md`. MSRV badge corrected from 1.85 to 1.89.
+- README rebuilt as an on-ramp, with the per-crate inventory left to each
+  crate's own documentation. MSRV badge corrected from 1.85 to 1.89.
 
 ### Added
 
@@ -389,8 +389,8 @@ primitive changed. See below.
     ECHOES via its wheel (Zenodo DOI 10.5281/zenodo.14959866) and emits NPZ + JSON
     meta pairs per test case.
   - 8-case committed basic fixture set (3 fractions × 7 schemes × 2 orders for
-    iso-matrix spheres subset), 42-case extended set at
-    `/run/media/alejandrosotofranco/ASF-EX2/cartan/homog-fixtures/v1/`.
+    iso-matrix spheres subset), 42-case extended set held out of the tree under
+    `$CARTAN_HOMOG_FIXTURES_DIR/v1/`.
   - Integration test: all 8 basic cases agree with ECHOES to `d_AI < 2.5e-15`.
   - Capstone fractured-sandstone pipeline test: 7 depths, Mori-Tanaka with
     depth-varying penny-crack density, crack-induced anisotropy verified,
@@ -452,10 +452,8 @@ primitive changed. See below.
   `wishart_step`) across sphere dims 2..50 and SPD dims 2..5. JSON-line
   output rendered on `cartan.sotofranco.dev/performance/stochastic`.
 
-- **docs**: `STACK.md` at the repo root lays out the cartan → hsu → bismut /
-  elworthy → malliavin layer architecture with placement rules. `cartan-docs`
-  gains a full `/stochastic/*` section plus `/manifolds/spd-bures-wasserstein`
-  and `/performance/stochastic` pages.
+- **docs**: `cartan-docs` gains a full `/stochastic/*` section plus
+  `/manifolds/spd-bures-wasserstein` and `/performance/stochastic` pages.
 
 ### Fixed
 

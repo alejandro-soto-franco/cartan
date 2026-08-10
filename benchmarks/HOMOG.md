@@ -60,8 +60,8 @@ inclusion is softer than the matrix. Max residual ~5e-4 relative.
 cargo build --release --bin cartan-bench-homog
 ./target/release/cartan-bench-homog --out benchmarks/results/homog_cartan.jsonl
 
-# 2. Run the Python side (ECHOES). Requires conda env with echoes wheel:
-conda activate echoes-homog       # see cartan-homog-valid/python/requirements.txt
+# 2. Run the Python side (ECHOES), in an environment carrying the wheel.
+#    See cartan-homog-valid/python/requirements.txt.
 cd benchmarks/python
 python bench_homog.py --out ../results/homog_echoes.jsonl
 

@@ -16,8 +16,7 @@ so dimension errors are caught at compile time and the abstraction costs nothing
 at runtime.
 
 Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev) ·
-[docs.rs](https://docs.rs/cartan) ·
-[capability inventory](CAPABILITIES.md)
+[docs.rs](https://docs.rs/cartan)
 
 ## Install
 
@@ -114,14 +113,13 @@ homogenisation schemes as well. CI builds both configurations for
 `thumbv7em-none-eabihf` on every run, so the claim is tested against a target
 with no standard library rather than inferred from a host build.
 
-`cartan-core` also builds bare, with no allocator at all. See
-[CAPABILITIES.md](CAPABILITIES.md) for the per-crate tier table and a worked
-attitude-control example on a microcontroller.
+`cartan-core` also builds bare, with no allocator at all. Each crate's own
+documentation carries its feature tiers.
 
 ## Documentation
 
 - [Guide](https://docs.rs/cartan/latest/cartan/guide/), doctested chapters across all three regimes
-- [CAPABILITIES.md](CAPABILITIES.md), the full per-crate inventory
+- [docs.rs](https://docs.rs/cartan), the per-crate API reference
 - [cartan.sotofranco.dev](https://cartan.sotofranco.dev), long-form articles
 
 ## Licence

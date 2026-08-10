@@ -57,7 +57,7 @@ This ~4× gap is a well-known phenomenon in rock physics and is **not a homogeni
 cargo build --release --bin cartan-bench-berea
 ./target/release/cartan-bench-berea benchmarks/results/berea_cartan.jsonl
 
-conda activate echoes-homog
+# Python side, in an environment carrying the ECHOES wheel.
 cd benchmarks/python
 python bench_berea_echoes.py --out ../results/berea_echoes.jsonl
 ```
