@@ -123,14 +123,17 @@ jobs:
       # alongside it. Together they are a few megabytes, against roughly three
       # gigabytes for the full toolkit, none of which this job would use.
       #
-      # The stub exists for exactly this case. It resolves `-lcuda` at link
-      # time on a machine with no driver, and its SONAME is `libcuda.so.1`, so
-      # putting it on the runtime search path as well lets the test binaries
-      # start: linking against it leaves a DT_NEEDED that the loader has to
-      # satisfy before `main` runs, whether or not any test touches the driver.
+      # The stub exists for exactly this case: it resolves `-lcuda` at link
+      # time on a machine with no driver. That link records a DT_NEEDED on the
+      # stub's SONAME, `libcuda.so.1`, which the loader resolves before `main`
+      # runs, whether or not any test touches the driver. The stubs directory
+      # ships `libcuda.so` and no file under the SONAME, and the loader
+      # searches by file name rather than by SONAME, so the runtime search path
+      # needs a directory where that name exists.
+      #
       # Every entry point in the stub returns an error code rather than doing
-      # the work, so a call that reached the driver by accident fails here
-      # rather than passing quietly.
+      # the work, so a call that reached the driver by accident fails on the
+      # runner rather than passing quietly.
       #
       # The version is read from the repository rather than pinned here, so a
       # new CUDA release does not silently leave this job on an old header.
@@ -156,9 +159,17 @@ jobs:
           root="/usr/local/cuda-${suffix/-/.}"
           test -f "$root/include/cuda.h"
           test -f "$root/lib64/stubs/libcuda.so"
-          echo "CUDA_HOME=$root" >> "$GITHUB_ENV"
-          echo "LIBRARY_PATH=$root/lib64/stubs" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=$root/lib64/stubs" >> "$GITHUB_ENV"
+          # Link time reads `libcuda.so` from the toolkit; run time needs the
+          # SONAME as a file name, which only exists here.
+          stub_dir="$RUNNER_TEMP/cuda-stub"
+          mkdir -p "$stub_dir"
+          ln -sf "$root/lib64/stubs/libcuda.so" "$stub_dir/libcuda.so.1"
+
+          {
+            echo "CUDA_HOME=$root"
+            echo "LIBRARY_PATH=$root/lib64/stubs"
+            echo "LD_LIBRARY_PATH=$stub_dir"
+          } >> "$GITHUB_ENV"
       # The runner has no GPU and no libNVVM, so nothing here compiles kernels
       # to PTX or launches one. What it does catch is the host half: the
       # batched API, its shape checking, and every signature the kernels are
