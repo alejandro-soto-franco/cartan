@@ -9,6 +9,8 @@
 //!
 //! ## Contents
 //!
+//! - [`eig`]: Symmetric eigendecomposition, by cyclic Jacobi on the stack or
+//!   by nalgebra's tridiagonalise-then-QR solver, chosen by matrix size.
 //! - [`skew`]: Skew-symmetrization and predicate (`skew(A) = (A - A^T)/2`, `is_skew`).
 //! - [`matrix_exp`]: Matrix exponential specialized for skew-symmetric inputs
 //!   (Rodrigues for N=2,3; Padé [6/6] scaling-and-squaring for N≥4).
@@ -34,6 +36,7 @@
 //! - do Carmo, M. P. (1992). *Riemannian Geometry*. Chapter 3 (Lie groups).
 //! - Rodrigues, O. (1840). Formula for 3D rotations; see Hall, B.C. (2015) §5.3.
 
+pub mod eig;
 pub mod matrix_exp;
 pub mod matrix_log;
 pub mod skew;

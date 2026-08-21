@@ -17,8 +17,13 @@ default = ["std"]
 std = ["alloc", "cartan-core/std", "rand/std", "rand_distr/std", "nalgebra/std"]
 alloc = ["cartan-core/alloc", "rand/alloc", "rand_distr/alloc", "nalgebra/alloc"]
 
+[lib]
+# `cargo bench` would otherwise run the empty libtest harness and hand it
+# criterion's arguments, which it does not recognise.
+bench = false
+
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.8", default-features = false }
+cartan-core = { path = "../cartan-core", version = "0.9", default-features = false }
 # libm satisfies f64: RealField in no_std mode (unconditional — no harm in std mode).
 # nalgebra/std and nalgebra/alloc are threaded through the feature flags above.
 nalgebra = { workspace = true, features = ["libm"] }

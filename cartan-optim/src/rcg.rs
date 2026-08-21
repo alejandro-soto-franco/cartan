@@ -124,10 +124,15 @@ where
         }
 
         // Ensure p is a descent direction; if not, restart.
-        if manifold.inner(&x, &g, &p) >= 0.0 {
+        //
+        // The slope is <g, p>_x, which is the same quantity the descent test
+        // reads, so it is computed once. On SPD(10) an inner product is the
+        // second most expensive call in this loop after the retraction.
+        let mut slope = manifold.inner(&x, &g, &p);
+        if slope >= 0.0 {
             p = -g.clone();
+            slope = manifold.inner(&x, &g, &p);
         }
-        let slope = manifold.inner(&x, &g, &p);
 
         // Armijo backtracking line search.
         let mut t = config.init_step;

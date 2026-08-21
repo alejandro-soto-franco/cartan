@@ -11,7 +11,7 @@ Part of the [cartan](https://crates.io/crates/cartan) workspace.
 
 `cartan-stochastic` provides the foundation downstream stochastic stacks
 need to do probability, SDE integration, and pathwise-derivative
-computation on manifolds — independent of the manifold type, as long as
+computation on manifolds, independent of the manifold type, as long as
 it implements `cartan-core`'s `Manifold + ParallelTransport + Retraction`.
 
 The architectural purpose is to **prevent primitive duplication** across
@@ -21,17 +21,17 @@ Maruyama stochastic development are defined once here.
 
 ## Core constructs
 
-- **Orthonormal frame bundle `O(M)`** — the total space of orthonormal
+- **Orthonormal frame bundle `O(M)`**: the total space of orthonormal
   bases of the tangent spaces of `M`. A point is `(p, r)` where
   `r = (e_1, …, e_n)` is an orthonormal basis of `T_p M`.
-- **Horizontal lift** — given `u ∈ T_p M`, a curve in `O(M)` whose
+- **Horizontal lift**: given `u ∈ T_p M`, a curve in `O(M)` whose
   velocity projects to `u` and whose frame evolves by parallel transport.
   Implemented as a right action of `R^n` on the frame bundle.
-- **Stochastic development (Eells-Elworthy-Malliavin)** — solve the SDE
+- **Stochastic development (Eells-Elworthy-Malliavin)**: solve the SDE
   on `O(M)` driven by Euclidean Brownian motion `W_t` with Stratonovich
   differential `∂_t (p, r) = H_i(p, r) ∘ dW^i_t`. Pushed-down trajectory
   on `M` is Brownian motion in the Riemannian sense.
-- **Wishart SPD diffusion** — closed-form SDE on the SPD manifold, used
+- **Wishart SPD diffusion**: closed-form SDE on the SPD manifold, used
   by `cartan-homog`'s stochastic ensembles for Wishart-perturbed phase
   property propagation.
 

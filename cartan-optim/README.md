@@ -1,6 +1,6 @@
 # cartan-optim
 
-Riemannian optimization algorithms for cartan.
+Riemannian optimisation algorithms for cartan.
 
 [![crates.io](https://img.shields.io/crates/v/cartan-optim.svg)](https://crates.io/crates/cartan-optim)
 [![docs.rs](https://docs.rs/cartan-optim/badge.svg)](https://docs.rs/cartan-optim)
@@ -9,7 +9,7 @@ Part of the [cartan](https://crates.io/crates/cartan) workspace.
 
 ## Overview
 
-`cartan-optim` implements first- and second-order optimization algorithms
+`cartan-optim` implements first- and second-order optimisation algorithms
 that operate on any manifold implementing traits from `cartan-core`. Each
 algorithm requires progressively richer geometry:
 

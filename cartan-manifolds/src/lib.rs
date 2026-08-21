@@ -30,6 +30,10 @@
 //! Requires `std` (eigendecomposition or imports from qtensor):
 //! [`QTensor3`], [`Corr<N>`], [`Spd<N>`], [`FrameField3D`]
 
+// The README's examples are compiled and run as doctests. `doctest` keeps them
+// out of the rendered documentation, where they would duplicate the module
+// docs below.
+#![cfg_attr(doctest, doc = include_str!("../README.md"))]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]

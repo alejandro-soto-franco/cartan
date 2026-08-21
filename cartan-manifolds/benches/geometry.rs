@@ -9,14 +9,14 @@
 //! cargo bench -p cartan-manifolds
 //! ```
 
-use cartan_core::{Manifold, ParallelTransport};
+use cartan_core::{Curvature, GeodesicInterpolation, Manifold, ParallelTransport};
 use cartan_manifolds::{
     Corr, Grassmann, Spd, SpdBuresWasserstein, SpecialEuclidean, SpecialOrthogonal, Sphere,
 };
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use nalgebra::{SMatrix, SVector};
-use rand::rngs::StdRng;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use std::hint::black_box;
 
 /// Fixed so a run is reproducible and two runs are comparable.
@@ -72,6 +72,7 @@ fn spd_ops(c: &mut Criterion) {
             let mut rng = StdRng::seed_from_u64(SEED);
             let p = m.random_point(&mut rng);
             let v = m.random_tangent(&p, &mut rng);
+            let v2 = m.random_tangent(&p, &mut rng);
             let q = m.exp(&p, &v);
 
             group.bench_with_input(BenchmarkId::new("exp", $n), &$n, |b, _| {
@@ -82,6 +83,26 @@ fn spd_ops(c: &mut Criterion) {
             });
             group.bench_with_input(BenchmarkId::new("dist", $n), &$n, |b, _| {
                 b.iter(|| m.dist(black_box(&p), black_box(&q)))
+            });
+            // The metric itself. Every optimiser step and every Frechet
+            // iteration reads it through `norm`, so it is called far more
+            // often than exp or log.
+            group.bench_with_input(BenchmarkId::new("inner", $n), &$n, |b, _| {
+                b.iter(|| m.inner(black_box(&p), black_box(&v), black_box(&v)))
+            });
+            group.bench_with_input(BenchmarkId::new("check_point", $n), &$n, |b, _| {
+                b.iter(|| m.check_point(black_box(&p)))
+            });
+            group.bench_with_input(BenchmarkId::new("transport", $n), &$n, |b, _| {
+                b.iter(|| m.transport(black_box(&p), black_box(&q), black_box(&v)))
+            });
+            group.bench_with_input(BenchmarkId::new("geodesic", $n), &$n, |b, _| {
+                b.iter(|| m.geodesic(black_box(&p), black_box(&q), black_box(0.4)))
+            });
+            group.bench_with_input(BenchmarkId::new("riemann", $n), &$n, |b, _| {
+                b.iter(|| {
+                    m.riemann_curvature(black_box(&p), black_box(&v), black_box(&v2), black_box(&v))
+                })
             });
         }};
     }
@@ -178,6 +199,8 @@ fn quant_ops(c: &mut Criterion) {
             let p = m.random_point(&mut rng);
             let q = m.random_point(&mut rng);
             let v = m.random_tangent(&p, &mut rng);
+            // A symmetric matrix off the manifold, for the projection below.
+            let raw = p + v * 0.4;
 
             group.bench_with_input(BenchmarkId::new("corr_exp", $n), &$n, |b, _| {
                 b.iter(|| m.exp(black_box(&p), black_box(&v)))
@@ -187,6 +210,12 @@ fn quant_ops(c: &mut Criterion) {
             });
             group.bench_with_input(BenchmarkId::new("corr_dist", $n), &$n, |b, _| {
                 b.iter(|| m.dist(black_box(&p), black_box(&q)))
+            });
+            // Higham's alternating projection, which runs an eigendecomposition
+            // per iteration. This is what turns an estimated covariance into a
+            // point on the manifold, so it sits on the ingest path.
+            group.bench_with_input(BenchmarkId::new("corr_project", $n), &$n, |b, _| {
+                b.iter(|| m.project_point(black_box(&raw)))
             });
         }};
     }
@@ -283,5 +312,12 @@ fn quant_ops(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, sphere_ops, spd_ops, round_trip, into_variants, quant_ops);
+criterion_group!(
+    benches,
+    sphere_ops,
+    spd_ops,
+    round_trip,
+    into_variants,
+    quant_ops
+);
 criterion_main!(benches);

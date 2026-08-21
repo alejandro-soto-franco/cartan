@@ -82,7 +82,7 @@ pub fn matrix_log_orthogonal<const N: usize>(
     } else if N == 3 {
         log_rodrigues(r)
     } else {
-        log_general(r)
+        log_normal(r)
     }
 }
 
@@ -210,277 +210,167 @@ fn log_rodrigues<const N: usize>(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// N ≥ 4: inverse scaling-and-squaring via Denman–Beavers
+// N ≥ 4: the normal-matrix formula
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Matrix logarithm for a general N×N orthogonal matrix via inverse scaling-and-squaring.
+/// Matrix logarithm of a general N×N rotation, from one symmetric
+/// eigendecomposition.
 ///
-/// ## Algorithm
+/// ## Formula
 ///
-/// The idea (Higham 2008, §11.4; Björck & Hammarling 1983):
+/// Split `R` into its symmetric and skew parts:
 ///
-/// 1. **Repeated square roots (Denman–Beavers):** Compute R^{1/2^s} for increasing s
-///    until `||R^{1/2^s} - I||_1 < 0.5`. Each square root halves the "distance" to I,
-///    eventually bringing R^{1/2^s} into the radius of convergence of the Mercator series.
-///
-/// 2. **Mercator series:** For Y ≈ I (i.e., X = Y - I with `||X|| < 1`):
-///    ```text
-///    log(Y) = X - X²/2 + X³/3 - X⁴/4 + ...  (Mercator series)
-///    ```
-///    This converges for `||X|| < 1` (spectral radius < 1) and computes log(Y)
-///    where log is the principal matrix logarithm.
-///
-/// 3. **Unscaling:** Since we took s square roots, `log(R) = 2^s · log(R^{1/2^s})`.
-///
-/// 4. **Skew-projection:** Project the result onto so(N) via `skew(Ω) = (Ω - Ω^T)/2`
-///    to enforce exact skew-symmetry (Mercator accumulates tiny symmetric errors).
-///
-/// ## Denman–Beavers iteration
-///
-/// For computing the matrix square root of Y: iterate
 /// ```text
-/// Y_{k+1} = (Y_k + Z_k^{-1}) / 2
-/// Z_{k+1} = (Z_k + Y_k^{-1}) / 2
+/// S = (R + R^T) / 2,   A = (R - R^T) / 2
 /// ```
-/// starting from Y_0 = Y, Z_0 = I. Then Y_k → Y^{1/2} and Z_k → Y^{-1/2}.
 ///
-/// DB converges quadratically (error squares each step) when Y has no eigenvalues
-/// on the negative real axis. For orthogonal matrices (eigenvalues on the unit circle),
-/// convergence is fast unless Y has an eigenvalue near -1 (θ near π → cut locus).
+/// With `R = exp(Ω)` and `Ω ∈ so(N)` these are the matrix cosine and sine of
+/// `Ω`, so `S = cos(Ω)` and `A = sin(Ω)`. A rotation is normal, `R R^T = I`,
+/// which makes `S` and `A` commute:
 ///
-/// ## Limitations
+/// ```text
+/// S A = (R + R^T)(R - R^T)/4 = (R² - R^T²)/4 = (R - R^T)(R + R^T)/4 = A S
+/// ```
 ///
-/// - We cap at `MAX_SQRTS = 20` square roots and `DB_ITERS = 32` DB iterations.
-/// - If DB diverges or does not bring Y close enough to I, returns `CartanError::CutLocus`.
-/// - The Mercator series uses 16 terms; for `||X||_F < 0.5`, the error is < (0.5)^17/17 ≈ 1e-6.
-///   For `||X||_F < 0.1` (which we aim for), the error is < 1e-18 (below ε_mach).
+/// In the basis where `Ω` is block diagonal with blocks `[[0, -θ], [θ, 0]]`,
+/// `S` is `cos θ` on that block and `A` is the same block scaled by `sin θ`.
+/// Multiplying `A` by `θ / sin θ` therefore recovers `Ω` exactly:
+///
+/// ```text
+/// Ω = F A,   F = V diag(θ_k / sin θ_k) V^T,   θ_k = arccos(λ_k(S))
+/// ```
+///
+/// where `S = V diag(λ) V^T`. `F` is a function of `S`, so it commutes with
+/// `A`, and a symmetric matrix times a commuting skew matrix is skew: the
+/// result lands in `so(N)` by construction.
+///
+/// At `N = 3` every non-zero `θ_k` is the single rotation angle, `F` collapses
+/// to `(θ / sin θ) I`, and the formula is exactly the inverse Rodrigues
+/// formula that [`log_rodrigues`] applies directly.
+///
+/// ## Cost
+///
+/// One symmetric eigendecomposition and three N×N products. The inverse
+/// scaling-and-squaring scheme this replaces took repeated Denman–Beavers
+/// square roots, each of which ran up to 32 coupled iterations with two matrix
+/// inverses apiece, then summed a 16-term Mercator series. On SO(10) that was
+/// two orders of magnitude more arithmetic for a less accurate answer: the
+/// Mercator truncation caps the old path at roughly 1e-7 relative error, while
+/// this one is limited only by the eigensolver.
+///
+/// ## Near θ = 0
+///
+/// `θ / sin θ → 1`, and the ratio is evaluated from its Taylor series below
+/// `1e-4` to avoid `0/0`.
+///
+/// ## Near θ = π (cut locus)
+///
+/// `sin θ → 0` and the factor diverges. Geometrically `R` has a half-turn in
+/// some invariant 2-plane and the shortest geodesic from `I` is not unique, so
+/// this returns [`CartanError::CutLocus`], matching the `N = 3` branch.
+///
+/// Approaching that band the logarithm is ill conditioned for any algorithm:
+/// its condition number goes as `1 / sin θ`, which is a property of the
+/// manifold. This formula reads `sin θ` out of `A`, whose entries there are the
+/// small difference of two entries of size one, so roughly `log10(1 / sin θ)`
+/// digits are gone before the arithmetic starts. Measured against a closed
+/// form at `N = 10`, the error is 1.3e-12 at `π - θ = 1e-3` and 1.1e-9 at
+/// `1e-6`. Inverse scaling-and-squaring avoids that cancellation, by halving
+/// the angle until it is nowhere near `π`, and holds about an order more
+/// accuracy inside this band at `N >= 6`; away from it, and at every size at
+/// `N = 4`, it is orders worse. See the module tests for the profile.
 ///
 /// ## References
 ///
-/// - Denman & Beavers (1976). "The matrix sign function and computations in systems."
-/// - Björck, Å. & Hammarling, S. (1983). "A Schur method for the square root of a matrix."
-/// - Higham, N. J. (2008). *Functions of Matrices*, §11.4 (Algorithm 11.9).
-fn log_general<const N: usize>(
-    r: &SMatrix<Real, N, N>,
-) -> Result<SMatrix<Real, N, N>, CartanError> {
-    // ── Constants ──────────────────────────────────────────────────────────
-    // Maximum number of square roots to take before giving up.
-    // Each square root halves the "angle" of the orthogonal matrix.
-    // After 20 square roots, the angle is reduced by 2^20 ≈ 10^6, more than enough.
-    const MAX_SQRTS: usize = 20;
+/// - Gallier & Xu (2002), §4 (logarithm of a rotation via its invariant planes).
+/// - Higham (2008), *Functions of Matrices*, §1.2 (functions of a normal matrix).
+fn log_normal<const N: usize>(r: &SMatrix<Real, N, N>) -> Result<SMatrix<Real, N, N>, CartanError> {
+    let pi: Real = core::f64::consts::PI;
 
-    // Number of Denman–Beavers iterations per square root.
-    // DB converges quadratically, so 32 iterations is extreme overkill (in practice
-    // 6–8 iterations suffice), but we leave headroom for near-cut-locus inputs.
-    const DB_ITERS: usize = 32;
+    // Symmetric part: cos(Ω). Skew part: sin(Ω).
+    let s = (r + r.transpose()) * 0.5;
+    let a = (r - r.transpose()) * 0.5;
 
-    // Convergence threshold for DB: relative change in Y below this → declare convergence.
-    // We use 1e-14 (close to machine epsilon for f64) so that the square root is as
-    // accurate as double precision allows.
-    const DB_TOL: Real = 1e-14;
+    let (v, lambda) = crate::util::eig::sym_eigen_s(&s);
 
-    // Number of terms in the Mercator series for log(I + X).
-    // 16 terms → error < ||X||^17 / 17. For ||X||_F < 0.5, this is < 8e-7.
-    // For ||X||_F < 0.1, this is < 1e-18 (safely below ε_mach).
-    const MERCATOR_TERMS: usize = 16;
-
-    let id = SMatrix::<Real, N, N>::identity();
-
-    // ── Step 1: Repeated square roots via Denman–Beavers ──────────────────
+    // Both the cosine and the sine of each angle, read off the two parts of R
+    // rather than derived from one another.
     //
-    // We start with Y = R and compute Y ← Y^{1/2} repeatedly until
-    // ||Y - I||_1 < 0.5 (within the Mercator convergence radius).
-    // We track the number of square roots taken as `s`.
-    let mut y = *r; // Y will converge to R^{1/2^s}
-    let mut s = 0usize; // number of square roots taken so far
+    // `A` acts on the invariant 2-plane of `θ_k` as the rotation generator
+    // scaled by `sin θ_k`, so `||A v_k|| = |sin θ_k|` for a unit eigenvector
+    // `v_k` of `S`. Taking the sine this way rather than as
+    // `sin(arccos(λ_k))` is what makes the formula usable near a half-turn:
+    // at `θ` close to `π`, `arccos` amplifies the error in `λ_k` by
+    // `1 / sin θ`, and the `θ / sin θ` factor then amplifies it again by the
+    // same amount. Measuring the sine directly costs one N x N product and
+    // holds the error near the unit roundoff across the whole range.
+    let av = a * v;
 
-    for _sqrts in 0..MAX_SQRTS {
-        // Check if Y is already close enough to I for Mercator to converge well.
-        // Threshold 0.5: Mercator converges for ||X|| < 1, but we want ||X|| ≤ 0.5
-        // for reasonable accuracy with 16 terms.
-        let y_minus_id_norm = matrix_norm1(&(y - id));
-        if y_minus_id_norm < 0.5 {
-            break; // Y is close enough to I; stop taking square roots.
-        }
+    let mut factors = lambda;
+    for k in 0..N {
+        let sin_theta = av.column(k).norm();
+        let cos_theta = lambda[k].clamp(-1.0, 1.0);
 
-        // Compute sqrt(Y) via Denman–Beavers iteration.
-        let y_sqrt = denman_beavers_sqrt(&y, DB_ITERS, DB_TOL).ok_or_else(|| {
+        // atan2 stays well conditioned where arccos does not, and puts θ in
+        // [0, π], which is the principal branch.
+        let theta = sin_theta.atan2(cos_theta);
+
+        if pi - theta < CUT_LOCUS_TOL {
             #[cfg(feature = "alloc")]
-            {
-                CartanError::CutLocus {
-                    message: alloc::format!(
-                        "Denman–Beavers square root did not converge after {} iterations \
-                     (rotation may be near cut locus, i.e., angle near π)",
-                        DB_ITERS
-                    ),
-                }
-            }
+            return Err(CartanError::CutLocus {
+                message: alloc::format!(
+                    "invariant plane with rotation angle θ = {:.6} rad is near π; \
+                     logarithm is not unique (cut locus of SO(N))",
+                    theta
+                ),
+            });
             #[cfg(not(feature = "alloc"))]
-            {
-                CartanError::CutLocus {
-                    message: "Denman-Beavers sqrt did not converge (rotation near cut locus)",
-                }
-            }
-        })?;
-
-        y = y_sqrt;
-        s += 1;
-    }
-
-    // Final check: did we actually converge?
-    let y_minus_id_norm = matrix_norm1(&(y - id));
-    if y_minus_id_norm >= 0.5 {
-        #[cfg(feature = "alloc")]
-        return Err(CartanError::CutLocus {
-            message: alloc::format!(
-                "after {} square roots, ||R^{{1/2^s}} - I||_1 = {:.4e} ≥ 0.5; \
-                 matrix may be at the cut locus (rotation angle near π)",
-                s,
-                y_minus_id_norm
-            ),
-        });
-        #[cfg(not(feature = "alloc"))]
-        return Err(CartanError::CutLocus {
-            message: "scaling-and-squaring did not converge (matrix near cut locus)",
-        });
-    }
-
-    // ── Step 2: Mercator series log(Y) = log(I + X) where X = Y - I ───────
-    //
-    // The Mercator (alternating harmonic) series:
-    //   log(I + X) = X - X²/2 + X³/3 - X⁴/4 + ... = sum_{k=1}^{∞} (-1)^{k+1} X^k / k
-    //
-    // This converges for ||X|| < 1 (in any consistent matrix norm).
-    // For ||X||_1 < 0.5, the error after MERCATOR_TERMS terms is bounded by
-    //   ||X||^{MERCATOR_TERMS+1} / (MERCATOR_TERMS+1) < 0.5^17 / 17 ≈ 4.5e-7.
-    // If we want higher accuracy, either use more terms or ensure smaller ||X||
-    // by taking more square roots (smaller threshold for break condition above).
-    let x = y - id; // X = Y - I (the "deviation" from identity)
-
-    // Compute the Mercator series using Horner-like accumulation:
-    //   Σ = X - X²/2 + X³/3 - ... = X · (I - X/2 · (I - X/3 · (I - ...)))
-    // We use the straightforward summation (not Horner) for clarity:
-    //   log_y = sum_{k=1}^{MERCATOR_TERMS} (-1)^{k+1} X^k / k
-    let mut log_y = SMatrix::<Real, N, N>::zeros(); // accumulator for the series
-    let mut x_power = x; // X^k, starts at X^1
-    let mut sign = 1.0_f64; // alternating sign: +1 for k odd, -1 for k even
-
-    for k in 1..=MERCATOR_TERMS {
-        // Add the term sign * X^k / k to the series sum.
-        // sign = (-1)^{k+1} = +1 for k=1, -1 for k=2, +1 for k=3, ...
-        log_y += x_power * (sign / k as Real);
-
-        // Prepare for next iteration: X^{k+1} = X^k · X, flip sign.
-        x_power *= x; // X^{k+1} = X^k · X
-        sign = -sign; // flip for the next term
-    }
-
-    // ── Step 3: Unscale — log(R) = 2^s · log(R^{1/2^s}) ──────────────────
-    //
-    // Taking s square roots of R gives R^{1/2^s}. The log of R^{1/2^s}
-    // satisfies: log(R^{1/2^s}) = log(R) / 2^s. Inverting: log(R) = 2^s · log(R^{1/2^s}).
-    //
-    // Note: 2^s as an integer fits trivially in f64 for s ≤ 20 (2^20 = 1048576).
-    let scale = (2.0_f64).powi(s as i32); // 2^s (exact in floating-point for s ≤ 52)
-    let log_r_raw = log_y * scale;
-
-    // ── Step 4: Project onto so(N) ─────────────────────────────────────────
-    //
-    // The Mercator series accumulates floating-point rounding errors that may
-    // introduce a tiny symmetric component into log_r_raw. Projecting onto so(N)
-    // via (Ω - Ω^T)/2 eliminates this and enforces exact skew-symmetry.
-    //
-    // This projection is exact for a perfect logarithm: if Ω ∈ so(N) then
-    // (Ω - Ω^T)/2 = (Ω - (-Ω))/2 = Ω. So we only lose the error, not signal.
-    let log_r = (log_r_raw - log_r_raw.transpose()) * 0.5;
-
-    Ok(log_r)
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: Denman–Beavers matrix square root
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Compute the principal square root of a matrix Y via Denman–Beavers iteration.
-///
-/// The Denman–Beavers coupled iteration (Denman & Beavers 1976) is:
-/// ```text
-/// Y_0 = Y,   Z_0 = I
-/// Y_{k+1} = (Y_k + Z_k^{-1}) / 2
-/// Z_{k+1} = (Z_k + Y_k^{-1}) / 2
-/// ```
-/// The iteration converges (quadratically) to `Y_{∞} = Y^{1/2}` and `Z_{∞} = Y^{-1/2}`
-/// whenever Y has no eigenvalues on the negative real axis.
-///
-/// For orthogonal matrices R ∈ SO(N) with eigenvalues on the unit circle S¹,
-/// convergence is fast unless an eigenvalue is near -1 (angle near π → cut locus).
-///
-/// ## Returns
-///
-/// `Some(Y^{1/2})` on convergence (relative change below `tol`), or `None` if
-/// the iteration did not converge within `max_iters` steps or if a matrix inverse
-/// fails (singular iterate → likely cut locus).
-///
-/// ## References
-///
-/// - Denman, E. D. & Beavers, A. N. (1976). "The matrix sign function and computations
-///   in systems." *Applied Mathematics and Computation*, 2(1), 63–94.
-/// - Higham, N. J. (2008). *Functions of Matrices*, Algorithm 6.3, p. 148.
-fn denman_beavers_sqrt<const N: usize>(
-    y_init: &SMatrix<Real, N, N>,
-    max_iters: usize,
-    tol: Real,
-) -> Option<SMatrix<Real, N, N>> {
-    let id = SMatrix::<Real, N, N>::identity();
-    let half = 0.5_f64;
-
-    let mut y = *y_init; // Y_k (iterand; converges to Y^{1/2})
-    let mut z = id; // Z_k (converges to Y^{-1/2})
-
-    for _ in 0..max_iters {
-        // Compute inverses: Z_k^{-1} and Y_k^{-1}.
-        // If either inverse fails (singular matrix), the iteration has broken down.
-        let z_inv = z.try_inverse()?; // Z_k^{-1}; returns None on singular
-        let y_inv = y.try_inverse()?; // Y_k^{-1}; returns None on singular
-
-        // Save Y_k before updating to check convergence.
-        let y_old = y;
-
-        // DB update:
-        //   Y_{k+1} = (Y_k + Z_k^{-1}) / 2
-        //   Z_{k+1} = (Z_k + Y_k^{-1}) / 2
-        y = (y_old + z_inv) * half;
-        z = (z + y_inv) * half;
-
-        // Convergence check: relative change in Y.
-        // We use ||Y_{k+1} - Y_k||_F / ||Y_{k+1}||_F < tol.
-        // Frobenius norm is used here (cheap, sufficient for convergence detection).
-        let dy = (y - y_old).norm(); // ||Y_{k+1} - Y_k||_F
-        let y_norm = y.norm(); // ||Y_{k+1}||_F
-
-        // Avoid dividing by zero if Y → 0 (shouldn't happen for orthogonal inputs).
-        if y_norm > 0.0 && dy / y_norm < tol {
-            return Some(y); // converged!
+            return Err(CartanError::CutLocus {
+                message: "invariant plane with rotation angle near π; logarithm is not unique",
+            });
         }
+
+        // θ / sin θ, from the sine that was measured rather than a second one
+        // recovered from θ, so the ratio stays consistent with `A` itself.
+        factors[k] = if theta < 1e-4 {
+            theta_over_sin(theta)
+        } else {
+            theta / sin_theta
+        };
     }
 
-    // Did not converge within max_iters.
-    None
+    // Ω = F A with F = V diag(θ/sin θ) V^T. `recompose` builds V diag(f) V^T
+    // without materialising the diagonal matrix.
+    let f = crate::util::eig::recompose::<N>(&v, &factors);
+    let omega = f * a;
+
+    // F and A commute, so the product is already skew. The projection removes
+    // the asymmetry that roundoff in the eigenvectors leaves behind.
+    Ok((omega - omega.transpose()) * 0.5)
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: 1-norm of a matrix (same as in matrix_exp.rs)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Compute the matrix 1-norm: `||A||_1 = max_j sum_i |a_{ij}|`.
+/// Rotation angle at which the logarithm is declared to sit on the cut locus.
 ///
-/// See `matrix_exp::matrix_norm1` for the rationale. We duplicate the function
-/// here (rather than making it `pub` in matrix_exp and importing it) to keep each
-/// module self-contained.
-fn matrix_norm1<const N: usize>(a: &SMatrix<Real, N, N>) -> Real {
-    (0..N)
-        .map(|j| (0..N).map(|i| a[(i, j)].abs()).sum::<Real>())
-        .fold(0.0_f64, f64::max)
+/// The `N = 3` branch uses the same figure against the angle read off the
+/// trace, so both dimensions report a half-turn at the same distance from π.
+const CUT_LOCUS_TOL: Real = 1e-7;
+
+/// `θ / sin θ`, evaluated by series where the quotient is `0/0`.
+///
+/// The switch is at `θ = 1e-4`, where the series truncated after the `θ⁴` term
+/// is accurate to `θ⁶ ≈ 1e-24`, below the resolution of the surrounding
+/// arithmetic, and the direct quotient still has `sin θ ≈ 1e-4` in the
+/// denominator against a `θ` of the same size, so the cancellation is the
+/// whole value.
+#[inline]
+fn theta_over_sin(theta: Real) -> Real {
+    if theta < 1e-4 {
+        // θ/sin θ = 1 + θ²/6 + 7θ⁴/360 + O(θ⁶)
+        let t2 = theta * theta;
+        1.0 + t2 * (1.0 / 6.0 + t2 * (7.0 / 360.0))
+    } else {
+        theta / theta.sin()
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -492,7 +382,7 @@ mod tests {
     use super::*;
     use crate::util::matrix_exp::matrix_exp_skew;
     use crate::util::skew::skew;
-    use nalgebra::SMatrix;
+    use nalgebra::{SMatrix, SVector};
 
     // Tolerances:
     // TIGHT: 1e-14 for exact cases (log(I) = 0, etc.)
@@ -611,6 +501,260 @@ mod tests {
 
         let err = (r - r2).norm();
         assert!(err < MED, "N=4: exp(log(R)) ≠ R: error = {:.2e}", err);
+    }
+
+    /// Two Householder reflections, giving a matrix orthogonal to machine
+    /// precision with determinant +1.
+    ///
+    /// Conjugating by an exactly orthogonal `Q` lets a test state the answer
+    /// in closed form, so the accuracy of the logarithm is measured on its
+    /// own rather than through `matrix_exp_skew`.
+    fn householder_pair<const N: usize>(seed: usize) -> SMatrix<Real, N, N> {
+        let reflect = |off: usize| -> SMatrix<Real, N, N> {
+            let mut v = SVector::<Real, N>::zeros();
+            for i in 0..N {
+                v[i] = (((i * 31 + off * 17 + seed * 7) % 23) as Real / 23.0) - 0.5 + 0.3;
+            }
+            let vtv = v.dot(&v);
+            SMatrix::<Real, N, N>::identity() - (v * v.transpose()) * (2.0 / vtv)
+        };
+        reflect(1) * reflect(2)
+    }
+
+    /// Block-diagonal rotation and its logarithm, for prescribed angles.
+    ///
+    /// Angles are laid on the invariant 2-planes in order; a trailing
+    /// coordinate on an odd `N` is fixed.
+    fn blocks<const N: usize>(angles: &[Real]) -> (SMatrix<Real, N, N>, SMatrix<Real, N, N>) {
+        let mut r = SMatrix::<Real, N, N>::identity();
+        let mut omega = SMatrix::<Real, N, N>::zeros();
+        for (b, &theta) in angles.iter().enumerate().take(N / 2) {
+            let i = 2 * b;
+            r[(i, i)] = theta.cos();
+            r[(i, i + 1)] = -theta.sin();
+            r[(i + 1, i)] = theta.sin();
+            r[(i + 1, i + 1)] = theta.cos();
+            omega[(i, i + 1)] = -theta;
+            omega[(i + 1, i)] = theta;
+        }
+        (r, omega)
+    }
+
+    /// The logarithm against a closed-form answer, at N = 4, 6, 8 and 10, over
+    /// angles from `1e-8` to within a tenth of a radian of a half-turn.
+    ///
+    /// The tolerance is 1e-12. Measured against the inverse scaling-and-squaring
+    /// path this replaces, on these same cases, the new formula is between
+    /// three and four orders more accurate away from the cut locus (4e-16
+    /// against 4e-12 at N = 4 with two equal angles of 0.5 rad) and about
+    /// three times less accurate within 0.1 rad of it (2.6e-13 against
+    /// 9.7e-14), where `arccos` is ill conditioned. Both stay far inside this
+    /// tolerance.
+    #[test]
+    fn test_log_matches_closed_form_across_dimensions_and_angles() {
+        fn check<const N: usize>(angles: &[Real]) {
+            let q = householder_pair::<N>(3);
+            let (r_blocks, omega_blocks) = blocks::<N>(angles);
+            let r = q * r_blocks * q.transpose();
+            let expected = q * omega_blocks * q.transpose();
+
+            let got =
+                matrix_log_orthogonal(&r).expect("log should succeed away from the cut locus");
+            let err = (got - expected).norm();
+            assert!(
+                err < 1e-12,
+                "N={N}, angles={angles:?}: log(R) ≠ Ω, error = {err:.3e}"
+            );
+        }
+
+        // Mixed magnitudes, a near-zero angle, and one close to the cut locus.
+        check::<4>(&[1e-8, 3.0]);
+        check::<4>(&[0.5, 0.5]);
+        check::<6>(&[0.01, 1.2, 3.04]);
+        check::<8>(&[1e-6, 0.7, 2.0, 3.04]);
+        check::<10>(&[0.3, 0.3, 1.5, 2.9, 1e-7]);
+        check::<10>(&[2.5, 2.5, 2.5, 2.5, 2.5]);
+    }
+
+    /// Round trip through `exp` then `log` at N = 4, 6, 8 and 10.
+    ///
+    /// The tolerance bounds the two maps together, `matrix_exp_skew` included.
+    /// It stood at 1e-9 while that function scaled its Pade approximant to the
+    /// wrong threshold; see `PADE6_THETA` in `matrix_exp`.
+    #[test]
+    fn test_log_roundtrip_general_dimensions_and_angles() {
+        fn check<const N: usize>(scale: Real) {
+            // A deterministic skew matrix whose entries vary in sign and size,
+            // scaled to sweep the angle range.
+            let mut raw = SMatrix::<Real, N, N>::zeros();
+            for i in 0..N {
+                for j in (i + 1)..N {
+                    let e = ((i * 7 + j * 13) % 11) as Real / 11.0 - 0.5;
+                    raw[(i, j)] = e * scale;
+                    raw[(j, i)] = -e * scale;
+                }
+            }
+            let omega = skew(&raw);
+
+            let r = matrix_exp_skew(&omega);
+            let recovered =
+                matrix_log_orthogonal(&r).expect("log should succeed away from the cut locus");
+            let err = (recovered - omega).norm();
+            assert!(
+                err < 1e-12,
+                "N={N}, scale={scale}: log(exp(Ω)) ≠ Ω, error = {err:.3e}"
+            );
+        }
+
+        for scale in [1e-6, 0.01, 0.3, 1.0, 1.6] {
+            check::<4>(scale);
+            check::<6>(scale);
+            check::<8>(scale);
+            check::<10>(scale);
+        }
+    }
+
+    /// A rotation acting in one plane only leaves N-2 eigenvalues of the
+    /// symmetric part at exactly 1, where `arccos` is at its worst
+    /// conditioned. The `θ/sin θ` factor still has to come out as 1 there.
+    #[test]
+    fn test_log_single_plane_rotation_with_fixed_axes() {
+        const N: usize = 6;
+        let theta: Real = 1.1;
+        let mut r = SMatrix::<Real, N, N>::identity();
+        r[(0, 0)] = theta.cos();
+        r[(0, 1)] = -theta.sin();
+        r[(1, 0)] = theta.sin();
+        r[(1, 1)] = theta.cos();
+
+        let omega = matrix_log_orthogonal(&r).expect("log should succeed");
+
+        let mut expected = SMatrix::<Real, N, N>::zeros();
+        expected[(0, 1)] = -theta;
+        expected[(1, 0)] = theta;
+
+        let err = (omega - expected).norm();
+        assert!(err < 1e-13, "single-plane rotation: error = {err:.3e}");
+    }
+
+    /// Repeated rotation angles make the eigenvalues of the symmetric part
+    /// degenerate, so the eigenvectors within each eigenspace are arbitrary.
+    /// The answer must not depend on which basis the solver picks.
+    #[test]
+    fn test_log_repeated_angles() {
+        const N: usize = 8;
+        let theta: Real = 0.7;
+        let mut r = SMatrix::<Real, N, N>::zeros();
+        for b in 0..(N / 2) {
+            let i = 2 * b;
+            r[(i, i)] = theta.cos();
+            r[(i, i + 1)] = -theta.sin();
+            r[(i + 1, i)] = theta.sin();
+            r[(i + 1, i + 1)] = theta.cos();
+        }
+
+        let omega = matrix_log_orthogonal(&r).expect("log should succeed");
+
+        let mut expected = SMatrix::<Real, N, N>::zeros();
+        for b in 0..(N / 2) {
+            let i = 2 * b;
+            expected[(i, i + 1)] = -theta;
+            expected[(i + 1, i)] = theta;
+        }
+
+        let err = (omega - expected).norm();
+        assert!(err < 1e-13, "four equal angles: error = {err:.3e}");
+    }
+
+    /// Angles approaching a half-turn, where the formula is at its worst
+    /// conditioned.
+    ///
+    /// `arccos` amplifies the error in an eigenvalue of the symmetric part by
+    /// `1 / sin θ`, and the `θ / sin θ` factor amplifies it again by the same
+    /// amount, so taking the sine from `sin(arccos(λ))` loses roughly
+    /// `1 / sin² θ`. At `θ = π - 1e-5` that is 1e10, and a random `SO(10)`
+    /// rotation has five angles, so one lands here often enough to matter: it
+    /// showed up as a round trip 4e-8 wrong, against 2e-10 for the inverse
+    /// scaling-and-squaring path that preceded this one.
+    ///
+    /// Reading the sine off `A` instead holds the error near the unit
+    /// roundoff, which is what this pins.
+    #[test]
+    fn test_log_near_half_turn_is_well_conditioned() {
+        fn check<const N: usize>(gap: Real) {
+            let pi: Real = core::f64::consts::PI;
+            let q = householder_pair::<N>(5);
+
+            // One plane just short of a half-turn, the rest well away from it.
+            let mut angles = vec![pi - gap];
+            for b in 1..(N / 2) {
+                angles.push(0.3 + 0.4 * (b as Real));
+            }
+
+            let (r_blocks, omega_blocks) = blocks::<N>(&angles);
+            let r = q * r_blocks * q.transpose();
+            let expected = q * omega_blocks * q.transpose();
+
+            let got = matrix_log_orthogonal(&r).expect("π - gap is off the cut locus");
+            let err = (got - expected).norm();
+
+            // The condition number goes as 1 / sin θ, so the bound has to as
+            // well. This sits about a decade above every measured value,
+            // which still leaves it far below the 1e-4 an `arccos`-derived
+            // sine produces at the tightest gap here.
+            let bound = 1e-14 / gap;
+            assert!(
+                err < bound,
+                "N={N}, π - θ = {gap:.1e}: log(R) off by {err:.3e}, bound {bound:.1e}"
+            );
+        }
+
+        for gap in [1e-3, 1e-4, 1e-5, 1e-6] {
+            check::<4>(gap);
+            check::<6>(gap);
+            check::<10>(gap);
+        }
+    }
+
+    /// A half-turn in one invariant plane puts `R` on the cut locus, whatever
+    /// the other planes do.
+    #[test]
+    fn test_log_cut_locus_general_dimension() {
+        const N: usize = 6;
+        let mut r = SMatrix::<Real, N, N>::identity();
+        // Rotation by exactly π in the (0,1) plane.
+        r[(0, 0)] = -1.0;
+        r[(1, 1)] = -1.0;
+        // A benign rotation elsewhere, so the failure comes from the half-turn.
+        let phi: Real = 0.4;
+        r[(2, 2)] = phi.cos();
+        r[(2, 3)] = -phi.sin();
+        r[(3, 2)] = phi.sin();
+        r[(3, 3)] = phi.cos();
+
+        assert!(
+            matches!(matrix_log_orthogonal(&r), Err(CartanError::CutLocus { .. })),
+            "a half-turn in one plane must report the cut locus"
+        );
+    }
+
+    /// The result must be exactly skew-symmetric, not merely close to it:
+    /// `SO(N)::log` hands it straight to `check_tangent`.
+    #[test]
+    fn test_log_result_is_skew() {
+        const N: usize = 7;
+        let mut raw = SMatrix::<Real, N, N>::zeros();
+        for i in 0..N {
+            for j in (i + 1)..N {
+                let e = ((i * 5 + j * 3) % 7) as Real / 7.0 - 0.5;
+                raw[(i, j)] = e;
+                raw[(j, i)] = -e;
+            }
+        }
+        let r = matrix_exp_skew(&skew(&raw));
+        let omega = matrix_log_orthogonal(&r).expect("log should succeed");
+        let asym = (omega + omega.transpose()).norm();
+        assert!(asym < 1e-15, "log is not skew: ||Ω + Ω^T|| = {asym:.3e}");
     }
 
     /// `log(-I)` for N=3 should return `Err(CartanError::CutLocus)`.

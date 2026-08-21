@@ -29,6 +29,10 @@
 //! - do Carmo. "Riemannian Geometry." Birkhauser, 1992. Chapters 3-5.
 //! - Petersen. "Riemannian Geometry." Springer, 2016. Chapter 11.
 
+// The README's examples are compiled and run as doctests. `doctest` keeps them
+// out of the rendered documentation, where they would duplicate the module
+// docs below.
+#![cfg_attr(doctest, doc = include_str!("../README.md"))]
 #![cfg_attr(not(feature = "std"), no_std)]
 #[cfg(feature = "alloc")]
 extern crate alloc;

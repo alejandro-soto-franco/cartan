@@ -68,7 +68,7 @@ pull it in and access it as `cartan_gpu::gpufft`:
 
 ```toml
 [dependencies]
-cartan-gpu = { version = "0.8", features = ["vulkan"] }
+cartan-gpu = { version = "0.9", features = ["vulkan"] }
 ```
 
 ```rust,no_run

@@ -33,11 +33,10 @@ released version imports `numpy.trapz`, removed in numpy 2.0. Its PyTorch
 backend imports the numpy backend transitively, so switching backends does not
 avoid it. The fix is upstream but unreleased.
 
-Julia, with its depot off-snapshot in the same idiom as `cargo-targets`:
+Julia, with its depot wherever you keep one:
 
 ```bash
-export JULIA_DEPOT_PATH=/home/julia/depot
-export PATH="/home/julia/juliaup/bin:$PATH"
+export JULIA_DEPOT_PATH=/path/to/julia/depot
 julia --project=julia -e 'using Pkg; Pkg.instantiate()'
 ```
 
@@ -49,7 +48,7 @@ julia --project=julia -e 'using Pkg; Pkg.instantiate()'
 
 # 2. Each language, in any order.
 cargo run --release -p cartan-bench --bin cartan-bench-crosslang
-JULIA_DEPOT_PATH=/home/julia/depot julia --project=julia julia/bench_geometry.jl
+julia --project=julia julia/bench_geometry.jl
 .venv/bin/python python/bench_crosslang.py
 .venv/bin/python python/bench_numba.py
 

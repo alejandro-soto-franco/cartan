@@ -100,3 +100,84 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Check workspace builds on the declared MSRV
         run: cargo check --workspace
+
+  cartan-cuda:
+    name: cartan-cuda (host side)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cartan-cuda
+    steps:
+      - uses: actions/checkout@v5
+      # No toolchain action: cartan-cuda/rust-toolchain.toml pins the nightly
+      # the codegen backend is built against, and rustup installs it, with
+      # rustc-dev and llvm-tools, on the first cargo call in that directory.
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cartan-cuda
+      # cuda-bindings runs bindgen over the driver header in its build script,
+      # so cuda.h must exist before anything in this job compiles, and the
+      # runner image ships no CUDA at all. Only two packages are needed: the
+      # driver dev package for `include/cuda.h` and `lib64/stubs/libcuda.so`,
+      # and the runtime dev package for the headers cuda-oxide includes
+      # alongside it. Together they are a few megabytes, against roughly three
+      # gigabytes for the full toolkit, none of which this job would use.
+      #
+      # The stub exists for exactly this case: it resolves `-lcuda` at link
+      # time on a machine with no driver. That link records a DT_NEEDED on the
+      # stub's SONAME, `libcuda.so.1`, which the loader resolves before `main`
+      # runs, whether or not any test touches the driver. The stubs directory
+      # ships `libcuda.so` and no file under the SONAME, and the loader
+      # searches by file name rather than by SONAME, so the runtime search path
+      # needs a directory where that name exists.
+      #
+      # Every entry point in the stub returns an error code rather than doing
+      # the work, so a call that reached the driver by accident fails on the
+      # runner rather than passing quietly.
+      #
+      # The version is read from the repository rather than pinned here, so a
+      # new CUDA release does not silently leave this job on an old header.
+      - name: CUDA driver header and link stub
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          distro="ubuntu$(. /etc/os-release && echo "$VERSION_ID" | tr -d .)"
+          wget -q "https://developer.download.nvidia.com/compute/cuda/repos/${distro}/x86_64/cuda-keyring_1.1-1_all.deb"
+          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          sudo apt-get update -qq
+
+          driver_pkg=$(apt-cache search --names-only '^cuda-driver-dev-[0-9]+-[0-9]+$' \
+            | awk '{print $1}' | sort -V | tail -1)
+          if [ -z "$driver_pkg" ]; then
+            echo "No cuda-driver-dev package in the NVIDIA repository for $distro." >&2
+            exit 1
+          fi
+          suffix=${driver_pkg#cuda-driver-dev-}
+          sudo apt-get install -y --no-install-recommends \
+            "$driver_pkg" "cuda-cudart-dev-${suffix}"
+
+          root="/usr/local/cuda-${suffix/-/.}"
+          test -f "$root/include/cuda.h"
+          test -f "$root/lib64/stubs/libcuda.so"
+          # Link time reads `libcuda.so` from the toolkit; run time needs the
+          # SONAME as a file name, which only exists here.
+          stub_dir="$RUNNER_TEMP/cuda-stub"
+          mkdir -p "$stub_dir"
+          ln -sf "$root/lib64/stubs/libcuda.so" "$stub_dir/libcuda.so.1"
+
+          {
+            echo "CUDA_HOME=$root"
+            echo "LIBRARY_PATH=$root/lib64/stubs"
+            echo "LD_LIBRARY_PATH=$stub_dir"
+          } >> "$GITHUB_ENV"
+      # The runner has no GPU and no libNVVM, so nothing here compiles kernels
+      # to PTX or launches one. What it does catch is the host half: the
+      # batched API, its shape checking, and every signature the kernels are
+      # called through, all of which drifted silently while the crate sat
+      # outside CI.
+      - name: Test
+        run: cargo test
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+      - name: Formatting
+        run: cargo fmt --check

@@ -10,8 +10,8 @@ with [PyO3](https://pyo3.rs/) and [maturin](https://www.maturin.rs/).
 ## What this crate does
 
 `cartan-py` exposes the cartan Rust library to Python. The goal is to
-make the same manifolds, optimizers, and homogenisation schemes available
-to Python users with numpy interop, without rewriting the math layer.
+make the same manifolds, optimisers, and homogenisation schemes available
+to Python users with numpy interop, without rewriting the maths layer.
 
 The crate is its own Cargo build target separate from the parent
 workspace so that Python-build-only deps (PyO3, abi3 selection) don't
