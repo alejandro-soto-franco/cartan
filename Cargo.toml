@@ -1,5 +1,12 @@
 [workspace]
-resolver = "2"
+# Resolver 3 picks dependency versions that satisfy `rust-version`, where
+# resolver 2 takes the newest and leaves the build to fail. Cargo.lock is not
+# checked in, so CI resolves from scratch on every run, and any transitive
+# dependency that raises its own MSRV breaks the build with nothing in this
+# repository having changed. That is how `ordered-float 5.5.0`, five levels
+# down under `wgpu`, failed the 0.9.0 release: it requires 1.90 against the
+# 1.89 declared here. Under this resolver the same graph selects 5.4.0.
+resolver = "3"
 members = [
     "cartan",
     "cartan-core",
