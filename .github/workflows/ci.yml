@@ -115,6 +115,44 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: cartan-cuda
+      # cuda-bindings runs bindgen over the driver header in its build script,
+      # so cuda.h must exist before anything in this job compiles, and the
+      # runner image ships no CUDA at all. Only two packages are needed: the
+      # driver dev package for `include/cuda.h` and `lib64/stubs/libcuda.so`,
+      # and the runtime dev package for the headers cuda-oxide includes
+      # alongside it. Together they are a few megabytes, against roughly three
+      # gigabytes for the full toolkit, none of which this job would use.
+      #
+      # The stub exists for exactly this case: it resolves `-lcuda` at link
+      # time on a machine with no driver. Loading it at run time would fail,
+      # which is why nothing below launches a kernel.
+      #
+      # The version is read from the repository rather than pinned here, so a
+      # new CUDA release does not silently leave this job on an old header.
+      - name: CUDA driver header and link stub
+        working-directory: ${{ github.workspace }}
+        run: |
+          set -euo pipefail
+          distro="ubuntu$(. /etc/os-release && echo "$VERSION_ID" | tr -d .)"
+          wget -q "https://developer.download.nvidia.com/compute/cuda/repos/${distro}/x86_64/cuda-keyring_1.1-1_all.deb"
+          sudo dpkg -i cuda-keyring_1.1-1_all.deb
+          sudo apt-get update -qq
+
+          driver_pkg=$(apt-cache search --names-only '^cuda-driver-dev-[0-9]+-[0-9]+$' \
+            | awk '{print $1}' | sort -V | tail -1)
+          if [ -z "$driver_pkg" ]; then
+            echo "No cuda-driver-dev package in the NVIDIA repository for $distro." >&2
+            exit 1
+          fi
+          suffix=${driver_pkg#cuda-driver-dev-}
+          sudo apt-get install -y --no-install-recommends \
+            "$driver_pkg" "cuda-cudart-dev-${suffix}"
+
+          root="/usr/local/cuda-${suffix/-/.}"
+          test -f "$root/include/cuda.h"
+          test -f "$root/lib64/stubs/libcuda.so"
+          echo "CUDA_HOME=$root" >> "$GITHUB_ENV"
+          echo "LIBRARY_PATH=$root/lib64/stubs" >> "$GITHUB_ENV"
       # The runner has no GPU and no libNVVM, so nothing here compiles kernels
       # to PTX or launches one. What it does catch is the host half: the
       # batched API, its shape checking, and every signature the kernels are
