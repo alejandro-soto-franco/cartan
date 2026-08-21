@@ -17,16 +17,26 @@ default = ["std"]
 std = ["alloc", "cartan-core/std", "cartan-manifolds/std", "nalgebra/std"]
 alloc = ["cartan-core/alloc", "cartan-manifolds/alloc", "nalgebra/alloc"]
 
+[lib]
+# `cargo bench` would otherwise run the empty libtest harness and hand it
+# criterion's arguments, which it does not recognise.
+bench = false
+
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.8", default-features = false }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.8", default-features = false }
+cartan-core = { path = "../cartan-core", version = "0.9", default-features = false }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.9", default-features = false }
 nalgebra = { workspace = true, features = ["libm"] }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std", "std_rng", "small_rng"] }
 approx = { workspace = true }
-cartan-stochastic = { path = "../cartan-stochastic", version = "0.8" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.8", features = ["std"] }
+criterion = { workspace = true }
+cartan-stochastic = { path = "../cartan-stochastic", version = "0.9" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.9", features = ["std"] }
+
+[[bench]]
+name = "geo"
+harness = false
 
 [package.metadata.docs.rs]
 all-features = true

@@ -23,4 +23,4 @@ nalgebra-sparse = { workspace = true }
 [dev-dependencies]
 approx    = { workspace = true }
 nalgebra  = { workspace = true }
-cartan-io = { path = "../cartan-io", version = "0.8" }
+cartan-io = { path = "../cartan-io", version = "0.9" }

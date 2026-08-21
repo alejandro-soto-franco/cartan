@@ -41,7 +41,7 @@ let s2 = Sphere::<3>;
 let north = SVector::from([0.0, 0.0, 1.0]);
 let tangent = s2.project_tangent(&north, &SVector::from([1.0, 0.0, 0.0]));
 let q = s2.exp(&north, &tangent);
-assert!(s2.check(&q).is_ok());
+assert!(s2.check_point(&q).is_ok());
 ```
 
 ## Performance
@@ -77,7 +77,7 @@ Disable default features and enable `alloc` for embedded targets. Some
 manifolds (`Spd`, `Corr`, `QTensor3`, `FrameField3D`) require `std`.
 
 ```toml
-cartan-manifolds = { version = "0.8", default-features = false, features = ["alloc"] }
+cartan-manifolds = { version = "0.9", default-features = false, features = ["alloc"] }
 ```
 
 ## License

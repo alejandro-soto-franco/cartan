@@ -12,20 +12,30 @@ categories = ["mathematics", "science", "algorithms"]
 documentation = "https://docs.rs/cartan-optim"
 homepage = "https://cartan.sotofranco.dev"
 
+[lib]
+# `cargo bench` would otherwise run the empty libtest harness and hand it
+# criterion's arguments, which it does not recognise.
+bench = false
+
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.8", default-features = false }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.8", default-features = false }
+cartan-core = { path = "../cartan-core", version = "0.9", default-features = false }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.9", default-features = false }
 libm = { version = "0.2", default-features = false }
 
 [dev-dependencies]
 nalgebra = { workspace = true }
-rand = { workspace = true }
+rand = { workspace = true, features = ["std", "std_rng"] }
 approx = { workspace = true }
+criterion = { workspace = true }
 
 [features]
 default = ["std"]
 std = ["alloc", "cartan-core/std", "cartan-manifolds/std"]
 alloc = ["cartan-core/alloc", "cartan-manifolds/alloc"]
+
+[[bench]]
+name = "optim"
+harness = false
 
 [package.metadata.docs.rs]
 all-features = true

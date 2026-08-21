@@ -101,10 +101,17 @@ where
     let mut j = j0;
     let mut j_dot = j0_dot;
 
+    // The endpoint of one step is the base point of the next, so it is reused
+    // rather than recomputed. Evaluating the geodesic means an
+    // exponential map, which on SPD or SO(N) is the most expensive call in the
+    // loop; the previous form paid for it twice per step.
+    //
+    // γ(0) is the base point by definition, so the first one is free as well.
+    let mut p = geodesic.base.clone();
+
     for k in 0..n_steps {
-        let t = k as Real * dt;
-        let p = geodesic.eval(t);
-        let p_next = geodesic.eval(t + dt);
+        let t_next = (k + 1) as Real * dt;
+        let p_next = geodesic.eval(t_next);
 
         // RK4 on the system: d/dt (J, J') = (J', -R(J, γ')γ')
         // Since we're in ambient coordinates projected onto T_pM, the curvature
@@ -154,9 +161,11 @@ where
             .transport(&p, &p_next, &v_new)
             .unwrap_or_else(|_| v_new.clone());
 
-        params.push(t + dt);
+        params.push(t_next);
         field.push(j.clone());
         velocity.push(j_dot.clone());
+
+        p = p_next;
     }
 
     JacobiResult {

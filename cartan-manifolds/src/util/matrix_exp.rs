@@ -201,47 +201,48 @@ fn rodrigues<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMatrix<Real, N, N>
 // N ≥ 4: Padé [6/6] scaling-and-squaring
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Largest `||B||_1` at which the [6/6] Padé approximant is accurate to the
+/// unit roundoff, so that scaling-and-squaring need go no further.
+///
+/// This is `θ_6` from Higham (2005), Table 2.3. The figure that stood here
+/// before, 3.4, is `θ_11`, the threshold for a [11/11] approximant: applying
+/// it to a [6/6] one left the approximant six orders short of its own
+/// tolerance and took the error into the squaring stage, which doubles it at
+/// every step. On `SO(8)` with `||Ω||_F ≈ 3.5` that showed up as a round trip
+/// `log(exp(Ω))` off by 1e-9 where the logarithm alone is accurate to 1e-13.
+///
+/// Restoring the correct threshold costs about three further squarings, one
+/// N×N product each.
+const PADE6_THETA: Real = 0.541;
+
 /// Matrix exponential for a general N×N skew-symmetric matrix via Padé [6/6]
 /// scaling-and-squaring.
 ///
 /// ## Algorithm (Higham 2005, Algorithm 2.3 simplified for order 6)
 ///
-/// **Step 1 — Scaling:** Choose integer s ≥ 0 such that `||A/2^s||_1 ≤ 3.4`.
-///   The threshold 3.4 is the value from Higham (2005) Table 10.1 for [6/6].
-///   With B = A / 2^s we have `exp(A) = exp(B)^{2^s}`.
+/// **Step 1, scaling:** Choose integer s ≥ 0 such that `||A/2^s||_1 ≤ 0.541`.
+///   The threshold is `θ_6` from Higham (2005) Table 2.3: the largest `||B||`
+///   at which the [6/6] approximant's backward error stays below the unit
+///   roundoff. With B = A / 2^s we have `exp(A) = exp(B)^{2^s}`.
 ///
-/// **Step 2 — Padé approximant:** Compute `exp(B) ≈ p_6(B) / q_6(B)` where
+/// **Step 2, Pade approximant:** Compute `exp(B) ≈ p_6(B) / q_6(B)` where
 ///   p_6 and q_6 are the numerator and denominator of the [6/6] Padé approximant.
-///   The error `|exp(x) - r_6(x)|` at x=3.4 is below 2^-53 ≈ ε_mach for f64.
 ///
-/// **Step 3 — Squaring:** Repeatedly square: `exp(A) = ((exp(B))^2)^2)^...` (s times).
+/// **Step 3, squaring:** Repeatedly square: `exp(A) = ((exp(B))^2)^2)^...` (s times).
 ///
 /// ## Padé [6/6] coefficients
 ///
-/// The [p/p] diagonal Padé approximant to exp(x) has coefficients:
+/// The diagonal `[p/p]` Padé numerator coefficients for `exp` are
+///
 /// ```text
-/// c_k = (2p)! · p! / ((2p - k)! · (2p)! · k! / p!) = (2p - k)! · p! / ((2p)! · (p-k)! · k!)
-/// ```
-/// For p=6, using the recurrence c_k = c_{k-1} · (p - k + 1) / (k · (2p - k + 1)):
-/// ```text
-/// c_0 = 1
-/// c_1 = 1/2
-/// c_2 = 3/26 ≈ 0.115385   [verify: c_1 · (6-1+1)/(1·(12-1+1)) = (1/2)·6/12 = 1/4 — NO]
-/// ```
-/// Actually, the standard Higham (2005) Padé numerator coefficients for exp are:
-/// ```text
-/// b_k = 1 / (k! · (2p - k)! · 2^k / (2p)!)  -- no that's not right either
+/// b_k = (2p - k)! p! / ((2p)! (p - k)! k!)
 /// ```
 ///
-/// **Verified from Higham (2005, eq. 10.33) and Golub-Van Loan (2013, §10.7.4):**
+/// which at `p = 6` gives
+///
 /// ```text
-/// b_0 = 1            (= (2·6)! / ((2·6)! · 0! · 6!) · 6! · 0! = 1)
-/// b_1 = 1/2          (= 6 / 12)
-/// b_2 = 1/12         (= 1/(2·6))
-/// b_3 = 1/120        (= 1/(5!))
-/// b_4 = 1/1680       (= ?)
-/// b_5 = 1/30240      (= ?)
-/// b_6 = 1/665280     (= 1/12!)  -- [12 = 2*6]
+/// b_0 = 1,  b_1 = 1/2,  b_2 = 1/12,  b_3 = 1/120,
+/// b_4 = 1/1680,  b_5 = 1/30240,  b_6 = 1/665280
 /// ```
 ///
 /// These are the coefficients of the Padé approximant `r_6(A) = q_6(A)^{-1} p_6(A)` where:
@@ -272,14 +273,14 @@ fn matrix_exp_general<const N: usize>(a: &SMatrix<Real, N, N>) -> SMatrix<Real, 
 
     // ── Step 2: choose scaling factor s ─────────────────────────────────────
     //
-    // We want ||B||_1 = ||A/2^s||_1 = norm1 / 2^s ≤ 3.4 (Higham's threshold for [6/6]).
-    // Solving: 2^s ≥ norm1 / 3.4, so s = max(0, ceil(log2(norm1 / 3.4))).
+    // We want ||B||_1 = ||A/2^s||_1 = norm1 / 2^s ≤ PADE6_THETA.
+    // Solving: 2^s ≥ norm1 / PADE6_THETA, so s = max(0, ceil(log2(norm1 / θ))).
     let s = {
-        let raw = (norm1 / 3.4_f64).log2().ceil(); // ceil(log2(norm1/3.4))
+        let raw = (norm1 / PADE6_THETA).log2().ceil();
         if raw > 0.0 { raw as u32 } else { 0_u32 } // max(0, ...)
     };
 
-    // Scale: B = A / 2^s (so that ||B||_1 ≤ 3.4)
+    // Scale: B = A / 2^s (so that ||B||_1 ≤ PADE6_THETA)
     let scale = (2.0_f64).powi(s as i32); // 2^s as a scalar
     let b = a / scale; // B = A / 2^s
 
@@ -712,7 +713,7 @@ fn left_jacobian_inverse_3d<const N: usize>(omega: &SMatrix<Real, N, N>) -> SMat
 mod tests {
     use super::*;
     use crate::util::skew::skew;
-    use nalgebra::SMatrix;
+    use nalgebra::{SMatrix, SVector};
 
     // Tolerances for different tests:
     // - TIGHT: 1e-14, for zero-input and analytically exact cases.
@@ -1006,5 +1007,80 @@ mod tests {
         let id = SMatrix::<Real, 3, 3>::identity();
         let err = (j_inv - id).norm();
         assert!(err < TIGHT, "J^{{-1}}(0) ≠ I for N=3: error = {:.2e}", err);
+    }
+
+    /// Two Householder reflections: orthogonal to machine precision, with
+    /// determinant +1.
+    fn householder_pair<const N: usize>() -> SMatrix<Real, N, N> {
+        let reflect = |off: usize| -> SMatrix<Real, N, N> {
+            let mut v = SVector::<Real, N>::zeros();
+            for i in 0..N {
+                v[i] = (((i * 31 + off * 17) % 23) as Real / 23.0) - 0.5 + 0.3;
+            }
+            let vtv = v.dot(&v);
+            SMatrix::<Real, N, N>::identity() - (v * v.transpose()) * (2.0 / vtv)
+        };
+        reflect(1) * reflect(2)
+    }
+
+    /// The N ≥ 4 exponential against a closed-form answer.
+    ///
+    /// `Ω = Q S Q^T` with `S` block diagonal and `Q` orthogonal, so
+    /// `exp(Ω) = Q exp(S) Q^T` is known exactly and the Pade approximant is
+    /// measured on its own. This pins the scaling threshold: at the 3.4 that
+    /// stood in `matrix_exp_general` before, the largest case here came out
+    /// 1e-9 wrong.
+    #[test]
+    fn test_exp_general_matches_closed_form() {
+        fn check<const N: usize>(angles: &[Real]) {
+            let q = householder_pair::<N>();
+            let mut s_blocks = SMatrix::<Real, N, N>::zeros();
+            let mut r_blocks = SMatrix::<Real, N, N>::identity();
+            for (b, &theta) in angles.iter().enumerate().take(N / 2) {
+                let i = 2 * b;
+                s_blocks[(i, i + 1)] = -theta;
+                s_blocks[(i + 1, i)] = theta;
+                r_blocks[(i, i)] = theta.cos();
+                r_blocks[(i, i + 1)] = -theta.sin();
+                r_blocks[(i + 1, i)] = theta.sin();
+                r_blocks[(i + 1, i + 1)] = theta.cos();
+            }
+            let omega = q * s_blocks * q.transpose();
+            let expected = q * r_blocks * q.transpose();
+
+            let got = matrix_exp_skew(&omega);
+            let err = (got - expected).norm();
+            assert!(
+                err < 1e-14,
+                "N={N}, angles={angles:?}: exp(Ω) off by {err:.3e}"
+            );
+        }
+
+        check::<4>(&[0.5, 0.5]);
+        check::<4>(&[1e-8, 3.0]);
+        check::<6>(&[0.9, 0.4, 0.2]);
+        check::<6>(&[3.1, 2.7, 1.9]);
+        check::<8>(&[1e-6, 0.7, 2.0, 3.04]);
+        check::<10>(&[3.0, 3.0, 3.0, 3.0, 3.0]);
+    }
+
+    /// A Pade approximant of a skew matrix is orthogonal by construction, and
+    /// the squaring stage preserves that, so the result must be a rotation to
+    /// the unit roundoff whatever the scaling threshold does to its accuracy.
+    #[test]
+    fn test_exp_general_is_orthogonal() {
+        const N: usize = 9;
+        let mut raw = SMatrix::<Real, N, N>::zeros();
+        for i in 0..N {
+            for j in (i + 1)..N {
+                let e = ((i * 7 + j * 13) % 11) as Real / 11.0 - 0.5;
+                raw[(i, j)] = e * 2.0;
+                raw[(j, i)] = -e * 2.0;
+            }
+        }
+        let r = matrix_exp_skew(&skew(&raw));
+        let orth = (r.transpose() * r - SMatrix::<Real, N, N>::identity()).norm();
+        assert!(orth < 1e-13, "exp(Ω) is not orthogonal: {orth:.3e}");
+        assert!((r.determinant() - 1.0).abs() < 1e-12, "det ≠ 1");
     }
 }

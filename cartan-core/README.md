@@ -60,7 +60,7 @@ fn tangent_norm<M: Manifold>(m: &M, p: &M::Point, v: &M::Tangent) -> Real {
 Disable default features and enable `alloc` for embedded targets:
 
 ```toml
-cartan-core = { version = "0.8", default-features = false, features = ["alloc"] }
+cartan-core = { version = "0.9", default-features = false, features = ["alloc"] }
 ```
 
 ## License

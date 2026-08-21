@@ -22,7 +22,7 @@ Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev) ·
 
 ```toml
 [dependencies]
-cartan = "0.8"
+cartan = "0.9"
 ```
 
 ```rust
@@ -105,7 +105,7 @@ crates rather than being vendored.
 ## Embedded and no_std
 
 ```toml
-cartan = { version = "0.8", default-features = false, features = ["alloc"] }
+cartan = { version = "0.9", default-features = false, features = ["alloc"] }
 ```
 
 That gives the point-geometry stack, and with `homog` the mean-field

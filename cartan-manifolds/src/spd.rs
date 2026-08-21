@@ -104,9 +104,7 @@ use cartan_core::{
     Retraction,
 };
 
-use crate::util::sym::{
-    sym_exp, sym_inv, sym_log, sym_min_eigenvalue, sym_sqrt, sym_sqrt_inv, sym_symmetrize,
-};
+use crate::util::sym::{sym_exp, sym_inv, sym_log, sym_min_eigenvalue, sym_sqrt, sym_symmetrize};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -177,8 +175,11 @@ fn transport_op<const N: usize>(
     p: &SMatrix<Real, N, N>,
     q: &SMatrix<Real, N, N>,
 ) -> SMatrix<Real, N, N> {
-    let sqrt_p = sym_sqrt(p);
-    let sqrt_p_inv = sym_sqrt_inv(p);
+    // `P^{1/2}` and `P^{-1/2}` differ only in the map applied to the
+    // eigenvalues of the same matrix, so one decomposition yields both.
+    // Calling `sym_sqrt` and `sym_sqrt_inv` separately, as this did, ran the
+    // eigensolver three times where two will do.
+    let (sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
     let m = sqrt_p_inv * q * sqrt_p_inv; // P^{-1/2} Q P^{-1/2}, symmetric PD
     let m_sqrt = sym_sqrt(&m); // M^{1/2}
     sqrt_p * m_sqrt * sqrt_p_inv // E = P^{1/2} M^{1/2} P^{-1/2}
@@ -239,9 +240,34 @@ impl<const N: usize> Manifold for Spd<N> {
     ///
     /// Equivalent to the Frobenius inner product of the "whitened" tangent
     /// vectors P^{-1/2} U P^{-1/2} and P^{-1/2} V P^{-1/2}.
+    ///
+    /// With `P = L L^T` the Cholesky factorisation, `L^{-1} U L^{-T}` is a
+    /// whitened tangent vector and
+    ///
+    /// ```text
+    /// tr(P^{-1} U P^{-1} V) = tr( (L^{-1} U L^{-T}) (L^{-1} V L^{-T}) )
+    /// ```
+    ///
+    /// which is the Frobenius inner product of the two whitened matrices,
+    /// since both are symmetric. Four triangular solves and an O(N^2) sum
+    /// replace an eigendecomposition and three N×N products: the literal
+    /// reading formed `P^{-1}` spectrally, and then built the whole product
+    /// matrix to read its trace.
+    ///
+    /// A `P` too close to singular to factor falls back to the spectral
+    /// inverse, which floors small eigenvalues rather than failing.
     fn inner(&self, p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
+        if let Some(chol) = p.cholesky() {
+            let l = chol.l();
+            if let (Some(uw), Some(vw)) = (cholesky_congruence(&l, u), cholesky_congruence(&l, v)) {
+                return uw.dot(&vw);
+            }
+        }
+
+        // tr(AB) needs only the diagonal of the product, so the two halves are
+        // formed and contracted rather than multiplied out.
         let p_inv = sym_inv(p);
-        (p_inv * u * p_inv * v).trace()
+        (p_inv * u).dot(&(p_inv * v).transpose())
     }
 
     /// Geodesic distance, computed without forming the logarithm.
@@ -307,7 +333,9 @@ impl<const N: usize> Manifold for Spd<N> {
             }
         };
         let a = l.solve_lower_triangular(q).ok_or_else(singular)?;
-        let m = l.solve_lower_triangular(&a.transpose()).ok_or_else(singular)?;
+        let m = l
+            .solve_lower_triangular(&a.transpose())
+            .ok_or_else(singular)?;
 
         let sum_sq: Real = crate::util::sym::sym_eigenvalues(&m)
             .iter()
@@ -392,6 +420,12 @@ impl<const N: usize> Manifold for Spd<N> {
     /// Checks:
     /// 1. P is symmetric: ||P - P^T||_F < tol.
     /// 2. P is positive definite: λ_min(P) > 0.
+    ///
+    /// A Cholesky factorisation succeeds on exactly the positive definite
+    /// matrices, so it settles the second question at a third of the cost of
+    /// the eigendecomposition that stood here, and without a heap allocation.
+    /// The spectrum is computed only when the factorisation fails, where the
+    /// error needs `λ_min` to report how far outside the cone `P` sits.
     fn check_point(&self, p: &Self::Point) -> Result<(), CartanError> {
         let sym_violation = (p - p.transpose()).norm();
         if sym_violation > VALIDATION_TOL {
@@ -405,6 +439,9 @@ impl<const N: usize> Manifold for Spd<N> {
                 constraint: "P = P^T (symmetry of SPD(N))",
                 violation: sym_violation,
             });
+        }
+        if p.cholesky().is_some() {
+            return Ok(());
         }
         let min_ev = sym_min_eigenvalue(p);
         if min_ev <= 0.0 {
@@ -571,8 +608,8 @@ impl<const N: usize> Curvature for Spd<N> {
         v: &Self::Tangent,
         w: &Self::Tangent,
     ) -> Self::Tangent {
-        let sqrt_p = sym_sqrt(p);
-        let sqrt_p_inv = sym_sqrt_inv(p);
+        // One decomposition of P yields both roots; see `sym_sqrt_pair`.
+        let (sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
 
         // Transport to identity.
         let a = sqrt_p_inv * u * sqrt_p_inv;
@@ -637,12 +674,17 @@ impl<const N: usize> GeodesicInterpolation for Spd<N> {
         q: &Self::Point,
         t: Real,
     ) -> Result<Self::Point, CartanError> {
-        let sqrt_p = sym_sqrt(p);
-        let sqrt_p_inv = sym_sqrt_inv(p);
+        // One decomposition of P yields both roots; see `sym_sqrt_pair`.
+        let (sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
         let m = sqrt_p_inv * q * sqrt_p_inv; // P^{-1/2} Q P^{-1/2}, symmetric PD
-        // M^t = exp(t * log(M))
-        let log_m = sym_log(&m);
-        let mt = sym_exp(&(log_m * t));
+
+        // M^t = V diag(λ^t) V^T, straight from the spectrum of M. Writing it
+        // as exp(t log M), as this did, decomposes M twice for the same
+        // answer: once to take the logarithm and once to exponentiate it.
+        // The 1e-14 floor matches `sym_log`, so a near-singular M degrades the
+        // same way it did.
+        let mt = crate::util::sym::sym_apply_pub::<N>(&m, |lambda| lambda.max(1e-14).powf(t));
+
         Ok(sym_symmetrize(&(sqrt_p * mt * sqrt_p)))
     }
 }
@@ -764,7 +806,11 @@ mod tests {
         let a = sample_spd_3();
         let b = sample_spd_3b();
 
-        assert_relative_eq!(m.dist(&a, &b).unwrap(), m.dist(&b, &a).unwrap(), epsilon = 1e-12);
+        assert_relative_eq!(
+            m.dist(&a, &b).unwrap(),
+            m.dist(&b, &a).unwrap(),
+            epsilon = 1e-12
+        );
         assert!(m.dist(&a, &a).unwrap() < 1e-12);
         assert!(m.dist(&a, &b).unwrap() > 0.0);
     }
@@ -778,11 +824,8 @@ mod tests {
         let p = sample_spd_3();
         let q = sample_spd_3b();
 
-        let a = SMatrix::<Real, 3, 3>::from_row_slice(&[
-            1.0, 0.5, 0.0,
-            0.0, 2.0, 0.3,
-            0.2, 0.0, 1.5,
-        ]);
+        let a =
+            SMatrix::<Real, 3, 3>::from_row_slice(&[1.0, 0.5, 0.0, 0.0, 2.0, 0.3, 0.2, 0.0, 1.5]);
 
         let pa = a * p * a.transpose();
         let qa = a * q * a.transpose();
@@ -1094,5 +1137,74 @@ mod tests {
 
     fn sample_symmetric_tangent_3b() -> SMatrix<Real, 3, 3> {
         SMatrix::<Real, 3, 3>::from_row_slice(&[0.1, -0.2, 0.0, -0.2, 0.4, 0.1, 0.0, 0.1, 0.2])
+    }
+
+    /// The Cholesky route for `inner` must agree with the spectral formula it
+    /// replaced, `tr(P^{-1} U P^{-1} V)` formed literally.
+    #[test]
+    fn test_inner_matches_spectral_formula() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        fn check<const N: usize>(seed: u64) {
+            let m = Spd::<N>;
+            let mut rng = StdRng::seed_from_u64(seed);
+            let p = m.random_point(&mut rng);
+            let u = m.random_tangent(&p, &mut rng);
+            let v = m.random_tangent(&p, &mut rng);
+
+            let p_inv = crate::util::sym::sym_inv(&p);
+            let expected = (p_inv * u * p_inv * v).trace();
+            let got = m.inner(&p, &u, &v);
+
+            let scale = expected.abs().max(1.0);
+            assert!(
+                (got - expected).abs() < 1e-10 * scale,
+                "N={N}: inner = {got}, spectral formula = {expected}"
+            );
+        }
+        for seed in 0..8 {
+            check::<2>(seed);
+            check::<3>(seed);
+            check::<5>(seed);
+            check::<8>(seed);
+        }
+    }
+
+    /// `check_point` decides positive definiteness by Cholesky. It must still
+    /// accept every point the manifold produces and reject a matrix with a
+    /// non-positive eigenvalue, reporting how far outside the cone it sits.
+    #[test]
+    fn test_check_point_cholesky_agrees_with_spectrum() {
+        use rand::SeedableRng;
+        use rand::rngs::StdRng;
+
+        let m = Spd::<4>;
+        let mut rng = StdRng::seed_from_u64(11);
+        for _ in 0..16 {
+            let p = m.random_point(&mut rng);
+            assert!(m.check_point(&p).is_ok(), "a random SPD point was rejected");
+        }
+
+        // Symmetric with one negative eigenvalue.
+        let mut bad = SMatrix::<Real, 4, 4>::identity();
+        bad[(2, 2)] = -0.25;
+        match m.check_point(&bad) {
+            Err(CartanError::NotOnManifold { violation, .. }) => {
+                assert!(
+                    (violation - 0.25).abs() < 1e-10,
+                    "violation should be -λ_min = 0.25, got {violation}"
+                );
+            }
+            other => panic!("expected NotOnManifold, got {other:?}"),
+        }
+
+        // Singular: positive semidefinite but not definite.
+        let mut edge = SMatrix::<Real, 4, 4>::identity();
+        edge[(0, 0)] = 0.0;
+        assert!(
+            m.check_point(&edge).is_err(),
+            "a singular matrix is not positive definite"
+        );
     }
 }

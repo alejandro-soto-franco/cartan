@@ -4,6 +4,113 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.9.0]
+
+Performance across the manifold layer and the crates built on it, and one
+accuracy defect the work surfaced. No public API changes. Ratios below are
+against 0.8.1, measured back to back on the same machine; benchmarks whose code
+paths did not change moved by under 6% across the two runs, which is the noise
+floor those figures should be read against.
+
+### Fixed
+
+- **`matrix_exp_skew` scaled its Pade approximant to the wrong threshold.**
+  `matrix_exp_general` chose the number of squarings so that `||B||_1 <= 3.4`,
+  which is `theta_11` in Higham (2005) Table 2.3, the figure for an `[11/11]`
+  approximant. The approximant here is `[6/6]`, whose threshold is
+  `theta_6 = 0.541`. Every call left the approximant six orders short of its own
+  tolerance and handed that error to the squaring stage, which doubles it at
+  each step. On `SO(8)` with `||Omega||_F ~ 3.5` the round trip `log(exp(Omega))`
+  came back 1e-9 wrong, against 1e-13 for the logarithm alone. At the correct
+  threshold the same round trip is accurate to 1e-12, for about three further
+  N x N products. `SO(N)::exp` at N = 10 is unchanged within noise.
+
+### Changed
+
+- **`SO(N)::log` for N >= 4 reads the logarithm off one symmetric
+  eigendecomposition.** A rotation is normal, so its symmetric and skew parts
+  `S = (R + R^T)/2 = cos(Omega)` and `A = (R - R^T)/2 = sin(Omega)` commute, and
+  `Omega = V diag(theta_k / sin theta_k) V^T A` with `theta_k = arccos lambda_k(S)`.
+  This is the N-dimensional form of the inverse Rodrigues formula the N = 3
+  branch already uses. It replaces inverse scaling-and-squaring, which took
+  repeated Denman-Beavers square roots, each up to 32 coupled iterations with
+  two matrix inverses apiece, before summing a 16-term Mercator series.
+  `SO(10)::log` and `SO(10)::dist` are **9.7x** faster. Accuracy improves by
+  three to four orders away from the cut locus and degrades by a factor of
+  three within 0.1 rad of it, where `arccos` is ill conditioned; both stay
+  under 1e-12.
+
+- **`Spd::check_point` decides positive definiteness by Cholesky.** A Cholesky
+  factorisation succeeds on exactly the positive definite matrices, so it
+  settles the question without an eigendecomposition or a heap allocation. The
+  spectrum is computed only when the factorisation fails, where the error needs
+  `lambda_min` to report how far outside the cone the point sits. **14.7x** at
+  N = 3, **19.2x** at N = 10.
+
+- **`Spd::inner` whitens through the Cholesky factor.** With `P = L L^T`,
+  `tr(P^-1 U P^-1 V)` is the Frobenius inner product of `L^-1 U L^-T` and
+  `L^-1 V L^-T`. Four triangular solves and an O(N^2) sum replace an
+  eigendecomposition and three N x N products: the literal reading formed
+  `P^-1` spectrally, then built the whole product matrix to read its trace.
+  **3.8x** at N = 3, **3.2x** at N = 10. Every optimiser step and every Frechet
+  iteration reads the metric through `norm`, so this is the most called of the
+  three.
+
+- **`Spd::geodesic` raises the spectrum to the power `t` directly.** Writing
+  `M^t` as `exp(t log M)` decomposed `M` twice for one answer. With the paired
+  square root of `P` from one more decomposition, the call goes from four
+  eigendecompositions to two: **2.0x** at N = 3 and at N = 10.
+
+- **`Spd::riemann_curvature` and `Spd::transport` decompose `P` once, not
+  twice.** Both called `sym_sqrt` and `sym_sqrt_inv` on the same matrix;
+  `sym_sqrt_pair` was already there and yields both from one decomposition.
+  Curvature **1.9x** at N = 3, **1.7x** at N = 10; transport **1.6x** and
+  **1.7x**. Jacobi field integration calls the curvature tensor four times and
+  transports twice per step, so it is the main beneficiary.
+
+- **`integrate_jacobi` evaluates the base geodesic once per step.** The
+  endpoint of one step is the base point of the next, and both were computed.
+  On `Sphere<10>` over 32 steps, where nothing else in this release applies,
+  that alone is **1.26x**; on `Spd<6>` over 16 steps, with the curvature and
+  transport work above, **1.68x**.
+
+- **`minimize_rcg` reads the slope once per iteration.** The descent-direction
+  test and the Armijo slope are the same inner product, computed twice.
+
+- **`nearest_corr_matrix` runs Higham's alternating projection on the stack.**
+  Each iteration went through `DMatrix`, allocating four times, and formed
+  `diag(clamped)` to multiply by it, which is a second O(N^3) product for the
+  same answer. The effect on `Corr::project_point` sits inside the noise floor
+  on this machine; the change stands because it is strictly less work.
+
+- **Symmetric eigendecomposition moved to `util::eig`.** It sat inside
+  `util::sym`, which is `std`-only, and the orthogonal logarithm needed it.
+  Without `std` the stack-based Jacobi solver now runs at every size rather
+  than only at N <= 3.
+
+### Added
+
+- Criterion suites for `cartan-geo` and `cartan-optim`, covering geodesic
+  sampling, Jacobi integration and the Frechet mean.
+- `cartan-manifolds` gains cases for `Spd::inner`, `Spd::check_point`,
+  `Spd::transport`, `Spd::geodesic`, `Spd::riemann_curvature` and
+  `Corr::project_point`. Most of this release landed in code that had no
+  benchmark.
+- Tests pinning the orthogonal logarithm against a closed-form answer at
+  N = 4, 6, 8 and 10 over angles from 1e-8 to within 0.1 rad of a half-turn,
+  including repeated angles and fixed axes, where the eigenvectors are
+  arbitrary within an eigenspace. The same construction pins `matrix_exp_skew`,
+  which is what holds the Pade threshold in place.
+- README examples in `cartan-geo` and `cartan-manifolds` compile and run as
+  doctests, under `cfg(doctest)` so they stay out of the rendered
+  documentation. The `cartan-manifolds` example called a `check` method that
+  does not exist.
+- `cartan-geo` gains a README covering all six of its modules. The previous one
+  documented three and did not mention Chern-Simons integration or 3D
+  disclination tracking at all.
+
+---
+
 ## [0.8.1]
 
 `cartan-gpu` joins the workspace and reaches the family version. The other
