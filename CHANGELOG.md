@@ -8,9 +8,10 @@ All notable changes to cartan are documented here.
 
 Performance across the manifold layer and the crates built on it, and one
 accuracy defect the work surfaced. No public API changes. Ratios below are
-against 0.8.1, measured back to back on the same machine; benchmarks whose code
-paths did not change moved by under 6% across the two runs, which is the noise
-floor those figures should be read against.
+against 0.8.1, measured back to back on the same machine, and each is the
+smaller of two independent runs. The workstation was busy during both, so
+benchmarks whose code paths did not change drifted by up to 10%: read the
+figures below as lower bounds rather than as precise ratios.
 
 ### Fixed
 
@@ -35,10 +36,28 @@ floor those figures should be read against.
   branch already uses. It replaces inverse scaling-and-squaring, which took
   repeated Denman-Beavers square roots, each up to 32 coupled iterations with
   two matrix inverses apiece, before summing a 16-term Mercator series.
-  `SO(10)::log` and `SO(10)::dist` are **9.7x** faster. Accuracy improves by
-  three to four orders away from the cut locus and degrades by a factor of
-  three within 0.1 rad of it, where `arccos` is ill conditioned; both stay
-  under 1e-12.
+  `SO(10)::log` and `SO(10)::dist` are **9.2x** faster.
+
+  Both `sin θ_k` and `cos θ_k` are read off `R` rather than derived from one
+  another: `A` acts on the invariant 2-plane of `θ_k` as the rotation generator
+  scaled by `sin θ_k`, so `||A v_k||` is that sine, and `atan2` of the pair
+  gives the angle. Recovering the sine as `sin(arccos λ_k)` instead loses
+  roughly `1 / sin² θ`, which at `N = 10` put the round trip 4e-8 wrong on a
+  random rotation, worse than the path being replaced. Measured against a
+  closed form over 64 random rotations per size, `exp(log(R)) = R` improves by
+  **728,000x** at `N = 4`, **495,000x** at `N = 6`, **411x** at `N = 8` and
+  **20x** at `N = 10`, and geodesic constant speed by four to six orders at
+  every size.
+
+  Within roughly 1e-3 of a half-turn the picture is mixed: the logarithm is ill
+  conditioned there for any algorithm, its condition number going as
+  `1 / sin θ`, and this formula reads `sin θ` out of a difference of two
+  entries of size one, so it sits about an order behind inverse
+  scaling-and-squaring at `N >= 6`. The absolute error stays under 1.1e-9 at
+  `π - θ = 1e-6`, and at `N = 4` the old path was far worse throughout that
+  band, reaching 2.2e-5. Closer than 1e-7 the answer is reported as the cut
+  locus rather than returned; the old path returned a value there, wrong by
+  9.1e-4 at `N = 4`, without saying so.
 
 - **`Spd::check_point` decides positive definiteness by Cholesky.** A Cholesky
   factorisation succeeds on exactly the positive definite matrices, so it
@@ -52,27 +71,27 @@ floor those figures should be read against.
   `L^-1 V L^-T`. Four triangular solves and an O(N^2) sum replace an
   eigendecomposition and three N x N products: the literal reading formed
   `P^-1` spectrally, then built the whole product matrix to read its trace.
-  **3.8x** at N = 3, **3.2x** at N = 10. Every optimiser step and every Frechet
+  **2.9x** at N = 3, **2.5x** at N = 10. Every optimiser step and every Frechet
   iteration reads the metric through `norm`, so this is the most called of the
   three.
 
 - **`Spd::geodesic` raises the spectrum to the power `t` directly.** Writing
   `M^t` as `exp(t log M)` decomposed `M` twice for one answer. With the paired
   square root of `P` from one more decomposition, the call goes from four
-  eigendecompositions to two: **2.0x** at N = 3 and at N = 10.
+  eigendecompositions to two: **1.8x** at N = 3 and **1.75x** at N = 10.
 
 - **`Spd::riemann_curvature` and `Spd::transport` decompose `P` once, not
   twice.** Both called `sym_sqrt` and `sym_sqrt_inv` on the same matrix;
   `sym_sqrt_pair` was already there and yields both from one decomposition.
-  Curvature **1.9x** at N = 3, **1.7x** at N = 10; transport **1.6x** and
-  **1.7x**. Jacobi field integration calls the curvature tensor four times and
+  Curvature **1.75x** at N = 3 and **1.57x** at N = 10; transport **1.41x** and
+  **1.42x**. Jacobi field integration calls the curvature tensor four times and
   transports twice per step, so it is the main beneficiary.
 
 - **`integrate_jacobi` evaluates the base geodesic once per step.** The
   endpoint of one step is the base point of the next, and both were computed.
   On `Sphere<10>` over 32 steps, where nothing else in this release applies,
   that alone is **1.26x**; on `Spd<6>` over 16 steps, with the curvature and
-  transport work above, **1.68x**.
+  transport work above, **1.63x**.
 
 - **`minimize_rcg` reads the slope once per iteration.** The descent-direction
   test and the Armijo slope are the same inner product, computed twice.

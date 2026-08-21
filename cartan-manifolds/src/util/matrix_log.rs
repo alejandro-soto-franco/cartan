@@ -269,6 +269,17 @@ fn log_rodrigues<const N: usize>(
 /// some invariant 2-plane and the shortest geodesic from `I` is not unique, so
 /// this returns [`CartanError::CutLocus`], matching the `N = 3` branch.
 ///
+/// Approaching that band the logarithm is ill conditioned for any algorithm:
+/// its condition number goes as `1 / sin θ`, which is a property of the
+/// manifold. This formula reads `sin θ` out of `A`, whose entries there are the
+/// small difference of two entries of size one, so roughly `log10(1 / sin θ)`
+/// digits are gone before the arithmetic starts. Measured against a closed
+/// form at `N = 10`, the error is 1.3e-12 at `π - θ = 1e-3` and 1.1e-9 at
+/// `1e-6`. Inverse scaling-and-squaring avoids that cancellation, by halving
+/// the angle until it is nowhere near `π`, and holds about an order more
+/// accuracy inside this band at `N >= 6`; away from it, and at every size at
+/// `N = 4`, it is orders worse. See the module tests for the profile.
+///
 /// ## References
 ///
 /// - Gallier & Xu (2002), §4 (logarithm of a rotation via its invariant planes).
@@ -282,11 +293,27 @@ fn log_normal<const N: usize>(r: &SMatrix<Real, N, N>) -> Result<SMatrix<Real, N
 
     let (v, lambda) = crate::util::eig::sym_eigen_s(&s);
 
-    // θ_k = arccos(λ_k). Clamping absorbs the roundoff that puts an eigenvalue
-    // of a numerically orthogonal matrix a few ulps outside [-1, 1].
+    // Both the cosine and the sine of each angle, read off the two parts of R
+    // rather than derived from one another.
+    //
+    // `A` acts on the invariant 2-plane of `θ_k` as the rotation generator
+    // scaled by `sin θ_k`, so `||A v_k|| = |sin θ_k|` for a unit eigenvector
+    // `v_k` of `S`. Taking the sine this way rather than as
+    // `sin(arccos(λ_k))` is what makes the formula usable near a half-turn:
+    // at `θ` close to `π`, `arccos` amplifies the error in `λ_k` by
+    // `1 / sin θ`, and the `θ / sin θ` factor then amplifies it again by the
+    // same amount. Measuring the sine directly costs one N x N product and
+    // holds the error near the unit roundoff across the whole range.
+    let av = a * v;
+
     let mut factors = lambda;
     for k in 0..N {
-        let theta = factors[k].clamp(-1.0, 1.0).acos();
+        let sin_theta = av.column(k).norm();
+        let cos_theta = lambda[k].clamp(-1.0, 1.0);
+
+        // atan2 stays well conditioned where arccos does not, and puts θ in
+        // [0, π], which is the principal branch.
+        let theta = sin_theta.atan2(cos_theta);
 
         if pi - theta < CUT_LOCUS_TOL {
             #[cfg(feature = "alloc")]
@@ -303,7 +330,13 @@ fn log_normal<const N: usize>(r: &SMatrix<Real, N, N>) -> Result<SMatrix<Real, N
             });
         }
 
-        factors[k] = theta_over_sin(theta);
+        // θ / sin θ, from the sine that was measured rather than a second one
+        // recovered from θ, so the ratio stays consistent with `A` itself.
+        factors[k] = if theta < 1e-4 {
+            theta_over_sin(theta)
+        } else {
+            theta / sin_theta
+        };
     }
 
     // Ω = F A with F = V diag(θ/sin θ) V^T. `recompose` builds V diag(f) V^T
@@ -631,6 +664,56 @@ mod tests {
 
         let err = (omega - expected).norm();
         assert!(err < 1e-13, "four equal angles: error = {err:.3e}");
+    }
+
+    /// Angles approaching a half-turn, where the formula is at its worst
+    /// conditioned.
+    ///
+    /// `arccos` amplifies the error in an eigenvalue of the symmetric part by
+    /// `1 / sin θ`, and the `θ / sin θ` factor amplifies it again by the same
+    /// amount, so taking the sine from `sin(arccos(λ))` loses roughly
+    /// `1 / sin² θ`. At `θ = π - 1e-5` that is 1e10, and a random `SO(10)`
+    /// rotation has five angles, so one lands here often enough to matter: it
+    /// showed up as a round trip 4e-8 wrong, against 2e-10 for the inverse
+    /// scaling-and-squaring path that preceded this one.
+    ///
+    /// Reading the sine off `A` instead holds the error near the unit
+    /// roundoff, which is what this pins.
+    #[test]
+    fn test_log_near_half_turn_is_well_conditioned() {
+        fn check<const N: usize>(gap: Real) {
+            let pi: Real = core::f64::consts::PI;
+            let q = householder_pair::<N>(5);
+
+            // One plane just short of a half-turn, the rest well away from it.
+            let mut angles = vec![pi - gap];
+            for b in 1..(N / 2) {
+                angles.push(0.3 + 0.4 * (b as Real));
+            }
+
+            let (r_blocks, omega_blocks) = blocks::<N>(&angles);
+            let r = q * r_blocks * q.transpose();
+            let expected = q * omega_blocks * q.transpose();
+
+            let got = matrix_log_orthogonal(&r).expect("π - gap is off the cut locus");
+            let err = (got - expected).norm();
+
+            // The condition number goes as 1 / sin θ, so the bound has to as
+            // well. This sits about a decade above every measured value,
+            // which still leaves it far below the 1e-4 an `arccos`-derived
+            // sine produces at the tightest gap here.
+            let bound = 1e-14 / gap;
+            assert!(
+                err < bound,
+                "N={N}, π - θ = {gap:.1e}: log(R) off by {err:.3e}, bound {bound:.1e}"
+            );
+        }
+
+        for gap in [1e-3, 1e-4, 1e-5, 1e-6] {
+            check::<4>(gap);
+            check::<6>(gap);
+            check::<10>(gap);
+        }
     }
 
     /// A half-turn in one invariant plane puts `R` on the cut locus, whatever

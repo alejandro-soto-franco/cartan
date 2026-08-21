@@ -122,13 +122,13 @@ between consecutive frames.
 ## Performance
 
 Ratios against 0.8.1, measured back to back on the same machine with
-`cargo bench -p cartan-geo`. Absolute figures depend on the machine and on
-what else is running on it; the ratios do not.
+`cargo bench -p cartan-geo`, each the smaller of two independent runs.
+Absolute figures depend on the machine and on what else is running on it.
 
 | benchmark | 0.8.1 | 0.9.0 |
 |---|---|---|
 | `integrate_jacobi`, `Sphere<10>`, 32 steps | 1.00x | **1.26x** |
-| `integrate_jacobi`, `Spd<6>`, 16 steps | 1.00x | **1.68x** |
+| `integrate_jacobi`, `Spd<6>`, 16 steps | 1.00x | **1.63x** |
 | `Geodesic::sample`, `Sphere<10>`, 64 points | 1.00x | 1.05x |
 | `Geodesic::sample`, `Spd<6>`, 16 points | 1.00x | 1.00x |
 
@@ -137,7 +137,7 @@ step's own base point and once for its endpoint, which is the next step's base
 point. Reusing the endpoint halves the exponential maps, and that
 alone is the `Sphere<10>` figure. On `Spd<6>` the curvature tensor and the
 parallel transport also got cheaper in `cartan-manifolds` 0.9.0, which is the
-rest of the 1.68x.
+rest of the 1.63x.
 
 Sampling a geodesic is one exponential map per sample with nothing to share
 between them, so it moves only with the underlying manifold.
