@@ -52,13 +52,69 @@ use cuda_host::cuda_module;
 
 mod device;
 mod error;
+mod mass;
 
 pub use device::Device;
 pub use error::CudaError;
+pub use mass::DeviceHodgeMass;
 
 #[cuda_module]
 pub mod kernels {
     use super::*;
+
+    /// `y = M x` for a Galerkin Hodge mass kept in element form.
+    ///
+    /// One thread owns one degree of freedom and gathers every element-matrix
+    /// row that feeds it, so the write is single and no atomic is involved. The
+    /// scatter form, looping cells and accumulating into shared degrees of
+    /// freedom, would need an atomic floating-point add, and that reorders the
+    /// summation between runs, which is not something the host path can be
+    /// compared against at 1e-13.
+    ///
+    /// `offsets` has `ndofs + 1` entries. `entries` packs `cell * nlocal +
+    /// local_row`. `dofs` gives the degree of freedom of every local face,
+    /// cell-major, with `u32::MAX` marking a constrained face, which is skipped
+    /// in the column loop exactly as the host path skips it.
+    #[kernel]
+    pub fn hodge_mass_apply(
+        offsets: &[u32],
+        entries: &[u32],
+        dofs: &[u32],
+        elmats: &[f64],
+        x: &[f64],
+        nlocal: u32,
+        ndofs: u32,
+        mut out: DisjointSlice<f64>,
+    ) {
+        let idx = thread::index_1d();
+        let i = idx.get();
+        if i >= ndofs as usize {
+            return;
+        }
+
+        let n = nlocal as usize;
+        let start = offsets[i] as usize;
+        let end = offsets[i + 1] as usize;
+
+        let mut sum = 0.0f64;
+        for e in start..end {
+            let slot = entries[e] as usize;
+            let cell = slot / n;
+            let local_row = slot % n;
+            let row_base = (cell * n + local_row) * n;
+            let dof_base = cell * n;
+            for j in 0..n {
+                let col = dofs[dof_base + j];
+                if col != u32::MAX {
+                    sum += elmats[row_base + j] * x[col as usize];
+                }
+            }
+        }
+
+        if let Some(slot) = out.get_mut(idx) {
+            *slot = sum;
+        }
+    }
 
     /// Geodesic length of each tangent vector: one thread per point.
     ///

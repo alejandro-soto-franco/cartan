@@ -51,6 +51,12 @@ impl Device {
         &self.stream
     }
 
+    /// The loaded kernel module, for operators that keep their own device
+    /// state and launch against it directly.
+    pub(crate) fn module(&self) -> &kernels::LoadedModule {
+        &self.module
+    }
+
     /// `Exp_p(v)` on the unit sphere in `dim` dimensions, for a whole batch.
     ///
     /// `p` and `v` hold `n * dim` doubles each. The result holds `n * dim`,

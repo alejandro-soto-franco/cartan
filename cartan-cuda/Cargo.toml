@@ -29,6 +29,12 @@ name = "cartan-cuda"
 path = "src/main.rs"
 required-features = ["harness"]
 
+# Device Hodge mass against the host path, plus per-application throughput.
+[[bin]]
+name = "hodge-mass-check"
+path = "src/bin/hodge-mass-check.rs"
+required-features = ["matfree-harness"]
+
 [features]
 default = ["harness"]
 
@@ -37,10 +43,27 @@ default = ["harness"]
 # library alone, which carries nothing beyond the cuda-oxide crates.
 harness = ["dep:cartan-core", "dep:cartan-manifolds", "dep:nalgebra", "dep:rand"]
 
+# The Hodge mass accuracy and throughput harness, which needs a mesh and the
+# host operator to check the kernel against.
+matfree-harness = ["dep:cartan-matfree", "dep:formoniq", "dep:simplicial"]
+
 [dependencies]
-cuda-device = { git = "https://github.com/NVlabs/cuda-oxide.git" }
-cuda-host = { git = "https://github.com/NVlabs/cuda-oxide.git" }
-cuda-core = { git = "https://github.com/NVlabs/cuda-oxide.git" }
+# Pinned to an exact revision, and the pin has to live here. `Cargo.lock` is
+# gitignored across this repository, so a floating git dependency resolves to
+# whatever `main` is at clone time. cuda-oxide publishes none of these crates to
+# crates.io, and NVlabs is folding the repository into a `cuda-rust` mono-repo
+# that relocates every one of them, so an unpinned branch reference is a build
+# that breaks with nothing in this repository having changed.
+#
+# All three must come from the same revision. Mixing revisions gives two crate
+# instances and a type mismatch at the pliron `Context` boundary, even at
+# identical content.
+#
+# To move the pin: update the revision here, run `cargo oxide build`, then
+# `cargo oxide run` and check the harness still exits zero.
+cuda-device = { git = "https://github.com/NVlabs/cuda-oxide.git", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
+cuda-host = { git = "https://github.com/NVlabs/cuda-oxide.git", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
+cuda-core = { git = "https://github.com/NVlabs/cuda-oxide.git", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
 
 # The CPU implementation the GPU results are checked against. Host-side only;
 # nothing here crosses into device code, and nothing in the library reaches for
@@ -49,3 +72,11 @@ cartan-core = { path = "../cartan-core", optional = true }
 cartan-manifolds = { path = "../cartan-manifolds", optional = true }
 nalgebra = { version = "0.35", features = ["std"], optional = true }
 rand = { version = "0.9", features = ["std", "std_rng"], optional = true }
+
+# The matrix-free operator whose element data the Hodge mass kernel consumes,
+# and the FEEC stack that produces it. Behind `matfree-harness`, so the library
+# stays as light as its own harness feature promises and nothing in it links
+# them.
+cartan-matfree = { path = "../cartan-matfree", optional = true }
+formoniq       = { version = "=0.2.0", optional = true }
+simplicial     = { version = "=0.2.0", optional = true }
