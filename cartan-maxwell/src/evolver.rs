@@ -1,15 +1,20 @@
 //! Staggered-leapfrog Maxwell evolver on an evolving Regge background.
 
+use cartan_matfree::{pcg, HostMass, Interior, MassBackend};
 use derham::cochain::Cochain;
 use exterior::ExteriorGrade;
-use formoniq::whitney_complex::{RelativeWhitneyComplex, WhitneyComplex};
-use nalgebra::{DMatrix, DVector};
+use nalgebra::DVector;
 use nalgebra_sparse::CsrMatrix;
 use simplicial::geometry::metric::mesh::MeshLengthsSq;
 use simplicial::topology::complex::Complex;
 
 use crate::driver::MetricDriver;
 use crate::state::MaxwellState;
+
+/// Relative residual the Ampere solve converges to by default.
+const DEFAULT_CG_TOL: f64 = 1e-12;
+/// Iteration ceiling for the Ampere solve. Reaching it is a bug, not a budget.
+const DEFAULT_CG_MAX_ITER: usize = 500;
 
 /// The coboundary operator d_k: C^k -> C^{k+1} as a sparse matrix of shape
 /// `nsimplices(k+1) x nsimplices(k)`. It is the transpose of the boundary
@@ -28,18 +33,12 @@ pub fn cfl_dt(geometry: &MeshLengthsSq) -> f64 {
     0.1 * hmin
 }
 
-/// Assemble the grade-`k` Hodge mass on the relative (interior) complex,
-/// densified for the direct solve. Interior blocks stay small on the meshes
-/// this evolver targets.
-fn relative_mass_dense(rel: &RelativeWhitneyComplex<'_>, grade: ExteriorGrade) -> DMatrix<f64> {
-    DMatrix::from(&rel.mass(grade))
-}
-
 /// The grade-1 and grade-2 Hodge masses at the half step, which the
-/// synchronized energy is measured against.
+/// synchronized energy is measured against. Kept in element form, so the
+/// diagnostic costs a pair of matrix-free applications and no assembly.
 struct HalfMasses {
-    m1: CsrMatrix<f64>,
-    m2: CsrMatrix<f64>,
+    m1: HostMass,
+    m2: HostMass,
 }
 
 /// What one Ampere update hands back for diagnostics.
@@ -57,8 +56,13 @@ pub struct MaxwellEvolver<'d, D: MetricDriver> {
     d1: CsrMatrix<f64>,         // metric-free coboundary 1 -> 2
     d1t: CsrMatrix<f64>,        // its transpose, cached
     d2: Option<CsrMatrix<f64>>, // metric-free coboundary 2 -> 3 (None in 2D)
+    /// The unconstrained grade-1 degrees of freedom. Purely topological, so it
+    /// survives every metric change and is built once.
+    interior: Interior,
     dt: f64,
     t: f64,
+    cg_tol: f64,
+    cg_max_iter: usize,
 }
 
 impl<'d, D: MetricDriver> MaxwellEvolver<'d, D> {
@@ -71,14 +75,29 @@ impl<'d, D: MetricDriver> MaxwellEvolver<'d, D> {
         } else {
             None
         };
+        let interior = Interior::boundary_constrained(complex, 1);
         Self {
             driver,
             d1,
             d1t,
             d2,
+            interior,
             dt,
             t: 0.0,
+            cg_tol: DEFAULT_CG_TOL,
+            cg_max_iter: DEFAULT_CG_MAX_ITER,
         }
+    }
+
+    /// Set the relative residual the Ampere solve converges to, and the
+    /// iteration ceiling. The default is `1e-12` in at most 500 iterations,
+    /// which is tight enough that the solve does not show up in the energy
+    /// drift and loose enough to reach in about 25 iterations on the meshes
+    /// this evolver targets.
+    pub fn with_cg(mut self, tol: f64, max_iter: usize) -> Self {
+        self.cg_tol = tol;
+        self.cg_max_iter = max_iter;
+        self
     }
 
     pub fn time(&self) -> f64 {
@@ -126,36 +145,47 @@ impl<'d, D: MetricDriver> MaxwellEvolver<'d, D> {
         let l_next = self.driver.lengths_sq_at(self.t + self.dt);
         let l_half = self.driver.lengths_sq_at(self.t + 0.5 * self.dt);
 
-        let wc_now = WhitneyComplex::new(complex, &l_now);
-        let wc_half = WhitneyComplex::new(complex, &l_half);
-        let wc_next = WhitneyComplex::new(complex, &l_next);
-
-        let m1_now = CsrMatrix::from(&wc_now.mass(1));
-        let m2_half = CsrMatrix::from(&wc_half.mass(2));
+        let m1_now = HostMass::new(complex, &l_now, 1);
+        let m2_half = HostMass::new(complex, &l_half, 2);
 
         // d1^T M2 B: first M2 B, then d1^T applied to the result.
-        let m2b = &m2_half * state.b.coeffs();
-        let d1t_m2b = &self.d1t * &m2b;
-        let mut rhs_full = &m1_now * state.e.coeffs() + self.dt * d1t_m2b;
+        let mut m2b = vec![0.0; m2_half.ndofs()];
+        m2_half.apply_slice(state.b.coeffs().as_slice(), &mut m2b);
+        let d1t_m2b = &self.d1t * DVector::from_vec(m2b);
+
+        let mut m1e = vec![0.0; m1_now.ndofs()];
+        m1_now.apply_slice(state.e.coeffs().as_slice(), &mut m1e);
+        let mut rhs_full = DVector::from_vec(m1e) + self.dt * d1t_m2b;
         if let Some(j) = source {
             rhs_full -= self.dt * j.coeffs();
         }
 
-        // Restrict to the interior (PEC edges are constrained to zero), solve,
-        // then extend by zero back onto the full mesh.
-        let rel_next = wc_next.relative();
-        let rhs_int = rel_next.restrict(&Cochain::new(1, rhs_full));
-        let m1_int = relative_mass_dense(&rel_next, 1);
-        let sol = m1_int
-            .cholesky()
-            .expect("interior M1 must be SPD")
-            .solve(rhs_int.coeffs());
-        state.e = rel_next.extend_by_zero(&Cochain::new(1, sol));
+        // Restrict to the interior (PEC edges are constrained to zero), solve
+        // matrix-free, then extend by zero back onto the full mesh.
+        //
+        // The mass matrix is spectrally equivalent to its diagonal with a
+        // mesh-independent constant, so this converges in an iteration count
+        // that does not grow with the mesh. The dense factorisation it replaces
+        // was cubic in the interior degree-of-freedom count and was rebuilt
+        // every step, since the metric moves.
+        let m1_next = HostMass::restricted(complex, &l_next, &self.interior);
+        let rhs_int = self.interior.restrict(rhs_full.as_slice());
+
+        // Warm start from E^n. Consecutive steps differ by O(dt), so the
+        // initial residual is already small.
+        let mut sol = self.interior.restrict(state.e.coeffs().as_slice());
+        let report = pcg(&m1_next, &rhs_int, &mut sol, self.cg_tol, self.cg_max_iter);
+        assert!(
+            report.converged,
+            "Ampere solve stalled at relative residual {:e} after {} iterations",
+            report.residual, report.iterations
+        );
+        state.e = Cochain::new(1, DVector::from_vec(self.interior.extend_by_zero(&sol)));
 
         self.t += self.dt;
 
         let half_masses = want_half_mass.then(|| HalfMasses {
-            m1: CsrMatrix::from(&wc_half.mass(1)),
+            m1: HostMass::new(complex, &l_half, 1),
             m2: m2_half,
         });
         AmpereOutcome {
@@ -191,9 +221,12 @@ impl<'d, D: MetricDriver> MaxwellEvolver<'d, D> {
         let half = outcome
             .half_masses
             .expect("half masses were requested");
-        // After the update state.e is E^{n+1}; synchronized_energy averages it
-        // against the value passed in, which is E^n.
-        state.synchronized_energy(&outcome.e_before, &half.m1, &half.m2)
+        // After the update state.e is E^{n+1}, and averaging it against the
+        // captured E^n places the electric field at the same stagger point as B.
+        let e_half = 0.5 * (state.e.coeffs() + &outcome.e_before);
+        let ue = half.m1.quadratic_form(e_half.as_slice());
+        let ub = half.m2.quadratic_form(state.b.coeffs().as_slice());
+        0.5 * (ue + ub)
     }
 }
 

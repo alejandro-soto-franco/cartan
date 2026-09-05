@@ -17,6 +17,7 @@ formoniq        = { workspace = true }
 simplicial      = { workspace = true }
 exterior        = { workspace = true }
 derham          = { workspace = true }
+cartan-matfree  = { path = "../cartan-matfree", version = "0.9" }
 nalgebra        = { workspace = true }
 nalgebra-sparse = { workspace = true }
 
