@@ -22,12 +22,19 @@ members = [
     "cartan-maxwell",
     "cartan-matfree",
     "benchmarks/rust",
-    "cartan-gpu",
 ]
 # cartan-cuda pins a nightly toolchain (it depends on cuda-oxide, a rustc
 # backend) and is publish = false while cuda-oxide is unpublished, so it stays
 # out of the stable workspace.
-exclude = ["experiments", "cartan-py", "cartan-cuda"]
+#
+# cartan-gpu is retired and frozen at 0.9.0. WGSL has no f64, so everything
+# routed through it is single precision while the rest of this stack agrees at
+# 1e-13, which leaves it unable to express any of the numerics. No crate here
+# depends on it. Its dependency tree is also what broke the 0.9.0 release: the
+# `ordered-float` note above is five levels down under wgpu. Excluding it takes
+# that tree out of the resolution the other crates share. The published crate
+# stays where it is; the double-precision device path is cartan-cuda.
+exclude = ["experiments", "cartan-py", "cartan-cuda", "cartan-gpu"]
 
 [workspace.package]
 version = "0.9.0"

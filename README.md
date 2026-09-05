@@ -97,8 +97,8 @@ the flag it needs, so the whole surface stays visible regardless of your build.
 | [`cartan-io`](https://docs.rs/cartan-io) | VTK, ParaView and Blender export |
 | [`cartan-matfree`](https://docs.rs/cartan-matfree) | matrix-free Galerkin Hodge mass, Jacobi-preconditioned CG |
 | [`cartan-maxwell`](https://docs.rs/cartan-maxwell) | Maxwell evolution on an evolving Regge background |
-| [`cartan-gpu`](https://docs.rs/cartan-gpu) | wgpu compute primitives; single precision, see its README |
-| [`cartan-cuda`](cartan-cuda) | batched double-precision manifold ops on CUDA; unpublished, see its README |
+| [`cartan-cuda`](cartan-cuda) | double-precision CUDA kernels: batched manifold ops, Hodge mass; unpublished, see its README |
+| [`cartan-gpu`](https://docs.rs/cartan-gpu) | retired at 0.9.0; WGSL has no `f64`, see its README |
 | [`cartan-py`](https://pypi.org/project/cartan/) | Python bindings via PyO3, with numpy interop |
 
 The FEEC layer comes from the upstream [`formoniq`](https://crates.io/crates/formoniq)

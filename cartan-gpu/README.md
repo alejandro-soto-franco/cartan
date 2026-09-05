@@ -1,5 +1,10 @@
 # cartan-gpu
 
+> **Retired, frozen at 0.9.0.** WGSL has no `f64`, so this crate cannot express
+> the numerics the rest of cartan is built for, and nothing in the workspace
+> depends on it. The double-precision device path is `cartan-cuda`. This crate
+> is no longer a workspace member and will not track the workspace version.
+
 Portable wgpu-based GPU compute primitives for the cartan ecosystem.
 
 [![crates.io](https://img.shields.io/crates/v/cartan-gpu.svg)](https://crates.io/crates/cartan-gpu)
@@ -20,7 +25,7 @@ visualisation among them, and wrong for the scientific results the rest of the
 library is built to produce, where agreement is measured at 1e-14. Use the CPU
 path when the precision matters.
 
-## What this crate does
+## Surface
 
 `cartan-gpu` exposes a small, opinionated GPU surface to the rest of the
 cartan stack:
@@ -34,7 +39,7 @@ cartan stack:
 
 **FFT has moved to `gpufft`.** With the `fft` feature, `gpufft` is
 re-exported as `cartan_gpu::gpufft` for convenience. The `vulkan`, `cuda`,
-and `shared` features gate the corresponding gpufft backends.
+and `shared` features enable the corresponding gpufft backends.
 
 ## Quick start (wgpu compute)
 
