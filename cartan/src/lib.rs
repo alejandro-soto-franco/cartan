@@ -34,7 +34,8 @@
 //! | `homog` | `cartan-homog` mean-field schemes | alloc |
 //! | `full-field` | `cartan-homog` cell-problem solver | `homog`, `remesh`, std |
 //! | `io` | `cartan-io` VTK and Blender export | `dec` |
-//! | `maxwell` | `cartan-maxwell` | `io` |
+//! | `matfree` | `cartan-matfree` matrix-free Hodge mass and Krylov solvers | std |
+//! | `maxwell` | `cartan-maxwell` | `io`, `matfree` |
 //! | `full` | all of the above | std |
 //!
 //! ## Embedded and no_std
@@ -91,6 +92,10 @@ pub use cartan_homog as homog;
 #[cfg(feature = "io")]
 #[cfg_attr(docsrs, doc(cfg(feature = "io")))]
 pub use cartan_io as io;
+
+#[cfg(feature = "matfree")]
+#[cfg_attr(docsrs, doc(cfg(feature = "matfree")))]
+pub use cartan_matfree as matfree;
 
 #[cfg(feature = "maxwell")]
 #[cfg_attr(docsrs, doc(cfg(feature = "maxwell")))]

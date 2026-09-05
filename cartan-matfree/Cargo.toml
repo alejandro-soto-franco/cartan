@@ -1,0 +1,25 @@
+[package]
+name = "cartan-matfree"
+description = "Matrix-free Galerkin Hodge mass operators and Krylov solvers on a Whitney complex"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["feec", "matrix-free", "whitney", "hodge", "krylov"]
+categories = ["science", "mathematics", "algorithms"]
+documentation = "https://docs.rs/cartan-matfree"
+homepage = "https://cartan.sotofranco.dev"
+
+[dependencies]
+formoniq   = { workspace = true }
+simplicial = { workspace = true }
+exterior   = { workspace = true }
+gramian    = { workspace = true }
+nalgebra   = { workspace = true }
+
+[dev-dependencies]
+approx          = { workspace = true }
+nalgebra-sparse = { workspace = true }
+derham          = { workspace = true }

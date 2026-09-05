@@ -41,10 +41,11 @@ dec        = ["std", "dep:cartan-dec"]
 remesh     = ["dec", "dep:cartan-remesh"]
 stochastic = ["std", "dep:cartan-stochastic"]
 io         = ["dec", "dep:cartan-io"]
-maxwell    = ["io", "dep:cartan-maxwell"]
+matfree    = ["std", "dep:cartan-matfree"]
+maxwell    = ["io", "matfree", "dep:cartan-maxwell"]
 full-field = ["homog", "remesh", "std", "cartan-homog/full-field"]
 
-full = ["std", "dec", "remesh", "stochastic", "homog", "full-field", "io", "maxwell"]
+full = ["std", "dec", "remesh", "stochastic", "homog", "full-field", "io", "matfree", "maxwell"]
 
 [dependencies]
 cartan-core       = { path = "../cartan-core",       version = "0.9", default-features = false }
@@ -56,6 +57,7 @@ cartan-remesh     = { path = "../cartan-remesh",     version = "0.9", optional =
 cartan-stochastic = { path = "../cartan-stochastic", version = "0.9", optional = true }
 cartan-homog      = { path = "../cartan-homog",      version = "0.9", optional = true, default-features = false }
 cartan-io         = { path = "../cartan-io",         version = "0.9", optional = true }
+cartan-matfree    = { path = "../cartan-matfree",    version = "0.9", optional = true }
 cartan-maxwell    = { path = "../cartan-maxwell",    version = "0.9", optional = true }
 
 [dev-dependencies]

@@ -12,7 +12,7 @@ Riemannian geometry, manifold optimisation, and geodesic computation in Rust.
 
 **cartan** puts one trait system across three regimes: geometry at **points**,
 at **fields**, and along **paths**. Manifolds are const-generic and zero-sized,
-so dimension errors are caught at compile time and the abstraction costs nothing
+so dimension errors are caught at compile time and the abstraction adds nothing
 at runtime.
 
 Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev) ·
@@ -51,11 +51,11 @@ doctest, so nothing there can drift from the API.
 | regime | crates | what it gives you |
 |---|---|---|
 | **points** | `manifolds`, `optim`, `geo` | `exp`, `log`, transport, curvature, optimisation, Fréchet means |
-| **fields** | `dec`, `remesh`, `homog`, `io` | discrete exterior calculus, line bundles, homogenisation, VTK export |
+| **fields** | `dec`, `remesh`, `homog`, `io`, `matfree` | discrete exterior calculus, line bundles, homogenisation, VTK export, matrix-free FEEC solvers |
 | **paths** | `stochastic` | orthonormal frame bundle, horizontal lift, Stratonovich development |
 
 Manopt, Manifolds.jl and geomstats cover points. FEniCS and Firedrake cover
-fields, on flat domains. The bundle layer, where a field carries an internal
+fields, on flat domains. The bundle layer, where a field has an internal
 symmetry so comparing neighbouring values needs a connection, is what cartan
 adds.
 
@@ -74,10 +74,11 @@ geodesic does not compile a sparse solver.
 | `homog` | `cartan-homog` mean-field schemes | alloc |
 | `full-field` | `cartan-homog` cell-problem solver | `homog`, `remesh`, std |
 | `io` | `cartan-io` VTK and Blender export | `dec` |
-| `maxwell` | `cartan-maxwell` | `io` |
+| `matfree` | `cartan-matfree` matrix-free Hodge mass and CG | std |
+| `maxwell` | `cartan-maxwell` | `io`, `matfree` |
 | `full` | everything above | std |
 
-docs.rs is built with all features, and each gated item carries a badge naming
+docs.rs is built with all features, and each feature-dependent item has a badge naming
 the flag it needs, so the whole surface stays visible regardless of your build.
 
 ## Crates
@@ -94,6 +95,7 @@ the flag it needs, so the whole surface stays visible regardless of your build.
 | [`cartan-stochastic`](https://docs.rs/cartan-stochastic) | frame bundle, horizontal lift, Wishart SDE |
 | [`cartan-homog`](https://docs.rs/cartan-homog) | mean-field and full-field homogenisation on SPD |
 | [`cartan-io`](https://docs.rs/cartan-io) | VTK, ParaView and Blender export |
+| [`cartan-matfree`](https://docs.rs/cartan-matfree) | matrix-free Galerkin Hodge mass, Jacobi-preconditioned CG |
 | [`cartan-maxwell`](https://docs.rs/cartan-maxwell) | Maxwell evolution on an evolving Regge background |
 | [`cartan-gpu`](https://docs.rs/cartan-gpu) | wgpu compute primitives; single precision, see its README |
 | [`cartan-cuda`](cartan-cuda) | batched double-precision manifold ops on CUDA; unpublished, see its README |
@@ -114,7 +116,7 @@ homogenisation schemes as well. CI builds both configurations for
 with no standard library rather than inferred from a host build.
 
 `cartan-core` also builds bare, with no allocator at all. Each crate's own
-documentation carries its feature tiers.
+documentation states its feature tiers.
 
 ## Documentation
 
