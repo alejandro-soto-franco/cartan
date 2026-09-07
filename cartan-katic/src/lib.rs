@@ -11,6 +11,7 @@
 
 pub mod active;
 pub mod complex3;
+pub mod defect;
 pub mod energy;
 pub mod error;
 pub mod fiber;
@@ -23,6 +24,7 @@ pub mod stokes;
 
 pub use active::active_force;
 pub use complex3::Complex3;
+pub use defect::{DefectField, PiercedFace};
 pub use energy::{Energy, State};
 pub use error::KaticError;
 pub use fiber::{KaticElement, KaticFiber};

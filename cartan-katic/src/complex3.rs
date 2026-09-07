@@ -139,6 +139,16 @@ impl Complex3 {
         &self.tets
     }
 
+    /// The four triangle indices of tetrahedron `t`.
+    #[must_use]
+    pub fn tet_triangles(&self, t: usize) -> [usize; 4] {
+        let v = self.tets[t];
+        core::array::from_fn(|i| {
+            let f: Vec<usize> = (0..4).filter(|&k| k != i).map(|k| v[k]).collect();
+            self.triangle_index([f[0], f[1], f[2]])
+        })
+    }
+
     /// Euler characteristic `V - E + F - T`.
     #[must_use]
     pub fn euler_characteristic(&self) -> i64 {
