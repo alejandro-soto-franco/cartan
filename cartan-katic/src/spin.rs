@@ -68,6 +68,12 @@ impl Incidence {
         self.edges.len()
     }
 
+    /// The edges, each with its lower vertex first.
+    #[must_use]
+    pub fn edges(&self) -> &[[usize; 2]] {
+        &self.edges
+    }
+
     /// Number of triangles.
     #[must_use]
     pub fn n_triangles(&self) -> usize {

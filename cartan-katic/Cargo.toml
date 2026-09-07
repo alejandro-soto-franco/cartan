@@ -18,4 +18,6 @@ nalgebra    = { workspace = true, features = ["std"] }
 thiserror   = { workspace = true }
 
 [dev-dependencies]
-approx = { workspace = true }
+approx      = { workspace = true }
+nalgebra    = { workspace = true, features = ["std"] }
+cartan-core = { path = "../cartan-core", version = "0.9" }

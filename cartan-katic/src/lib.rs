@@ -9,14 +9,18 @@
 //! The state is a rotor with amplitudes; the energy is a polynomial in the
 //! `H^`-invariant tensors, which are single-valued functions of the rotor.
 
+pub mod energy;
 pub mod error;
 pub mod fiber;
+pub mod flow;
 pub mod group;
 pub mod invariant;
 pub mod spin;
 
+pub use energy::{Energy, State};
 pub use error::KaticError;
 pub use fiber::{KaticElement, KaticFiber};
+pub use flow::{DiscreteGradientFlow, ExplicitFlow};
 pub use group::{
     AxialApolar, AxialPolar, BinaryIcosahedral, BinaryOctahedral, BinaryTetrahedral, Cyclic,
     Dicyclic, GroupTable, PointGroupKind, SymmetryGroup, closure,

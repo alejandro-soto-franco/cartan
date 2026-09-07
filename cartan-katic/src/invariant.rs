@@ -162,6 +162,76 @@ pub fn harmonic_basis(m: usize) -> DMatrix<f64> {
     kernel_of_gram(&gram, 1e-8)
 }
 
+/// The three `so(3)` generators acting on degree-`m` harmonics, in the
+/// Bombieri-orthonormal basis.
+///
+/// Computed by central difference of the group action, which is exact to
+/// `O(eps^2)` and adequate against the tolerances the flow compares at.
+#[must_use]
+pub fn so3_generators(m: usize) -> [DMatrix<f64>; 3] {
+    let eps: f64 = 1e-6;
+    core::array::from_fn(|axis| {
+        let mut v = [0.0; 3];
+        v[axis] = (eps / 2.0).sin();
+        let c = (eps / 2.0).cos();
+        let fwd = Rotor3 {
+            w: c,
+            x: v[0],
+            y: v[1],
+            z: v[2],
+        };
+        let bwd = Rotor3 {
+            w: c,
+            x: -v[0],
+            y: -v[1],
+            z: -v[2],
+        };
+        // The two rotors are at rotation angles +eps and -eps, so the central
+        // difference spans 2 eps.
+        (rep_matrix(m, &fwd) - rep_matrix(m, &bwd)) / (2.0 * eps)
+    })
+}
+
+/// Matrix exponential by scaling and squaring with a Taylor series.
+///
+/// The matrices here are `(2m+1)` square with `m` at most 6, so a short series
+/// after scaling is both accurate and faster than any general routine.
+fn expm(a: &DMatrix<f64>) -> DMatrix<f64> {
+    let n = a.nrows();
+    // The 1-norm is a valid bound on the spectral radius and far tighter than
+    // a max-entry estimate scaled by the size, which over-counted squarings.
+    let norm = (0..n)
+        .map(|j| (0..n).map(|i| a[(i, j)].abs()).sum::<f64>())
+        .fold(0.0_f64, f64::max);
+    let squarings = if norm > 0.5 {
+        (norm / 0.5).log2().ceil() as u32
+    } else {
+        0
+    };
+    let scale = 1.0 / f64::from(1u32 << squarings);
+    let b = a * scale;
+    let mut term = DMatrix::<f64>::identity(n, n);
+    let mut out = DMatrix::<f64>::identity(n, n);
+    for k in 1..=12 {
+        term = &term * &b / f64::from(k);
+        out += &term;
+    }
+    for _ in 0..squarings {
+        out = &out * &out;
+    }
+    out
+}
+
+/// Axis-angle of a rotor: the rotation angle and its unit axis.
+fn axis_angle(r: &Rotor3) -> (f64, [f64; 3]) {
+    let v = (r.x * r.x + r.y * r.y + r.z * r.z).sqrt();
+    if v < 1e-300 {
+        return (0.0, [1.0, 0.0, 0.0]);
+    }
+    let theta = 2.0 * v.atan2(r.w);
+    (theta, [r.x / v, r.y / v, r.z / v])
+}
+
 /// The `H^`-invariant order parameter of degree `m`.
 ///
 /// `basis` holds an orthonormal basis of the invariant subspace, as columns in
@@ -170,7 +240,14 @@ pub fn harmonic_basis(m: usize) -> DMatrix<f64> {
 #[derive(Clone, Debug)]
 pub struct InvariantBasis {
     degree: usize,
+    /// Invariant basis in monomial coordinates.
     basis: DMatrix<f64>,
+    /// Orthonormal harmonic frame, monomial coordinates by harmonic index.
+    harmonic: DMatrix<f64>,
+    /// Invariant basis in harmonic coordinates.
+    basis_h: DMatrix<f64>,
+    /// `so(3)` generators restricted to the harmonic subspace.
+    gens_h: [DMatrix<f64>; 3],
 }
 
 impl InvariantBasis {
@@ -217,7 +294,16 @@ impl InvariantBasis {
         } else {
             DMatrix::from_columns(&cols)
         };
-        Self { degree: m, basis }
+        let basis_h = harmonic.transpose() * &basis;
+        let full = so3_generators(m);
+        let gens_h = core::array::from_fn(|a| harmonic.transpose() * &full[a] * &harmonic);
+        Self {
+            degree: m,
+            basis,
+            harmonic,
+            basis_h,
+            gens_h,
+        }
     }
 
     /// Degree of the harmonics this basis lives in.
@@ -232,16 +318,74 @@ impl InvariantBasis {
         self.basis.ncols()
     }
 
-    /// The order parameter `T(R) = rho_m(R) T0` in monomial coordinates, with
-    /// `T0` the amplitude-weighted combination of the invariant basis.
+    /// The action of `r` on degree-`degree` harmonics, in monomial
+    /// coordinates. Kept for reference and tests.
     #[must_use]
-    pub fn order_parameter(&self, r: &Rotor3, amplitudes: &[f64]) -> DVector<f64> {
+    pub fn rep(&self, r: &Rotor3) -> DMatrix<f64> {
+        rep_matrix(self.degree, r)
+    }
+
+    /// The action of `r` restricted to the harmonic subspace.
+    ///
+    /// Obtained by exponentiating the precomputed generators rather than by
+    /// expanding monomials, so the cost is a `(2m+1)` square exponential
+    /// rather than a `(m+1)(m+2)/2` square polynomial substitution. At degree
+    /// 6 that is 13 against 28.
+    #[must_use]
+    pub fn rep_harmonic(&self, r: &Rotor3) -> DMatrix<f64> {
+        let (theta, axis) = axis_angle(r);
+        let mut g = &self.gens_h[0] * (theta * axis[0]);
+        g += &self.gens_h[1] * (theta * axis[1]);
+        g += &self.gens_h[2] * (theta * axis[2]);
+        expm(&g)
+    }
+
+    /// The harmonic frame: monomial coordinates by harmonic index.
+    #[must_use]
+    pub fn harmonic_frame(&self) -> &DMatrix<f64> {
+        &self.harmonic
+    }
+
+    /// Column `i` of the invariant basis, in harmonic coordinates.
+    #[must_use]
+    pub fn basis_column_harmonic(&self, i: usize) -> DVector<f64> {
+        self.basis_h.column(i).into_owned()
+    }
+
+    /// The reference tensor in harmonic coordinates.
+    #[must_use]
+    pub fn reference_harmonic(&self, amplitudes: &[f64]) -> DVector<f64> {
+        debug_assert_eq!(amplitudes.len(), self.n_amplitudes());
+        let mut t0 = DVector::<f64>::zeros(self.basis_h.nrows());
+        for (j, a) in amplitudes.iter().enumerate() {
+            t0 += self.basis_h.column(j) * *a;
+        }
+        t0
+    }
+
+    /// The reference tensor `T0`: the amplitude-weighted invariant basis,
+    /// before any frame is applied.
+    #[must_use]
+    pub fn reference(&self, amplitudes: &[f64]) -> DVector<f64> {
         debug_assert_eq!(amplitudes.len(), self.n_amplitudes());
         let mut t0 = DVector::<f64>::zeros(self.basis.nrows());
         for (j, a) in amplitudes.iter().enumerate() {
             t0 += self.basis.column(j) * *a;
         }
-        rep_matrix(self.degree, r) * t0
+        t0
+    }
+
+    /// Column `i` of the invariant basis.
+    #[must_use]
+    pub fn basis_column(&self, i: usize) -> DVector<f64> {
+        self.basis.column(i).into_owned()
+    }
+
+    /// The order parameter `T(R) = rho_m(R) T0` in monomial coordinates, with
+    /// `T0` the amplitude-weighted combination of the invariant basis.
+    #[must_use]
+    pub fn order_parameter(&self, r: &Rotor3, amplitudes: &[f64]) -> DVector<f64> {
+        rep_matrix(self.degree, r) * self.reference(amplitudes)
     }
 }
 
@@ -627,6 +771,43 @@ mod tests {
         assert_eq!(b.degree(), 2);
         assert_eq!(b.n_amplitudes(), 1);
         assert_eq!(harmonic_basis(2).ncols(), 5);
+    }
+
+    /// The exponential route must reproduce the monomial route restricted to
+    /// the harmonic subspace, or the speed-up is buying a different operator.
+    #[test]
+    fn harmonic_rep_matches_the_monomial_rep() {
+        for r in [
+            Rotor3 {
+                w: 0.5,
+                x: 0.5,
+                y: 0.5,
+                z: 0.5,
+            },
+            Rotor3 {
+                w: 0.6,
+                x: 0.8,
+                y: 0.0,
+                z: 0.0,
+            },
+            Rotor3 {
+                w: -0.2,
+                x: 0.3,
+                y: -0.5,
+                z: 0.7893671,
+            }
+            .normalized(),
+            Rotor3::IDENTITY,
+        ] {
+            for m in 1..=6 {
+                let b = InvariantBasis::new::<AxialPolar>(m);
+                let h = b.harmonic_frame();
+                let direct = h.transpose() * b.rep(&r) * h;
+                let viaexp = b.rep_harmonic(&r);
+                let err = (&direct - &viaexp).norm() / direct.norm().max(1e-12);
+                assert!(err < 1e-8, "degree {m}: relative error {err:e}");
+            }
+        }
     }
 
     #[test]
