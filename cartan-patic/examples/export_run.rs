@@ -119,32 +119,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Section disks at a few points of the first line, for the panel
         // figure: the director in the plane perpendicular to the loop.
-        if k == frames / 2 {
-            if let Some(curve) = cs.first() {
-                let mut rows = String::from(
-                    "section,u,v,nu,nv,nt,order
+        if k == frames / 2
+            && let Some(curve) = cs.first()
+        {
+            let mut rows = String::from(
+                "section,u,v,nu,nv,nt,order
 ",
-                );
-                let picks = [
-                    0usize,
-                    curve.len() / 4,
-                    curve.len() / 2,
-                    3 * curve.len() / 4,
-                ];
-                for (si, &i) in picks.iter().enumerate() {
-                    let n = curve.len();
-                    let a = curve[(i + n - 1) % n];
-                    let b = curve[(i + 1) % n];
-                    let t = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-                    for smp in section_disk::<AxialApolar>(&c, &g, &state, curve[i], t, 0.12, 26) {
-                        rows.push_str(&format!(
-                            "{si},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}\n",
-                            smp.u, smp.v, smp.nu, smp.nv, smp.nt, smp.order
-                        ));
-                    }
+            );
+            let picks = [
+                0usize,
+                curve.len() / 4,
+                curve.len() / 2,
+                3 * curve.len() / 4,
+            ];
+            for (si, &i) in picks.iter().enumerate() {
+                let n = curve.len();
+                let a = curve[(i + n - 1) % n];
+                let b = curve[(i + 1) % n];
+                let t = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+                for smp in section_disk::<AxialApolar>(&c, &g, &state, curve[i], t, 0.12, 26) {
+                    rows.push_str(&format!(
+                        "{si},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}\n",
+                        smp.u, smp.v, smp.nu, smp.nv, smp.nt, smp.order
+                    ));
                 }
-                std::fs::write(dir.join("sections.csv"), rows)?;
             }
+            std::fs::write(dir.join("sections.csv"), rows)?;
         }
 
         let r = sim.step::<AxialApolar>(&mut state)?;
