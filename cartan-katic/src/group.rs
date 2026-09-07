@@ -40,7 +40,17 @@ pub enum PointGroupKind {
 /// static by design. Use [`PointGroupKind`] where a runtime value is wanted.
 pub trait SymmetryGroup: Clone + Copy + Send + Sync + 'static {
     /// Amplitude storage, one entry per independent order parameter.
-    type Amplitudes: Clone + Copy + Send + Sync + Default + core::fmt::Debug;
+    ///
+    /// The slice bounds let `FiberOps` treat an element as a flat run of
+    /// `4 + N_AMPLITUDES` reals without knowing the array size.
+    type Amplitudes: Clone
+        + Copy
+        + Send
+        + Sync
+        + Default
+        + core::fmt::Debug
+        + AsRef<[f64]>
+        + AsMut<[f64]>;
 
     /// Number of independent amplitudes. Equal to the dimension of the
     /// invariant space modulo `SO(3)`.
