@@ -129,11 +129,11 @@ fn row_reduce(mut rows: Vec<Vec<bool>>, width: usize) -> (usize, Vec<Vec<bool>>)
             continue;
         };
         rows.swap(rank, pivot);
-        for r in 0..rows.len() {
-            if r != rank && rows[r][col] {
-                for c in 0..width {
-                    let v = rows[rank][c];
-                    rows[r][c] ^= v;
+        let pivot_row = rows[rank].clone();
+        for (r, row) in rows.iter_mut().enumerate() {
+            if r != rank && row[col] {
+                for (c, v) in pivot_row.iter().enumerate().take(width) {
+                    row[c] ^= *v;
                 }
             }
         }
