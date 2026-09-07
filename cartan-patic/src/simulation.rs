@@ -1,8 +1,10 @@
 //! The coupled active p-atic loop.
 //!
 //! One step is: assemble the active force from the current order parameter,
-//! solve Stokes for the velocity, co-rotate the order parameter by the local
-//! vorticity, then take one gradient-flow step on the free energy.
+//! solve Stokes for the velocity, transport the order parameter along the flow
+//! and co-rotate it by the local vorticity, then take one gradient-flow step
+//! on the free energy. Transport and co-rotation together are the material
+//! derivative.
 //!
 //! ## Co-rotation
 //!
@@ -11,20 +13,20 @@
 //! factor of one half is the whole coupling at leading order and it has an
 //! exact test: a rigid rotation must turn the director at half its vorticity.
 //!
-//! Advection of the order parameter along the flow is absent. It needs a
-//! semi-Lagrangian step, and its omission is stated rather than hidden: this
-//! loop is the co-rotational coupling, correct for the regime where the
-//! director turns faster than it translates.
+//! Transport is semi-Lagrangian, in [`crate::advect`]. It is exact on affine
+//! data, so a field linear in space translates with no numerical diffusion.
 
 use nalgebra::DVector;
 
 use cartan_core::rotor::Rotor3;
 
 use crate::active::active_force;
+use crate::advect::advect;
 use crate::complex3::Complex3;
 use crate::energy::{Energy, State};
 use crate::error::PaticError;
 use crate::geometry::Geometry3;
+use crate::group::SymmetryGroup;
 use crate::spin::Incidence;
 use crate::stokes::Stokes;
 
@@ -167,9 +169,14 @@ impl<'a> Simulation<'a> {
     }
 
     /// One coupled step.
-    pub fn step(&self, state: &mut State) -> Result<StepReport, PaticError> {
+    ///
+    /// Generic over the symmetry because transport has to interpolate a coset:
+    /// the four rotors of a tetrahedron are aligned through the defect group
+    /// before they are averaged.
+    pub fn step<H: SymmetryGroup>(&self, state: &mut State) -> Result<StepReport, PaticError> {
         let u = self.velocity(state)?;
         let omega = self.vorticity(&u);
+        *state = advect::<H>(self.complex, self.geometry, state, u.as_slice(), self.dt);
         self.corotate(state, &omega, self.dt);
 
         // One explicit gradient-flow step on the free energy.

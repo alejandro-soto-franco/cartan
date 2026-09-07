@@ -124,7 +124,7 @@ fn zero_activity_reduces_to_gradient_flow() {
     let mut s = twisted(&c, &g);
     let mut last = e.total(&inc, &s);
     for k in 0..300 {
-        let r = sim.step(&mut s).expect("degree 2 runs");
+        let r = sim.step::<AxialApolar>(&mut s).expect("degree 2 runs");
         assert!(
             r.speed < 1e-12,
             "step {k}: zero activity produced flow {}",
@@ -180,7 +180,7 @@ fn the_full_pipeline_runs_with_no_slip() {
     let mut s = twisted(&c, &g);
 
     for k in 0..100 {
-        let r = sim.step(&mut s).expect("degree 2 runs");
+        let r = sim.step::<AxialApolar>(&mut s).expect("degree 2 runs");
         assert!(r.energy.is_finite(), "step {k}: energy went non-finite");
         assert!(r.norm_defect < 1e-12, "step {k}: rotor left the sphere");
     }
@@ -217,7 +217,7 @@ fn a_control_sweep_responds_to_activity() {
         dt: 1e-3,
         steps: 40,
     };
-    let pts = sweep(&domain, &s, &zetas, run).expect("sweep runs");
+    let pts = sweep::<AxialApolar>(&domain, &s, &zetas, run).expect("sweep runs");
 
     assert_eq!(pts.len(), zetas.len());
     assert!(pts[0].speed < 1e-12, "zero activity must not flow");

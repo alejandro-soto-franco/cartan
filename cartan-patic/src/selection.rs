@@ -13,6 +13,7 @@ use crate::complex3::Complex3;
 use crate::energy::{Energy, State};
 use crate::error::PaticError;
 use crate::geometry::Geometry3;
+use crate::group::SymmetryGroup;
 use crate::simulation::Simulation;
 use crate::spin::Incidence;
 
@@ -60,7 +61,7 @@ pub struct SweepRun {
 ///
 /// Each point starts from the same initial state, so the sweep measures the
 /// response to activity rather than a continuation along it.
-pub fn sweep(
+pub fn sweep<H: SymmetryGroup>(
     d: &SweepDomain<'_>,
     initial: &State,
     zetas: &[f64],
@@ -75,7 +76,7 @@ pub fn sweep(
         let mut worst = 0.0_f64;
         let mut last = None;
         for _ in 0..steps {
-            let r = sim.step(&mut state)?;
+            let r = sim.step::<H>(&mut state)?;
             worst = worst.max(r.norm_defect);
             last = Some(r);
         }

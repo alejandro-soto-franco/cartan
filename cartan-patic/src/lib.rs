@@ -10,6 +10,7 @@
 //! `H^`-invariant tensors, which are single-valued functions of the rotor.
 
 pub mod active;
+pub mod advect;
 pub mod boundary;
 pub mod complex3;
 pub mod defect;
@@ -20,6 +21,7 @@ pub mod flow;
 pub mod geometry;
 pub mod group;
 pub mod invariant;
+pub mod knot;
 pub mod quasipotential;
 pub mod selection;
 pub mod simulation;

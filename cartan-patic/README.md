@@ -124,6 +124,36 @@ property of the symmetry, contractible in `RP²` and not in `SU(2)/Ĥ`.
 A line has no endpoints, so every tetrahedron has an even number of pierced
 faces.
 
+## Transport
+
+The order parameter is advected semi-Lagrangian: each vertex traces back to
+`x - u Δt` and the state there is interpolated barycentrically. Interpolation
+is exact on affine data, so a field linear in space translates with no
+numerical diffusion.
+
+Rotors cannot be averaged componentwise, since the field is defined only up to
+`Ĥ` at each vertex and four rotors of one tetrahedron may sit in four different
+fundamental domains. Each is aligned to the nearest vertex's representative
+through the same defect-group transition the detector uses, then averaged and
+renormalised. Interpolating the invariant tensor instead would be linear and
+safe and would discard the lift.
+
+Transport and co-rotation together are the material derivative. A material
+element turns at half the vorticity,
+
+    R → exp(Δt ω / 2) R.
+
+## Knots
+
+Detected lines are ordered into curves by a walk on the dual graph, where two
+pierced faces are adjacent when a tetrahedron contains both. The Gauss integral
+is then evaluated exactly for polygonal curves by the solid-angle formula, so
+
+    Lk(a, b) = (1/4π) Σ_ij Ω*(a_i, a_i+1, b_j, b_j+1)
+
+is an integer up to round-off rather than up to a quadrature tolerance. Writhe
+is the same integral of a curve with itself, skipping adjacent segments.
+
 ## Selection
 
 The Freidlin-Wentzell quasipotential uses the geometric action
