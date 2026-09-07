@@ -96,12 +96,27 @@ impl Stokes {
         (u.transpose() * &self.m1 * u)[(0, 0)].max(0.0).sqrt()
     }
 
+    /// Solve with no-slip on the given edges: their velocity is constrained
+    /// to zero exactly, by eliminating the unknowns rather than by penalty.
+    #[must_use]
+    pub fn solve_no_slip(
+        &self,
+        f: &DVector<f64>,
+        fixed_edges: &[usize],
+    ) -> (DVector<f64>, DVector<f64>) {
+        self.solve_inner(f, fixed_edges)
+    }
+
     /// Solve for velocity and pressure under a one-cochain force.
     ///
     /// The pressure constant is pinned at vertex zero, since `d0` annihilates
     /// constants and the pressure is otherwise determined only up to one.
     #[must_use]
     pub fn solve(&self, f: &DVector<f64>) -> (DVector<f64>, DVector<f64>) {
+        self.solve_inner(f, &[])
+    }
+
+    fn solve_inner(&self, f: &DVector<f64>, fixed_edges: &[usize]) -> (DVector<f64>, DVector<f64>) {
         let ne = self.n_edges;
         let nv = self.n_vertices;
         let n = ne + nv;
@@ -119,8 +134,20 @@ impl Stokes {
         }
         k[(pin, pin)] = 1.0;
 
+        // No-slip: eliminate the constrained velocity unknowns the same way.
+        for &e in fixed_edges {
+            for i in 0..n {
+                k[(e, i)] = 0.0;
+                k[(i, e)] = 0.0;
+            }
+            k[(e, e)] = 1.0;
+        }
+
         let mut rhs = DVector::<f64>::zeros(n);
         rhs.rows_mut(0, ne).copy_from(f);
+        for &e in fixed_edges {
+            rhs[e] = 0.0;
+        }
         rhs[pin] = 0.0;
 
         let sol = k.lu().solve(&rhs).unwrap_or_else(|| DVector::zeros(n));

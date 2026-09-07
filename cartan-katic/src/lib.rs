@@ -10,6 +10,7 @@
 //! `H^`-invariant tensors, which are single-valued functions of the rotor.
 
 pub mod active;
+pub mod boundary;
 pub mod complex3;
 pub mod defect;
 pub mod energy;
@@ -23,6 +24,7 @@ pub mod spin;
 pub mod stokes;
 
 pub use active::active_force;
+pub use boundary::{Boundary, rotor_taking_z_to};
 pub use complex3::Complex3;
 pub use defect::{DefectField, PiercedFace};
 pub use energy::{Energy, State};

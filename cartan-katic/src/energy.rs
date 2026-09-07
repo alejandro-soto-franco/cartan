@@ -129,6 +129,12 @@ impl Energy {
         &self.basis
     }
 
+    /// The `so(3)` generator for axis `a`, on the order parameter's degree.
+    #[must_use]
+    pub fn generator(&self, a: usize) -> &DMatrix<f64> {
+        &self.generators[a]
+    }
+
     /// Bulk energy density at one vertex.
     #[must_use]
     pub fn bulk(&self, amps: &[f64]) -> f64 {
