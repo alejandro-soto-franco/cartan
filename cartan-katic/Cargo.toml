@@ -15,9 +15,11 @@ homepage = "https://cartan.sotofranco.dev"
 [dependencies]
 cartan-core = { path = "../cartan-core", version = "0.9" }
 nalgebra    = { workspace = true, features = ["std"] }
+nalgebra-sparse = { workspace = true }
 thiserror   = { workspace = true }
 
 [dev-dependencies]
 approx      = { workspace = true }
 nalgebra    = { workspace = true, features = ["std"] }
+nalgebra-sparse = { workspace = true }
 cartan-core = { path = "../cartan-core", version = "0.9" }

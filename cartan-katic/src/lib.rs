@@ -9,6 +9,7 @@
 //! The state is a rotor with amplitudes; the energy is a polynomial in the
 //! `H^`-invariant tensors, which are single-valued functions of the rotor.
 
+pub mod complex3;
 pub mod energy;
 pub mod error;
 pub mod fiber;
@@ -17,6 +18,7 @@ pub mod group;
 pub mod invariant;
 pub mod spin;
 
+pub use complex3::Complex3;
 pub use energy::{Energy, State};
 pub use error::KaticError;
 pub use fiber::{KaticElement, KaticFiber};
