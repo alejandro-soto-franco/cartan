@@ -28,6 +28,7 @@ pub mod selection;
 pub mod simulation;
 pub mod spin;
 pub mod stokes;
+pub mod vtk;
 
 pub use active::{active_force, active_force_general};
 pub use boundary::{Boundary, rotor_taking_z_to};

@@ -28,7 +28,7 @@ use crate::error::PaticError;
 use crate::geometry::Geometry3;
 use crate::group::SymmetryGroup;
 use crate::spin::Incidence;
-use crate::stokes::Stokes;
+use crate::stokes::{FactoredStokes, Stokes};
 
 /// Diagnostics from one coupled step.
 #[derive(Clone, Copy, Debug)]
@@ -51,6 +51,10 @@ pub struct Simulation<'a> {
     incidence: &'a Incidence,
     energy: &'a Energy,
     stokes: Stokes,
+    /// Factorised once, since the mesh, the viscosity and the constrained
+    /// edges are fixed for the life of a simulation. Rebuilding it per frame
+    /// was the whole cost of a frame loop.
+    factored: FactoredStokes,
     no_slip_edges: Vec<usize>,
     zeta: f64,
     dt: f64,
@@ -68,12 +72,15 @@ impl<'a> Simulation<'a> {
         zeta: f64,
         dt: f64,
     ) -> Self {
+        let stokes = Stokes::assemble(complex, geometry, eta);
+        let factored = stokes.factor(&[]);
         Self {
             complex,
             geometry,
             incidence,
             energy,
-            stokes: Stokes::assemble(complex, geometry, eta),
+            stokes,
+            factored,
             no_slip_edges: Vec::new(),
             zeta,
             dt,
@@ -81,9 +88,12 @@ impl<'a> Simulation<'a> {
     }
 
     /// Constrain the given edges to zero velocity.
+    ///
+    /// Refactorises once, here, rather than on every solve.
     #[must_use]
     pub fn with_no_slip(mut self, edges: &[usize]) -> Self {
         self.no_slip_edges = edges.to_vec();
+        self.factored = self.stokes.factor(edges);
         self
     }
 
@@ -96,11 +106,7 @@ impl<'a> Simulation<'a> {
     /// Solve for the velocity driven by the current order parameter.
     pub fn velocity(&self, state: &State) -> Result<DVector<f64>, PaticError> {
         let f = active_force_general(self.complex, self.geometry, self.energy, state, self.zeta)?;
-        let (u, _) = if self.no_slip_edges.is_empty() {
-            self.stokes.solve(&f)
-        } else {
-            self.stokes.solve_no_slip(&f, &self.no_slip_edges)
-        };
+        let (u, _) = self.factored.solve(&f);
         Ok(u)
     }
 

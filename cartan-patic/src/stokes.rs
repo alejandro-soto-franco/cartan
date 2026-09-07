@@ -19,9 +19,17 @@
 //! includes the curvature coupling by construction. That is what the FEEC
 //! route gives over a connection-Laplacian assembly.
 //!
-//! The solve is dense. Tetrahedral meshes of research size need a Krylov
-//! method on the indefinite system; the dense path is what makes the physics
-//! tests exact rather than solver-limited.
+//! ## Factorise once
+//!
+//! The saddle matrix depends on the mesh, the viscosity and the constrained
+//! edges, none of which change while a simulation runs. [`FactoredStokes`]
+//! decomposes it once and every later solve is a pair of triangular solves,
+//! `O(N^2)` rather than `O(N^3)`. A frame loop that re-factorised each step
+//! was spending all its time rebuilding the same matrix.
+//!
+//! The solve is dense. Tetrahedral meshes past a few thousand edges need a
+//! Krylov method on the indefinite system; the dense path is what makes the
+//! physics tests exact rather than solver-limited.
 
 use nalgebra::{DMatrix, DVector};
 use nalgebra_sparse::CsrMatrix;
@@ -104,19 +112,14 @@ impl Stokes {
         f: &DVector<f64>,
         fixed_edges: &[usize],
     ) -> (DVector<f64>, DVector<f64>) {
-        self.solve_inner(f, fixed_edges)
+        self.factor(fixed_edges).solve(f)
     }
 
-    /// Solve for velocity and pressure under a one-cochain force.
+    /// Factorise the saddle system once for a fixed set of constrained edges.
     ///
-    /// The pressure constant is pinned at vertex zero, since `d0` annihilates
-    /// constants and the pressure is otherwise determined only up to one.
+    /// Every later solve reuses it, which is what makes a frame loop cheap.
     #[must_use]
-    pub fn solve(&self, f: &DVector<f64>) -> (DVector<f64>, DVector<f64>) {
-        self.solve_inner(f, &[])
-    }
-
-    fn solve_inner(&self, f: &DVector<f64>, fixed_edges: &[usize]) -> (DVector<f64>, DVector<f64>) {
+    pub fn factor(&self, fixed_edges: &[usize]) -> FactoredStokes {
         let ne = self.n_edges;
         let nv = self.n_vertices;
         let n = ne + nv;
@@ -125,8 +128,7 @@ impl Stokes {
         k.view_mut((0, ne), (ne, nv)).copy_from(&self.b);
         k.view_mut((ne, 0), (nv, ne)).copy_from(&self.b.transpose());
 
-        // Pin the pressure constant: replace the row and column of the first
-        // pressure unknown by the identity.
+        // Pin the pressure constant.
         let pin = ne;
         for i in 0..n {
             k[(pin, i)] = 0.0;
@@ -134,7 +136,7 @@ impl Stokes {
         }
         k[(pin, pin)] = 1.0;
 
-        // No-slip: eliminate the constrained velocity unknowns the same way.
+        // No-slip, by elimination.
         for &e in fixed_edges {
             for i in 0..n {
                 k[(e, i)] = 0.0;
@@ -143,15 +145,54 @@ impl Stokes {
             k[(e, e)] = 1.0;
         }
 
-        let mut rhs = DVector::<f64>::zeros(n);
+        FactoredStokes {
+            lu: k.lu(),
+            n_edges: ne,
+            n_vertices: nv,
+            fixed: fixed_edges.to_vec(),
+        }
+    }
+
+    /// Solve for velocity and pressure under a one-cochain force.
+    ///
+    /// Factorises on the spot. A loop over frames should hold a
+    /// [`FactoredStokes`] from [`Stokes::factor`] instead.
+    #[must_use]
+    pub fn solve(&self, f: &DVector<f64>) -> (DVector<f64>, DVector<f64>) {
+        self.factor(&[]).solve(f)
+    }
+}
+
+/// A factorised saddle system, reusable across right-hand sides.
+pub struct FactoredStokes {
+    lu: nalgebra::LU<f64, nalgebra::Dyn, nalgebra::Dyn>,
+    n_edges: usize,
+    n_vertices: usize,
+    fixed: Vec<usize>,
+}
+
+impl FactoredStokes {
+    /// Solve for a new force. Two triangular solves, no factorisation.
+    #[must_use]
+    pub fn solve(&self, f: &DVector<f64>) -> (DVector<f64>, DVector<f64>) {
+        let (ne, nv) = (self.n_edges, self.n_vertices);
+        let mut rhs = DVector::<f64>::zeros(ne + nv);
         rhs.rows_mut(0, ne).copy_from(f);
-        for &e in fixed_edges {
+        for &e in &self.fixed {
             rhs[e] = 0.0;
         }
-        rhs[pin] = 0.0;
-
-        let sol = k.lu().solve(&rhs).unwrap_or_else(|| DVector::zeros(n));
+        rhs[ne] = 0.0;
+        let sol = self
+            .lu
+            .solve(&rhs)
+            .unwrap_or_else(|| DVector::zeros(ne + nv));
         (sol.rows(0, ne).into_owned(), sol.rows(ne, nv).into_owned())
+    }
+
+    /// The constrained edges.
+    #[must_use]
+    pub fn fixed_edges(&self) -> &[usize] {
+        &self.fixed
     }
 }
 
