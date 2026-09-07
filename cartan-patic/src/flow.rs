@@ -7,8 +7,21 @@
 //!
 //! Two integrators. The explicit one is cheap and conditionally stable, with
 //! its threshold measured rather than assumed. The discrete-gradient one
-//! satisfies the energy identity `E^{n+1} - E^n = -dt |g_bar|^2` at any step
-//! size, and costs a fixed-point solve per step.
+//! satisfies `E^{n+1} - E^n = -dt |g_bar|^2` at any step size it solves, and
+//! takes a fixed-point solve per step.
+//!
+//! ## The identity is a statement about the free energy alone
+//!
+//! Both integrators here move the state down the gradient of `F`, and the
+//! identity is about that motion. It says nothing about a coupled run.
+//!
+//! The active stress is not a gradient of anything: it injects energy, which
+//! is what makes the system active. In [`crate::simulation`] the free energy
+//! is therefore no longer a Lyapunov function, and the governing statement
+//! becomes a balance rather than a decrease: at a steady state the power the
+//! active force does on the flow equals the viscous dissipation, which is what
+//! `power_input_equals_dissipation` measures. Reading the identity below as a
+//! guarantee about an active run is the mistake to avoid.
 
 use cartan_core::rotor::Rotor3;
 
@@ -73,8 +86,13 @@ impl ExplicitFlow {
 ///
 /// The discrete gradient `g_bar` is the midpoint gradient corrected along the
 /// step so that `<g_bar, delta> = E^{n+1} - E^n` exactly. The step
-/// `delta = -dt g_bar` then gives `E^{n+1} - E^n = -dt |g_bar|^2`, a dissipation
-/// identity at any step size rather than an estimate under a step restriction.
+/// `delta = -dt g_bar` then gives `E^{n+1} - E^n = -dt |g_bar|^2` at any step
+/// size the fixed point reaches, rather than an estimate under a step
+/// restriction.
+///
+/// This is a statement about the gradient flow of `F`. Activity is not a
+/// gradient and injects energy, so a coupled run obeys a balance instead; see
+/// the module documentation.
 pub struct DiscreteGradientFlow {
     dt: f64,
     tol: f64,

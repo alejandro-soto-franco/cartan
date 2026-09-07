@@ -31,6 +31,11 @@ use crate::spin::Incidence;
 use crate::stokes::{FactoredStokes, Stokes};
 
 /// Diagnostics from one coupled step.
+///
+/// `energy` is the free energy, which does not decrease monotonically once
+/// activity is on: the active stress is not a gradient and puts energy in. The
+/// statement that holds is a balance, `f . u = eta u^T K u` at a steady state,
+/// and both sides are reported here.
 #[derive(Clone, Copy, Debug)]
 pub struct StepReport {
     /// Free energy after the step.

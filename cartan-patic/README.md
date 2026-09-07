@@ -66,6 +66,15 @@ precision by construction. The discrete-gradient integrator satisfies
 
 exactly at every step size its solve reaches.
 
+**That identity is about the gradient flow of `F` alone.** The active stress is
+not a gradient of anything and injects energy, so in a coupled run `F` is no
+longer a Lyapunov function. A balance replaces it: at a steady state
+the power the active force does on the flow equals the viscous dissipation,
+
+    f · u = η uᵀ K u,
+
+and both sides are reported from every coupled step.
+
 ## Hydrodynamics
 
 Velocity is a 1-cochain, pressure a 0-cochain:
