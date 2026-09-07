@@ -11,9 +11,10 @@ use cartan_patic::energy::{Energy, State};
 use cartan_patic::geometry::Geometry3;
 use cartan_patic::group::{AxialApolar, SymmetryGroup};
 use cartan_patic::knot::curves;
+use cartan_patic::profile::{profile_along, section_disk};
 use cartan_patic::simulation::Simulation;
 use cartan_patic::spin::Incidence;
-use cartan_patic::vtk::{Snapshot, write_lines_vtp, write_pvd, write_vtu};
+use cartan_patic::vtk::{Snapshot, write_lines_vtp_with, write_pvd, write_vtu};
 use nalgebra::DMatrix;
 use std::path::PathBuf;
 
@@ -83,7 +84,68 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         entries.push((k as f64 * 2e-3, name));
 
         let d = DefectField::detect::<AxialApolar>(&c, &state.rotors, 1e-8);
-        write_lines_vtp(&dir.join(format!("lines_{k:04}.vtp")), &curves(&c, &g, &d))?;
+        let cs = curves(&c, &g, &d);
+
+        // Profile every point of every line, so the tube can be coloured by
+        // its local character the way the paper does.
+        let mut winding = Vec::new();
+        let mut twist = Vec::new();
+        let mut tag = Vec::new();
+        for curve in &cs {
+            for p in profile_along::<AxialApolar>(&c, &g, &state, curve, 0.12, 48) {
+                match p {
+                    Some(pr) => {
+                        winding.push(pr.winding);
+                        twist.push(pr.twist);
+                        tag.push(pr.classify(0.5).tag());
+                    }
+                    None => {
+                        winding.push(0.0);
+                        twist.push(0.0);
+                        tag.push(0.0);
+                    }
+                }
+            }
+        }
+        write_lines_vtp_with(
+            &dir.join(format!("lines_{k:04}.vtp")),
+            &cs,
+            &[
+                ("winding".to_string(), winding),
+                ("twist".to_string(), twist),
+                ("segment".to_string(), tag),
+            ],
+        )?;
+
+        // Section disks at a few points of the first line, for the panel
+        // figure: the director in the plane perpendicular to the loop.
+        if k == frames / 2 {
+            if let Some(curve) = cs.first() {
+                let mut rows = String::from(
+                    "section,u,v,nu,nv,nt,order
+",
+                );
+                let picks = [
+                    0usize,
+                    curve.len() / 4,
+                    curve.len() / 2,
+                    3 * curve.len() / 4,
+                ];
+                for (si, &i) in picks.iter().enumerate() {
+                    let n = curve.len();
+                    let a = curve[(i + n - 1) % n];
+                    let b = curve[(i + 1) % n];
+                    let t = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+                    for smp in section_disk::<AxialApolar>(&c, &g, &state, curve[i], t, 0.12, 26) {
+                        rows.push_str(&format!(
+                            "{si},{:.6},{:.6},{:.6},{:.6},{:.6},{:.6}\n",
+                            smp.u, smp.v, smp.nu, smp.nv, smp.nt, smp.order
+                        ));
+                    }
+                }
+                std::fs::write(dir.join("sections.csv"), rows)?;
+            }
+        }
 
         let r = sim.step::<AxialApolar>(&mut state)?;
         if k % 8 == 0 {

@@ -76,6 +76,68 @@ pub fn vertex_velocity(c: &Complex3, g: &Geometry3, u: &[f64]) -> Vec<[f64; 3]> 
     acc
 }
 
+/// Sample the state at an arbitrary point, by barycentric interpolation in
+/// whichever tetrahedron contains it.
+///
+/// Returns `None` outside the domain. Rotors are aligned through the defect
+/// group before averaging, for the reason given at the top of this module.
+#[must_use]
+pub fn sample_state<H: SymmetryGroup>(
+    c: &Complex3,
+    g: &Geometry3,
+    state: &State,
+    x: [f64; 3],
+) -> Option<(Rotor3, Vec<f64>)> {
+    let n_amp = state.amps(0).len();
+    let (tet, lam) = (0..c.n_tets()).find_map(|t| {
+        let tet = c.tets()[t];
+        let l = barycentric(g, &tet, x);
+        inside(&l, 1e-9).then_some((tet, l))
+    })?;
+
+    let anchor = (0..4)
+        .max_by(|a, b| {
+            lam[*a]
+                .partial_cmp(&lam[*b])
+                .unwrap_or(core::cmp::Ordering::Equal)
+        })
+        .unwrap_or(0);
+    let r_ref = state.rotors[tet[anchor]];
+    let mut acc = Rotor3 {
+        w: 0.0,
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
+    let mut amps = vec![0.0_f64; n_amp];
+    for i in 0..4 {
+        let r = state.rotors[tet[i]];
+        let h = edge_transition::<H>(&r_ref, &r);
+        let a = r.compose(&h);
+        acc.w += lam[i] * a.w;
+        acc.x += lam[i] * a.x;
+        acc.y += lam[i] * a.y;
+        acc.z += lam[i] * a.z;
+        let src = state.amps(tet[i]);
+        for (k, v) in amps.iter_mut().enumerate() {
+            *v += lam[i] * src[k];
+        }
+    }
+    let norm = (acc.w * acc.w + acc.x * acc.x + acc.y * acc.y + acc.z * acc.z).sqrt();
+    if norm < 1e-12 {
+        return None;
+    }
+    Some((
+        Rotor3 {
+            w: acc.w / norm,
+            x: acc.x / norm,
+            y: acc.y / norm,
+            z: acc.z / norm,
+        },
+        amps,
+    ))
+}
+
 /// Advect the state by the flow for one step.
 ///
 /// Departure points outside the domain fall back to the vertex itself, which

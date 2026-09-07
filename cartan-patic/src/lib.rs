@@ -22,6 +22,7 @@ pub mod geometry;
 pub mod group;
 pub mod invariant;
 pub mod knot;
+pub mod profile;
 pub mod quasipotential;
 pub mod recovery;
 pub mod selection;

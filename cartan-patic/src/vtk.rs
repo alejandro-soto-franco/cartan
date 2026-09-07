@@ -175,6 +175,23 @@ pub fn write_vtu(path: &Path, c: &Complex3, g: &Geometry3, snap: &Snapshot) -> i
 ///
 /// Propagates any filesystem error from creating or writing the file.
 pub fn write_lines_vtp(path: &Path, curves: &[Vec<[f64; 3]>]) -> io::Result<()> {
+    write_lines_vtp_with(path, curves, &[])
+}
+
+/// As [`write_lines_vtp`], with per-point scalar fields along the curves.
+///
+/// Used to colour a disclination tube by its local profile: `+1` for a `+1/2`
+/// wedge, `-1` for `-1/2`, `0` for twist, matching the paper's yellow, purple
+/// and green.
+///
+/// # Errors
+///
+/// Propagates any filesystem error from creating or writing the file.
+pub fn write_lines_vtp_with(
+    path: &Path,
+    curves: &[Vec<[f64; 3]>],
+    point_data: &[(String, Vec<f64>)],
+) -> io::Result<()> {
     let n_points: usize = curves.iter().map(Vec::len).sum();
     let mut s = String::with_capacity(1 << 14);
     s.push_str("<?xml version=\"1.0\"?>\n");
@@ -210,6 +227,15 @@ pub fn write_lines_vtp(path: &Path, curves: &[Vec<[f64; 3]>]) -> io::Result<()> 
     }
     s.push_str("\n        </DataArray>\n");
     s.push_str("      </Lines>\n");
+
+    if !point_data.is_empty() {
+        s.push_str("      <PointData>\n");
+        for (name, values) in point_data {
+            assert_eq!(values.len(), n_points, "field {name} has the wrong length");
+            data_array(&mut s, name, 1, values);
+        }
+        s.push_str("      </PointData>\n");
+    }
 
     // One id per line, so a viewer can colour them apart.
     s.push_str("      <CellData>\n");

@@ -5,7 +5,7 @@ use cartan_patic::complex3::Complex3;
 use cartan_patic::energy::{Energy, State};
 use cartan_patic::geometry::Geometry3;
 use cartan_patic::group::{AxialApolar, SymmetryGroup};
-use cartan_patic::vtk::{write_lines_vtp, write_pvd, write_vtu, Snapshot};
+use cartan_patic::vtk::{Snapshot, write_lines_vtp, write_pvd, write_vtu};
 use nalgebra::DMatrix;
 use std::path::PathBuf;
 
@@ -31,7 +31,12 @@ fn state(c: &Complex3, g: &Geometry3) -> State {
     for (v, p) in g.positions().iter().enumerate() {
         let t = 1.7 * p[0];
         let (sn, cs) = (t / 2.0).sin_cos();
-        s.rotors[v] = Rotor3 { w: cs, x: 0.0, y: sn, z: 0.0 };
+        s.rotors[v] = Rotor3 {
+            w: cs,
+            x: 0.0,
+            y: sn,
+            z: 0.0,
+        };
     }
     s
 }
@@ -49,7 +54,10 @@ fn the_grid_file_has_the_right_counts_and_fields() {
     assert!(text.contains(&format!("NumberOfPoints=\"{}\"", c.n_vertices())));
     assert!(text.contains(&format!("NumberOfCells=\"{}\"", c.n_tets())));
     for name in ["director", "frame_x", "frame_y", "order", "amplitude_0"] {
-        assert!(text.contains(&format!("Name=\"{name}\"")), "missing field {name}");
+        assert!(
+            text.contains(&format!("Name=\"{name}\"")),
+            "missing field {name}"
+        );
     }
     // VTK_TETRA is type 10.
     assert!(text.contains("Name=\"types\""));
