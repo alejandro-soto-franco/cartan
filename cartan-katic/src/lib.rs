@@ -13,6 +13,7 @@ pub mod error;
 pub mod fiber;
 pub mod group;
 pub mod invariant;
+pub mod spin;
 
 pub use error::KaticError;
 pub use fiber::{KaticElement, KaticFiber};
