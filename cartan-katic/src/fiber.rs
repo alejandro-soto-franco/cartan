@@ -56,6 +56,9 @@ pub struct KaticFiber<H: SymmetryGroup>(core::marker::PhantomData<H>);
 impl<H: SymmetryGroup> Fiber for KaticFiber<H> {
     type Element = KaticElement<H::Amplitudes>;
 
+    /// Meaningful degrees of freedom: four rotor components plus the
+    /// amplitudes. The amplitude array may be wider for a const-generic
+    /// family, and the surplus entries are not degrees of freedom.
     const FIBER_DIM: usize = 4 + H::N_AMPLITUDES;
 
     fn zero() -> Self::Element {
@@ -123,12 +126,18 @@ impl<H: SymmetryGroup> FiberOps for KaticFiber<H> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::group::{AxialApolar, Dicyclic};
+    use crate::group::{AxialApolar, Dicyclic, SymmetryGroup};
 
     #[test]
     fn fiber_dim_is_rotor_plus_amplitudes() {
         assert_eq!(<KaticFiber<AxialApolar> as Fiber>::FIBER_DIM, 5);
+        // FIBER_DIM counts meaningful degrees of freedom. The Dicyclic
+        // amplitude array is width 3 so one type serves every K, and the
+        // surplus entries are not degrees of freedom.
         assert_eq!(<KaticFiber<Dicyclic<2>> as Fiber>::FIBER_DIM, 6);
+        assert_eq!(<KaticFiber<Dicyclic<3>> as Fiber>::FIBER_DIM, 5);
+        assert_eq!(<Dicyclic<2> as SymmetryGroup>::N_AMPLITUDES, 2);
+        assert_eq!(<Dicyclic<3> as SymmetryGroup>::N_AMPLITUDES, 1);
     }
 
     #[test]
@@ -186,6 +195,6 @@ mod tests {
     fn default_is_the_isotropic_state() {
         let e = <KaticFiber<Dicyclic<2>> as Fiber>::zero();
         assert_eq!(e.rotor, Rotor3::IDENTITY);
-        assert_eq!(e.amplitudes, [0.0, 0.0]);
+        assert_eq!(e.amplitudes, [0.0, 0.0, 0.0]);
     }
 }

@@ -12,6 +12,7 @@
 pub mod error;
 pub mod fiber;
 pub mod group;
+pub mod invariant;
 
 pub use error::KaticError;
 pub use fiber::{KaticElement, KaticFiber};
@@ -19,3 +20,4 @@ pub use group::{
     AxialApolar, AxialPolar, BinaryIcosahedral, BinaryOctahedral, BinaryTetrahedral, Cyclic,
     Dicyclic, GroupTable, PointGroupKind, SymmetryGroup, closure,
 };
+pub use invariant::{InvariantBasis, harmonic_basis, monomials, separating_degree};

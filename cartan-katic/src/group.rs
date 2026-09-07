@@ -52,8 +52,13 @@ pub trait SymmetryGroup: Clone + Copy + Send + Sync + 'static {
         + AsRef<[f64]>
         + AsMut<[f64]>;
 
-    /// Number of independent amplitudes. Equal to the dimension of the
-    /// invariant space modulo `SO(3)`.
+    /// Number of independent amplitudes: the dimension of the `H^`-invariant
+    /// subspace of the degree-`INVARIANT_RANK` harmonics.
+    ///
+    /// `Amplitudes` may be wider than this for the const-generic families,
+    /// whose count varies with the parameter; only the first `N_AMPLITUDES`
+    /// entries are meaningful. `InvariantBasis::for_group` checks the declared
+    /// value against the computed one.
     const N_AMPLITUDES: usize;
 
     /// Lowest `m` whose invariant subspace of `Sym^m(R^3)` separates cosets.
@@ -106,6 +111,69 @@ fn contains_by_orbit<H: SymmetryGroup>(r: &Rotor3, tol: f64) -> bool {
     H::elements().any(|h| dist_sq(r, &h) < tol * tol)
 }
 
+/// Order of the image of `Cyclic<N>` in `SO(3)`.
+///
+/// `-1` acts trivially on `R^3`, so an even `N` projects two-to-one.
+#[must_use]
+pub const fn cyclic_image_order(n: usize) -> usize {
+    if n.is_multiple_of(2) { n / 2 } else { n }
+}
+
+/// Separating harmonic degree for `Cyclic<N>`.
+///
+/// Two effects set it. A generic harmonic below degree 3 has a stabiliser
+/// larger than any small cyclic group, so the degree never drops below 3. And
+/// when the image order `g` is even, every `C_g`-invariant harmonic of degree
+/// `g` is also invariant under the flip through the axis, so its stabiliser is
+/// `D_g` rather than `C_g` and the degree has to rise by one to break the
+/// flip. `Cyclic<8>` is the smallest case where that second effect bites:
+/// image order 4, separating degree 5.
+#[must_use]
+pub const fn cyclic_rank(n: usize) -> usize {
+    let g = cyclic_image_order(n);
+    if g == 1 {
+        3
+    } else if g.is_multiple_of(2) {
+        g + 1
+    } else {
+        g
+    }
+}
+
+/// Amplitude count for `Cyclic<N>`: the azimuthal orders divisible by the
+/// image order, `2 * floor(m / g) + 1`.
+#[must_use]
+pub const fn cyclic_amplitudes(n: usize) -> usize {
+    2 * (cyclic_rank(n) / cyclic_image_order(n)) + 1
+}
+
+/// Separating harmonic degree for `Dicyclic<K>`.
+///
+/// `K = 2` is the biaxial case, separated already by a rank-2 tensor. `K = 1`
+/// projects to a single two-fold rotation, too small for degree 2.
+#[must_use]
+pub const fn dicyclic_rank(k: usize) -> usize {
+    if k == 1 {
+        3
+    } else if k == 2 {
+        2
+    } else {
+        k
+    }
+}
+
+/// Amplitude count for `Dicyclic<K>`.
+#[must_use]
+pub const fn dicyclic_amplitudes(k: usize) -> usize {
+    if k == 1 {
+        3
+    } else if k.is_multiple_of(2) {
+        2
+    } else {
+        1
+    }
+}
+
 // --- Dicyclic (binary dihedral) ---------------------------------------------
 
 /// The dicyclic group of order `4K`, the binary lift of the dihedral group
@@ -117,9 +185,9 @@ fn contains_by_orbit<H: SymmetryGroup>(r: &Rotor3, tol: f64) -> bool {
 pub struct Dicyclic<const K: usize>;
 
 impl<const K: usize> SymmetryGroup for Dicyclic<K> {
-    type Amplitudes = [f64; 2];
-    const N_AMPLITUDES: usize = 2;
-    const INVARIANT_RANK: usize = K;
+    type Amplitudes = [f64; 3];
+    const N_AMPLITUDES: usize = dicyclic_amplitudes(K);
+    const INVARIANT_RANK: usize = dicyclic_rank(K);
     const ORDER: Option<usize> = Some(4 * K);
 
     fn elements() -> impl Iterator<Item = Rotor3> {
@@ -390,9 +458,9 @@ impl<H: SymmetryGroup> Default for GroupTable<H> {
 pub struct Cyclic<const N: usize>;
 
 impl<const N: usize> SymmetryGroup for Cyclic<N> {
-    type Amplitudes = [f64; 1];
-    const N_AMPLITUDES: usize = 1;
-    const INVARIANT_RANK: usize = N;
+    type Amplitudes = [f64; 7];
+    const N_AMPLITUDES: usize = cyclic_amplitudes(N);
+    const INVARIANT_RANK: usize = cyclic_rank(N);
     const ORDER: Option<usize> = Some(N);
 
     fn elements() -> impl Iterator<Item = Rotor3> {

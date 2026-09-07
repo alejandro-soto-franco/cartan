@@ -24,6 +24,20 @@ pub enum KaticError {
     #[error("discrete-gradient Newton solve diverged at step {step}, residual {residual:.6e}")]
     NewtonDiverged { step: usize, residual: f64 },
 
+    /// A symmetry's declared constants disagree with the computed invariant
+    /// theory, so the compile-time amplitude count is wrong for it.
+    #[error(
+        "{group}: declared rank {declared_rank} amplitudes {declared_amplitudes}, \
+         computed rank {computed_rank} amplitudes {computed_amplitudes}"
+    )]
+    ConstMismatch {
+        group: &'static str,
+        declared_rank: usize,
+        declared_amplitudes: usize,
+        computed_rank: usize,
+        computed_amplitudes: usize,
+    },
+
     /// No invariant of separating rank was found below the search ceiling.
     #[error("no separating invariant found up to rank {max_rank}")]
     NoSeparatingInvariant { max_rank: usize },
