@@ -127,6 +127,12 @@ impl Complex3 {
     pub fn edges(&self) -> &[[usize; 2]] {
         &self.edges
     }
+    /// Triangle `i`, ascending.
+    #[must_use]
+    pub fn triangle(&self, i: usize) -> [usize; 3] {
+        self.triangles[i]
+    }
+
     /// The tetrahedra.
     #[must_use]
     pub fn tets(&self) -> &[[usize; 4]] {
@@ -138,6 +144,22 @@ impl Complex3 {
     pub fn euler_characteristic(&self) -> i64 {
         self.n_vertices as i64 - self.n_edges() as i64 + self.n_triangles() as i64
             - self.n_tets() as i64
+    }
+
+    /// Index of the edge on the given vertices, in any order.
+    #[must_use]
+    pub fn edge_of(&self, e: &[usize; 2]) -> usize {
+        let mut v = *e;
+        v.sort_unstable();
+        self.edge_index(v)
+    }
+
+    /// Index of the triangle on the given vertices, in any order.
+    #[must_use]
+    pub fn triangle_of(&self, t: &[usize; 3]) -> usize {
+        let mut v = *t;
+        v.sort_unstable();
+        self.triangle_index(v)
     }
 
     fn edge_index(&self, e: [usize; 2]) -> usize {

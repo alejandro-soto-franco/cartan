@@ -352,6 +352,30 @@ impl InvariantBasis {
         self.basis_h.column(i).into_owned()
     }
 
+    /// The degree-2 order parameter as a symmetric traceless 3x3 matrix.
+    ///
+    /// Returns `None` at any other degree, where the order parameter has no
+    /// rank-2 representation at all. That absence is the whole reason the
+    /// active stress needs derivatives for `p > 2`.
+    #[must_use]
+    pub fn as_matrix3(&self, t: &DVector<f64>) -> Option<[[f64; 3]; 3]> {
+        if self.degree != 2 {
+            return None;
+        }
+        let basis = monomials(2);
+        let mut c = [0.0_f64; 6];
+        for (i, e) in basis.iter().enumerate() {
+            c[i] = t[i] / bombieri_scale(e, 2);
+        }
+        // monomials(2) is ordered xx, xy, xz, yy, yz, zz, and the quadratic
+        // form v^T Q v doubles every off-diagonal monomial.
+        Some([
+            [c[0], c[1] / 2.0, c[2] / 2.0],
+            [c[1] / 2.0, c[3], c[4] / 2.0],
+            [c[2] / 2.0, c[4] / 2.0, c[5]],
+        ])
+    }
+
     /// The reference tensor in harmonic coordinates.
     #[must_use]
     pub fn reference_harmonic(&self, amplitudes: &[f64]) -> DVector<f64> {

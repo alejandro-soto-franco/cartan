@@ -38,6 +38,18 @@ pub enum KaticError {
         computed_amplitudes: usize,
     },
 
+    /// The active stress at this symmetry order needs more derivatives than
+    /// the element space provides.
+    #[error(
+        "symmetry order {degree} needs {needed} derivatives for the active force, \
+         and piecewise-linear elements supply {available}"
+    )]
+    InsufficientRegularity {
+        degree: usize,
+        needed: usize,
+        available: usize,
+    },
+
     /// No invariant of separating rank was found below the search ceiling.
     #[error("no separating invariant found up to rank {max_rank}")]
     NoSeparatingInvariant { max_rank: usize },
