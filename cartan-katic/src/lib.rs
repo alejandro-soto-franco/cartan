@@ -20,6 +20,7 @@ pub mod flow;
 pub mod geometry;
 pub mod group;
 pub mod invariant;
+pub mod quasipotential;
 pub mod spin;
 pub mod stokes;
 
