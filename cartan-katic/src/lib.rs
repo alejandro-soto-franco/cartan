@@ -21,6 +21,8 @@ pub mod geometry;
 pub mod group;
 pub mod invariant;
 pub mod quasipotential;
+pub mod selection;
+pub mod simulation;
 pub mod spin;
 pub mod stokes;
 
