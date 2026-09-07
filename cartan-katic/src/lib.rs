@@ -13,4 +13,7 @@ pub mod error;
 pub mod group;
 
 pub use error::KaticError;
-pub use group::{AxialApolar, AxialPolar, Dicyclic, PointGroupKind, SymmetryGroup};
+pub use group::{
+    AxialApolar, AxialPolar, BinaryIcosahedral, BinaryOctahedral, BinaryTetrahedral, Cyclic,
+    Dicyclic, GroupTable, PointGroupKind, SymmetryGroup, closure,
+};
