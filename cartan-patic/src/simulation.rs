@@ -1,4 +1,4 @@
-//! The coupled active k-atic loop.
+//! The coupled active p-atic loop.
 //!
 //! One step is: assemble the active force from the current order parameter,
 //! solve Stokes for the velocity, co-rotate the order parameter by the local
@@ -23,7 +23,7 @@ use cartan_core::rotor::Rotor3;
 use crate::active::active_force;
 use crate::complex3::Complex3;
 use crate::energy::{Energy, State};
-use crate::error::KaticError;
+use crate::error::PaticError;
 use crate::geometry::Geometry3;
 use crate::spin::Incidence;
 use crate::stokes::Stokes;
@@ -92,7 +92,7 @@ impl<'a> Simulation<'a> {
     }
 
     /// Solve for the velocity driven by the current order parameter.
-    pub fn velocity(&self, state: &State) -> Result<DVector<f64>, KaticError> {
+    pub fn velocity(&self, state: &State) -> Result<DVector<f64>, PaticError> {
         let f = active_force(self.complex, self.geometry, self.energy, state, self.zeta)?;
         let (u, _) = if self.no_slip_edges.is_empty() {
             self.stokes.solve(&f)
@@ -167,7 +167,7 @@ impl<'a> Simulation<'a> {
     }
 
     /// One coupled step.
-    pub fn step(&self, state: &mut State) -> Result<StepReport, KaticError> {
+    pub fn step(&self, state: &mut State) -> Result<StepReport, PaticError> {
         let u = self.velocity(state)?;
         let omega = self.vorticity(&u);
         self.corotate(state, &omega, self.dt);

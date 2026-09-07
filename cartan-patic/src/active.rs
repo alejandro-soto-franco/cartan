@@ -32,7 +32,7 @@
 //!
 //! Piecewise-linear vertex data supplies one derivative. The force needs
 //! `m - 1`, so `m = 2` is exactly what this element space can express, and
-//! higher degrees return [`KaticError::InsufficientRegularity`] rather than a
+//! higher degrees return [`PaticError::InsufficientRegularity`] rather than a
 //! silently wrong number. Reaching `m = 3` needs a higher-order space or a
 //! gradient-recovery step.
 
@@ -40,7 +40,7 @@ use nalgebra::DVector;
 
 use crate::complex3::Complex3;
 use crate::energy::{Energy, State};
-use crate::error::KaticError;
+use crate::error::PaticError;
 use crate::geometry::Geometry3;
 
 /// Assemble the active force as a one-cochain.
@@ -55,10 +55,10 @@ pub fn active_force(
     energy: &Energy,
     state: &State,
     zeta: f64,
-) -> Result<DVector<f64>, KaticError> {
+) -> Result<DVector<f64>, PaticError> {
     let degree = energy.basis().degree();
     if degree != 2 {
-        return Err(KaticError::InsufficientRegularity {
+        return Err(PaticError::InsufficientRegularity {
             degree,
             needed: degree.saturating_sub(1),
             available: 1,
@@ -218,7 +218,7 @@ mod tests {
         let e = energy_for::<BinaryTetrahedral>();
         let state = State::uniform(c.n_vertices(), Rotor3::IDENTITY, &[0.5]);
         match active_force(&c, &g, &e, &state, 1.0) {
-            Err(KaticError::InsufficientRegularity {
+            Err(PaticError::InsufficientRegularity {
                 degree,
                 needed,
                 available,

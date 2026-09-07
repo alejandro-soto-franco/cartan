@@ -1,6 +1,6 @@
 //! Disclination lines and their non-abelian charges.
 //!
-//! A k-atic state is a coset `R H^`, so a rotor field is defined only up to
+//! A p-atic state is a coset `R H^`, so a rotor field is defined only up to
 //! `H^` at each vertex. Fixing representatives fixes a gauge, and the
 //! transition on an edge is the element of the defect group that best aligns
 //! the two ends. The holonomy around a triangle is then a group element:

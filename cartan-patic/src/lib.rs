@@ -1,6 +1,6 @@
-//! k-atic order parameters on Riemannian manifolds.
+//! p-atic order parameters on Riemannian manifolds.
 //!
-//! A k-atic order parameter on `(M^3, g)` is a section of
+//! A p-atic order parameter on `(M^3, g)` is a section of
 //! `Spin(M) x_{SU(2)} (SU(2)/H^)`, with `H^` the binary lift of the molecular
 //! point group `H` in `SO(3)`. Since `SU(2)` is simply connected,
 //! `pi_1(SO(3)/H) = H^`, so defect charges live in the lift and are
@@ -31,8 +31,8 @@ pub use boundary::{Boundary, rotor_taking_z_to};
 pub use complex3::Complex3;
 pub use defect::{DefectField, PiercedFace};
 pub use energy::{Energy, State};
-pub use error::KaticError;
-pub use fiber::{KaticElement, KaticFiber};
+pub use error::PaticError;
+pub use fiber::{PaticElement, PaticFiber};
 pub use flow::{DiscreteGradientFlow, ExplicitFlow};
 pub use geometry::{Geometry3, TetData, mass0, mass1, mass2};
 pub use group::{

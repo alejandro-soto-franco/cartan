@@ -1,11 +1,11 @@
-# cartan-katic
+# cartan-patic
 
 Active liquid crystals of arbitrary rotational symmetry on Riemannian
 3-manifolds.
 
 ## Order parameter
 
-A k-atic state on `(M³, g)` is a section of the bundle associated to the spin
+A p-atic state on `(M³, g)` is a section of the bundle associated to the spin
 structure,
 
     Spin(M) ×_SU(2) (SU(2) / Ĥ),

@@ -1,4 +1,4 @@
-//! Gradient flow of the k-atic functional.
+//! Gradient flow of the p-atic functional.
 //!
 //! The state moves in `so(3)` and in the amplitudes. Rotor updates are a
 //! left multiplication by `exp(-dt xi)`, which is a unit rotor by
@@ -13,7 +13,7 @@
 use cartan_core::rotor::Rotor3;
 
 use crate::energy::{Energy, State};
-use crate::error::KaticError;
+use crate::error::PaticError;
 use crate::spin::Incidence;
 
 /// The rotor `exp(theta * axis)` for a rotation of angle `theta`.
@@ -100,7 +100,7 @@ impl DiscreteGradientFlow {
         inc: &Incidence,
         state: &mut State,
         step_index: usize,
-    ) -> Result<f64, KaticError> {
+    ) -> Result<f64, PaticError> {
         let n = energy.basis().n_amplitudes();
         let e0 = energy.total(inc, state);
         let g0 = energy.gradient(inc, state);
@@ -161,7 +161,7 @@ impl DiscreteGradientFlow {
             omega *= 0.5;
         }
 
-        Err(KaticError::NewtonDiverged {
+        Err(PaticError::NewtonDiverged {
             step: step_index,
             residual,
         })

@@ -1,6 +1,6 @@
 [package]
-name = "cartan-katic"
-description = "k-atic order parameters on Riemannian manifolds for arbitrary rotational symmetry"
+name = "cartan-patic"
+description = "p-atic order parameters on Riemannian manifolds for arbitrary rotational symmetry"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 readme = "README.md"
 keywords = ["liquid-crystal", "nematic", "spinor", "clifford", "active-matter"]
 categories = ["science", "simulation", "mathematics"]
-documentation = "https://docs.rs/cartan-katic"
+documentation = "https://docs.rs/cartan-patic"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]

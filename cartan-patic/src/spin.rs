@@ -20,7 +20,7 @@
 
 use cartan_core::rotor::Rotor3;
 
-use crate::error::KaticError;
+use crate::error::PaticError;
 
 /// Vertex, edge and triangle incidence of a simplicial complex.
 #[derive(Clone, Debug)]
@@ -187,7 +187,7 @@ impl SpinStructure {
     ///
     /// Fails with the first triangle of an unsolvable system, which is the
     /// discrete appearance of a non-vanishing second Stiefel-Whitney class.
-    pub fn from_connection(inc: &Incidence, edge_rotors: &[Rotor3]) -> Result<Self, KaticError> {
+    pub fn from_connection(inc: &Incidence, edge_rotors: &[Rotor3]) -> Result<Self, PaticError> {
         assert_eq!(edge_rotors.len(), inc.n_edges(), "one rotor per edge");
         let cocycle = Self::cocycle_of(inc, edge_rotors);
 
@@ -205,7 +205,7 @@ impl SpinStructure {
         let (_, reduced) = row_reduce(rows, width + 1);
         for (t, r) in reduced.iter().enumerate() {
             if r[width] && !r[..width].iter().any(|&b| b) {
-                return Err(KaticError::InconsistentSpinLift { triangle: t });
+                return Err(PaticError::InconsistentSpinLift { triangle: t });
             }
         }
 

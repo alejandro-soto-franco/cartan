@@ -11,7 +11,7 @@
 
 use crate::complex3::Complex3;
 use crate::energy::{Energy, State};
-use crate::error::KaticError;
+use crate::error::PaticError;
 use crate::geometry::Geometry3;
 use crate::simulation::Simulation;
 use crate::spin::Incidence;
@@ -65,7 +65,7 @@ pub fn sweep(
     initial: &State,
     zetas: &[f64],
     run: SweepRun,
-) -> Result<Vec<SweepPoint>, KaticError> {
+) -> Result<Vec<SweepPoint>, PaticError> {
     let (c, g, inc, e, no_slip) = (d.complex, d.geometry, d.incidence, d.energy, d.no_slip);
     let (eta, dt, steps) = (run.eta, run.dt, run.steps);
     let mut out = Vec::with_capacity(zetas.len());

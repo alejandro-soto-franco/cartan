@@ -28,7 +28,7 @@ use nalgebra::{DMatrix, DVector};
 
 use cartan_core::rotor::Rotor3;
 
-use crate::error::KaticError;
+use crate::error::PaticError;
 use crate::group::SymmetryGroup;
 
 /// Exponent triples `(a, b, c)` with `a + b + c = m`, in a fixed order.
@@ -421,11 +421,11 @@ impl InvariantBasis {
     /// in general, so it is declared by a closed form and verified here. A
     /// symmetry whose formula is wrong fails at first use rather than
     /// silently indexing past its meaningful amplitudes.
-    pub fn for_group<H: SymmetryGroup>() -> Result<Self, KaticError> {
+    pub fn for_group<H: SymmetryGroup>() -> Result<Self, PaticError> {
         let computed_rank = separating_degree::<H>(H::INVARIANT_RANK.max(8))?;
         let b = Self::new::<H>(computed_rank);
         if computed_rank != H::INVARIANT_RANK || b.n_amplitudes() != H::N_AMPLITUDES {
-            return Err(KaticError::ConstMismatch {
+            return Err(PaticError::ConstMismatch {
                 group: core::any::type_name::<H>(),
                 declared_rank: H::INVARIANT_RANK,
                 declared_amplitudes: H::N_AMPLITUDES,
@@ -443,7 +443,7 @@ impl InvariantBasis {
 /// Separation is decided by sampling: two rotors whose order parameters agree
 /// must differ by an element of `H^` up to sign, since the tensor cannot see
 /// the lift.
-pub fn separating_degree<H: SymmetryGroup>(max_degree: usize) -> Result<usize, KaticError> {
+pub fn separating_degree<H: SymmetryGroup>(max_degree: usize) -> Result<usize, PaticError> {
     for m in 1..=max_degree {
         let b = InvariantBasis::new::<H>(m);
         if b.n_amplitudes() == 0 {
@@ -453,7 +453,7 @@ pub fn separating_degree<H: SymmetryGroup>(max_degree: usize) -> Result<usize, K
             return Ok(m);
         }
     }
-    Err(KaticError::NoSeparatingInvariant {
+    Err(PaticError::NoSeparatingInvariant {
         max_rank: max_degree,
     })
 }

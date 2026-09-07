@@ -1,4 +1,4 @@
-//! The k-atic Landau functional and its gradient.
+//! The p-atic Landau functional and its gradient.
 //!
 //! ## Why the energy is written in the invariant tensor
 //!
@@ -23,12 +23,12 @@ use nalgebra::{DMatrix, DVector};
 
 use cartan_core::rotor::Rotor3;
 
-use crate::error::KaticError;
+use crate::error::PaticError;
 use crate::group::SymmetryGroup;
 use crate::invariant::InvariantBasis;
 use crate::spin::Incidence;
 
-/// A k-atic state: one rotor and one amplitude vector per vertex.
+/// A p-atic state: one rotor and one amplitude vector per vertex.
 #[derive(Clone, Debug)]
 pub struct State {
     /// Frame per vertex.
@@ -94,7 +94,7 @@ impl Energy {
         c: Vec<f64>,
         b: DMatrix<f64>,
         elastic_weight: f64,
-    ) -> Result<Self, KaticError> {
+    ) -> Result<Self, PaticError> {
         let basis = InvariantBasis::for_group::<H>()?;
         let n = basis.n_amplitudes();
         assert_eq!(a.nrows(), n, "A must be n x n");
@@ -110,7 +110,7 @@ impl Energy {
             .iter()
             .fold(f64::INFINITY, |m, &v| m.min(v));
         if min_eig <= 0.0 {
-            return Err(KaticError::NonCoerciveEnergy { degree: 4 });
+            return Err(PaticError::NonCoerciveEnergy { degree: 4 });
         }
 
         Ok(Self {

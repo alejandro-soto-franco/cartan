@@ -1,15 +1,15 @@
 //! The coupled loop and the control sweep, end to end.
 
 use cartan_core::rotor::Rotor3;
-use cartan_katic::boundary::Boundary;
-use cartan_katic::complex3::Complex3;
-use cartan_katic::defect::DefectField;
-use cartan_katic::energy::{Energy, State};
-use cartan_katic::geometry::Geometry3;
-use cartan_katic::group::{AxialApolar, SymmetryGroup};
-use cartan_katic::selection::{SweepDomain, SweepRun, sweep, transitions};
-use cartan_katic::simulation::Simulation;
-use cartan_katic::spin::Incidence;
+use cartan_patic::boundary::Boundary;
+use cartan_patic::complex3::Complex3;
+use cartan_patic::defect::DefectField;
+use cartan_patic::energy::{Energy, State};
+use cartan_patic::geometry::Geometry3;
+use cartan_patic::group::{AxialApolar, SymmetryGroup};
+use cartan_patic::selection::{SweepDomain, SweepRun, sweep, transitions};
+use cartan_patic::simulation::Simulation;
+use cartan_patic::spin::Incidence;
 use nalgebra::{DMatrix, DVector};
 
 fn energy_obj() -> Energy {
@@ -149,7 +149,7 @@ fn dissipation_scales_as_the_square_of_the_activity() {
     let d = |zeta: f64| {
         let sim = Simulation::new(&c, &g, &inc, &e, 1.0, zeta, 1e-4);
         let u = sim.velocity(&s).expect("degree 2 runs");
-        let st = cartan_katic::stokes::Stokes::assemble(&c, &g, 1.0);
+        let st = cartan_patic::stokes::Stokes::assemble(&c, &g, 1.0);
         st.dissipation(&u)
     };
     let d1 = d(1.0);

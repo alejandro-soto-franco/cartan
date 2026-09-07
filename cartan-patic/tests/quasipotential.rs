@@ -1,6 +1,6 @@
 //! Freidlin-Wentzell action against exact reference answers.
 
-use cartan_katic::quasipotential::{MorseDecomposition, action, minimum_action_path};
+use cartan_patic::quasipotential::{MorseDecomposition, action, minimum_action_path};
 use nalgebra::{DMatrix, DVector};
 
 /// Quartic double well `U(x) = (x^2 - 1)^2 / 4`, minima at +/-1, saddle at 0.

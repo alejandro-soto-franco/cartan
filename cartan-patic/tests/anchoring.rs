@@ -1,10 +1,10 @@
 //! Boundary extraction, no-slip, and anchoring.
 
 use cartan_core::rotor::Rotor3;
-use cartan_katic::boundary::{Boundary, rotor_taking_z_to};
-use cartan_katic::complex3::Complex3;
-use cartan_katic::geometry::Geometry3;
-use cartan_katic::stokes::Stokes;
+use cartan_patic::boundary::{Boundary, rotor_taking_z_to};
+use cartan_patic::complex3::Complex3;
+use cartan_patic::geometry::Geometry3;
+use cartan_patic::stokes::Stokes;
 use nalgebra::DVector;
 
 fn rig(n: usize) -> (Complex3, Geometry3, Boundary) {
@@ -187,9 +187,9 @@ fn a_uniform_field_needs_no_anchoring_correction() {
 
 mod weak {
     use super::*;
-    use cartan_katic::boundary::anchoring;
-    use cartan_katic::energy::{Energy, State};
-    use cartan_katic::group::{AxialApolar, SymmetryGroup};
+    use cartan_patic::boundary::anchoring;
+    use cartan_patic::energy::{Energy, State};
+    use cartan_patic::group::{AxialApolar, SymmetryGroup};
     use nalgebra::DMatrix;
 
     fn energy_obj() -> Energy {

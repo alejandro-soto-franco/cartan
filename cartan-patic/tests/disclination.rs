@@ -1,10 +1,10 @@
 //! Disclination detection, charge, and the conservation law.
 
 use cartan_core::rotor::Rotor3;
-use cartan_katic::complex3::Complex3;
-use cartan_katic::defect::{DefectField, edge_transition, is_identity};
-use cartan_katic::geometry::Geometry3;
-use cartan_katic::group::{AxialApolar, AxialPolar, Dicyclic, SymmetryGroup};
+use cartan_patic::complex3::Complex3;
+use cartan_patic::defect::{DefectField, edge_transition, is_identity};
+use cartan_patic::geometry::Geometry3;
+use cartan_patic::group::{AxialApolar, AxialPolar, Dicyclic, SymmetryGroup};
 
 const TOL: f64 = 1e-8;
 

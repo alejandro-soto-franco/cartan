@@ -1,10 +1,10 @@
-//! Error type for k-atic order-parameter operations.
+//! Error type for p-atic order-parameter operations.
 
 use thiserror::Error;
 
-/// Errors that can occur when building or evolving a k-atic field.
+/// Errors that can occur when building or evolving a p-atic field.
 #[derive(Debug, Error)]
-pub enum KaticError {
+pub enum PaticError {
     /// The rotor connection does not lift consistently: the product of the
     /// three edge rotors around a triangle is -1 rather than +1. This is the
     /// discrete appearance of a non-vanishing second Stiefel-Whitney class.

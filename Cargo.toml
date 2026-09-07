@@ -21,7 +21,7 @@ members = [
     "cartan-io",
     "cartan-maxwell",
     "cartan-matfree",
-    "cartan-katic",
+    "cartan-patic",
     "benchmarks/rust",
 ]
 # cartan-cuda pins a nightly toolchain (it depends on cuda-oxide, a rustc

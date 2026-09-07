@@ -1,10 +1,10 @@
 //! Well-posedness of the functional and stability of the flow.
 
 use cartan_core::rotor::Rotor3;
-use cartan_katic::energy::{Energy, State};
-use cartan_katic::flow::{DiscreteGradientFlow, ExplicitFlow};
-use cartan_katic::group::{AxialApolar, Dicyclic, SymmetryGroup};
-use cartan_katic::spin::Incidence;
+use cartan_patic::energy::{Energy, State};
+use cartan_patic::flow::{DiscreteGradientFlow, ExplicitFlow};
+use cartan_patic::group::{AxialApolar, Dicyclic, SymmetryGroup};
+use cartan_patic::spin::Incidence;
 use nalgebra::DMatrix;
 
 /// A small triangulated patch: two rings of four vertices.
