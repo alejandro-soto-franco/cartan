@@ -85,19 +85,30 @@ so no quadrature error enters and no well-centredness is required.
 
 ## Active stress
 
-A rank-2 stress built linearly from a rank-`p` tensor needs exactly `p − 2`
+A rank-2 stress built linearly from a rank-`m` tensor needs exactly `m − 2`
 derivatives:
 
-    σ^active = ζ_p ∇^⊗(p−2) ⊙ Q_p,      p ≥ 2
-    σ^active = −ζ p ⊗ p,                p = 1
+    σ^active = ζ ∇^⊗(m−2) ⊙ T_m,     m ≥ 2
+    σ^active = −ζ n ⊗ n,             m = 1
 
-reducing to `−ζQ` at `p = 2`. The index counting is the same the passive
-reactive stress uses, and the linear coupling of nematics is special to
-`p = 1, 2`. The literature leaves the general active form open, so the crate names this
-as its own construction and cites only the index counting.
+reducing to `−ζQ` at `m = 2`.
 
-The force needs `p − 1` derivatives and piecewise-linear elements supply one,
-so `p = 2` is what this element space expresses; higher orders return an error
+**`m` denotes the harmonic degree of the invariant tensor.**
+The two agree for the dihedral family, where a `p`-atic has `m = p`, and they
+come apart elsewhere: `Dicyclic<1>` has `m = 3`, `Cyclic<8>` has image order 4
+and `m = 5` because its degree-4 invariant is also flip-invariant, and the
+polyhedral groups have no symmetry order at all while having `m = 3, 4, 6`.
+The counting is stated in `m` because `m` exists for every symmetry the crate
+supports. `k`-atic and `p`-atic name the same object; `p` is the literature's
+letter for it.
+
+The index counting is the same one the passive reactive stress uses, and the
+linear coupling of nematics is special to `p = 1, 2`. The literature leaves the
+general active form open, so the crate names this as its own construction and
+cites only the counting.
+
+The force needs `m − 1` derivatives and piecewise-linear elements supply one,
+so `m = 2` is what this element space expresses; higher degrees return an error
 rather than a wrong number.
 
 ## Defects

@@ -1,13 +1,21 @@
 //! The active stress and the force it drives.
 //!
-//! A rank-2 stress built linearly from a rank-`p` tensor needs exactly `p - 2`
+//! A rank-2 stress built linearly from a rank-`m` tensor needs exactly `m - 2`
 //! derivatives to contract the surplus indices, so
 //!
 //! ```text
-//! sigma^active = zeta_p grad^(x)(p-2) . Q_p
+//! sigma^active = zeta grad^(x)(m-2) . T_m
 //! ```
 //!
-//! and the force `f = div sigma` therefore needs `p - 1`. The passive theory
+//! and the force `f = div sigma` therefore needs `m - 1`.
+//!
+//! `m` is the harmonic degree of the invariant tensor, which is what the code
+//! reads from `InvariantBasis::degree`, not the symmetry order. They agree for
+//! the dihedral family, where a `p`-atic has `m = p`, and part elsewhere:
+//! `Dicyclic<1>` has `m = 3`, `Cyclic<8>` has `m = 5` against an image order
+//! of 4, and the polyhedral groups have no symmetry order while having
+//! `m = 3, 4, 6`. Stating the counting in `m` covers every symmetry the crate
+//! supports. The passive theory
 //! uses the same counting: Krommydas, Carenza and Giomi write the reactive
 //! stress for general `p` with the same `grad^(x)(p-2)` prefactor. The linear
 //! coupling familiar from nematics does not generalise: Giomi, Toner and
@@ -20,12 +28,12 @@
 //! index counting; what is chosen is applying it to `Q_p` rather than to some
 //! other allowed contraction.
 //!
-//! ## Why only `p = 2` runs here
+//! ## Why only degree 2 runs here
 //!
 //! Piecewise-linear vertex data supplies one derivative. The force needs
-//! `p - 1`, so `p = 2` is exactly what this element space can express, and
-//! higher orders return [`KaticError::InsufficientRegularity`] rather than a
-//! silently wrong number. Reaching `p = 3` needs a higher-order space or a
+//! `m - 1`, so `m = 2` is exactly what this element space can express, and
+//! higher degrees return [`KaticError::InsufficientRegularity`] rather than a
+//! silently wrong number. Reaching `m = 3` needs a higher-order space or a
 //! gradient-recovery step.
 
 use nalgebra::DVector;

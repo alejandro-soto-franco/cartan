@@ -38,10 +38,13 @@ pub enum KaticError {
         computed_amplitudes: usize,
     },
 
-    /// The active stress at this symmetry order needs more derivatives than
+    /// The active stress at this harmonic degree needs more derivatives than
     /// the element space provides.
+    ///
+    /// `degree` is the harmonic degree of the invariant tensor, which equals
+    /// the symmetry order only for the dihedral family.
     #[error(
-        "symmetry order {degree} needs {needed} derivatives for the active force, \
+        "harmonic degree {degree} needs {needed} derivatives for the active force, \
          and piecewise-linear elements supply {available}"
     )]
     InsufficientRegularity {
