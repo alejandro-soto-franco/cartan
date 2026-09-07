@@ -352,6 +352,39 @@ impl InvariantBasis {
         self.basis_h.column(i).into_owned()
     }
 
+    /// The order parameter as a fully symmetric rank-`m` tensor, flattened in
+    /// base 3 so entry `i1 + 3 i2 + 9 i3 + ...` is `T_{i1 i2 i3 ...}`.
+    ///
+    /// A harmonic polynomial `p(v) = T_{i1..im} v_i1 .. v_im` with `T`
+    /// symmetric has `T` equal to the monomial coefficient divided by the
+    /// multinomial count of the index tuple.
+    #[must_use]
+    pub fn as_tensor(&self, t: &DVector<f64>) -> Vec<f64> {
+        let m = self.degree;
+        let basis = monomials(m);
+        let mut coeff = vec![0.0_f64; basis.len()];
+        for (i, e) in basis.iter().enumerate() {
+            coeff[i] = t[i] / bombieri_scale(e, m);
+        }
+        let size = 3usize.pow(m as u32);
+        let mut out = vec![0.0_f64; size];
+        for (flat, o) in out.iter_mut().enumerate() {
+            let mut e = [0usize; 3];
+            let mut r = flat;
+            for _ in 0..m {
+                e[r % 3] += 1;
+                r /= 3;
+            }
+            let idx = basis
+                .iter()
+                .position(|b| *b == e)
+                .expect("every exponent triple of degree m is in the basis");
+            let multinomial = factorial(m) / (factorial(e[0]) * factorial(e[1]) * factorial(e[2]));
+            *o = coeff[idx] / multinomial;
+        }
+        out
+    }
+
     /// The degree-2 order parameter as a symmetric traceless 3x3 matrix.
     ///
     /// Returns `None` at any other degree, where the order parameter has no

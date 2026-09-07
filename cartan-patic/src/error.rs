@@ -38,8 +38,8 @@ pub enum PaticError {
         computed_amplitudes: usize,
     },
 
-    /// The active stress at this harmonic degree needs more derivatives than
-    /// the element space provides.
+    /// The active stress needs a rank-2 object, so a degree below 2 has no
+    /// stress of this form. The polar case has its own, `-zeta n (x) n`.
     ///
     /// `degree` is the harmonic degree of the invariant tensor, which equals
     /// the symmetry order only for the dihedral family.

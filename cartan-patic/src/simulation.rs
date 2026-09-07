@@ -20,7 +20,7 @@ use nalgebra::DVector;
 
 use cartan_core::rotor::Rotor3;
 
-use crate::active::active_force;
+use crate::active::active_force_general;
 use crate::advect::advect;
 use crate::complex3::Complex3;
 use crate::energy::{Energy, State};
@@ -95,7 +95,7 @@ impl<'a> Simulation<'a> {
 
     /// Solve for the velocity driven by the current order parameter.
     pub fn velocity(&self, state: &State) -> Result<DVector<f64>, PaticError> {
-        let f = active_force(self.complex, self.geometry, self.energy, state, self.zeta)?;
+        let f = active_force_general(self.complex, self.geometry, self.energy, state, self.zeta)?;
         let (u, _) = if self.no_slip_edges.is_empty() {
             self.stokes.solve(&f)
         } else {

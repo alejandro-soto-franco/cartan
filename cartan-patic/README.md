@@ -107,9 +107,12 @@ linear coupling of nematics is special to `p = 1, 2`. The literature leaves the
 general active form open, so the crate names this as its own construction and
 cites only the counting.
 
-The force needs `m − 1` derivatives and piecewise-linear elements supply one,
-so `m = 2` is what this element space expresses; higher degrees return an error
-rather than a wrong number.
+The force needs `m − 1` derivatives. Piecewise-linear data has one derivative
+per cell and none at a vertex, so the cell gradients are averaged back to the
+vertices, giving a vertex field again and an operation that composes: `m − 1`
+of them supply what any degree needs. The final divergence is taken exactly on
+each cell rather than by recovery, which is why the general path reproduces the
+direct degree-2 assembly rather than approximating it.
 
 ## Defects
 

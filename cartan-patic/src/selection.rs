@@ -92,6 +92,63 @@ pub fn sweep<H: SymmetryGroup>(
     Ok(out)
 }
 
+/// Gauge-invariant distance between two states: the summed difference of
+/// their invariant tensors.
+///
+/// Rotors are defined only up to `H^`, so comparing them directly would call
+/// two identical states different. The tensor is the single-valued observable.
+#[must_use]
+pub fn state_distance(e: &Energy, a: &State, b: &State) -> f64 {
+    let mut acc = 0.0;
+    for v in 0..a.n_vertices() {
+        let d = e.tensor(&a.rotors[v], a.amps(v)) - e.tensor(&b.rotors[v], b.amps(v));
+        acc += d.dot(&d);
+    }
+    acc.sqrt()
+}
+
+/// Number of distinct final states reached from a set of initial ones.
+///
+/// This is the attracting structure at one point of the control base: how many
+/// basins the dynamics has there. Tracking it across the base is what makes a
+/// transition visible, since a stratum is where the count changes.
+pub fn basin_count<H: SymmetryGroup>(
+    d: &SweepDomain<'_>,
+    initials: &[State],
+    zeta: f64,
+    run: SweepRun,
+    tol: f64,
+) -> Result<usize, PaticError> {
+    let sim = Simulation::new(
+        d.complex,
+        d.geometry,
+        d.incidence,
+        d.energy,
+        run.eta,
+        zeta,
+        run.dt,
+    )
+    .with_no_slip(d.no_slip);
+    let mut finals: Vec<State> = Vec::with_capacity(initials.len());
+    for s0 in initials {
+        let mut s = s0.clone();
+        for _ in 0..run.steps {
+            sim.step::<H>(&mut s)?;
+        }
+        finals.push(s);
+    }
+    let mut reps: Vec<usize> = Vec::new();
+    for (i, f) in finals.iter().enumerate() {
+        if !reps
+            .iter()
+            .any(|&r| state_distance(d.energy, &finals[r], f) < tol)
+        {
+            reps.push(i);
+        }
+    }
+    Ok(reps.len())
+}
+
 /// Indices where an observable changes by more than `threshold` between
 /// adjacent control values, relative to its own range.
 ///

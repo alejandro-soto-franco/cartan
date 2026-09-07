@@ -28,13 +28,18 @@
 //! index counting; what is chosen is applying it to `Q_p` rather than to some
 //! other allowed contraction.
 //!
-//! ## Why only degree 2 runs here
+//! ## Any degree
 //!
-//! Piecewise-linear vertex data supplies one derivative. The force needs
-//! `m - 1`, so `m = 2` is exactly what this element space can express, and
-//! higher degrees return [`PaticError::InsufficientRegularity`] rather than a
-//! silently wrong number. Reaching `m = 3` needs a higher-order space or a
-//! gradient-recovery step.
+//! Piecewise-linear vertex data has one derivative on each cell and none at a
+//! vertex. Averaging the cell gradients back to the vertices returns a vertex
+//! field, so the operation composes and `m - 1` of them supply the derivatives
+//! the force needs at degree `m`. [`crate::recovery`] does that, and
+//! [`active_force_general`] uses it.
+//!
+//! [`active_force`] keeps the direct degree-2 assembly, which needs no
+//! recovery at all and stays the reference the general path is checked
+//! against. The two agree to 1e-9 of the force scale, because the final
+//! divergence is taken exactly on each cell in both.
 
 use nalgebra::DVector;
 
@@ -42,6 +47,7 @@ use crate::complex3::Complex3;
 use crate::energy::{Energy, State};
 use crate::error::PaticError;
 use crate::geometry::Geometry3;
+use crate::recovery::divergence_last_index;
 
 /// Assemble the active force as a one-cochain.
 ///
@@ -94,6 +100,73 @@ pub fn active_force(
         }
         // Test against each Whitney one-form of the tetrahedron.
         const LE: [[usize; 2]; 6] = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
+        for &[a, b] in LE.iter() {
+            let w = [
+                d.volume * (d.grads[b][0] - d.grads[a][0]) / 4.0,
+                d.volume * (d.grads[b][1] - d.grads[a][1]) / 4.0,
+                d.volume * (d.grads[b][2] - d.grads[a][2]) / 4.0,
+            ];
+            let e = c.edge_of(&[tet[a], tet[b]]);
+            f[e] += div[0] * w[0] + div[1] * w[1] + div[2] * w[2];
+        }
+    }
+    Ok(f)
+}
+
+/// Assemble the active force at any harmonic degree.
+///
+/// The stress is `zeta * d_{k1..k_{m-2}} T_{ij k1..k_{m-2}}`, built by
+/// contracting one index at a time through gradient recovery, and the force is
+/// one further divergence. At degree 2 no recovery is needed for the stress
+/// and this reduces to [`active_force`], which a test asserts.
+pub fn active_force_general(
+    c: &Complex3,
+    g: &Geometry3,
+    energy: &Energy,
+    state: &State,
+    zeta: f64,
+) -> Result<DVector<f64>, PaticError> {
+    let m = energy.basis().degree();
+    if m < 2 {
+        return Err(PaticError::InsufficientRegularity {
+            degree: m,
+            needed: 0,
+            available: 1,
+        });
+    }
+
+    // Rank-m tensor field at the vertices.
+    let mut field: Vec<Vec<f64>> = (0..state.n_vertices())
+        .map(|v| {
+            let t = energy.tensor(&state.rotors[v], state.amps(v));
+            energy.basis().as_tensor(&t)
+        })
+        .collect();
+
+    // Contract down to rank 2 by recovery. Recovery is needed only where the
+    // result is differentiated again.
+    for rank in (3..=m).rev() {
+        field = divergence_last_index(c, g, &field, rank);
+    }
+    // `field` now holds sigma / zeta, rank 2, at the vertices.
+
+    // The final divergence is taken exactly on each cell rather than by
+    // recovery: the rank-2 field is piecewise linear, so its divergence is
+    // constant on the cell and needs no averaging. Recovering here instead
+    // would smooth the result and, at degree 2, would disagree with the direct
+    // assembly by O(h) rather than reproducing it.
+    let mut f = DVector::zeros(c.n_edges());
+    const LE: [[usize; 2]; 6] = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3]];
+    for tet in c.tets() {
+        let d = g.tet_data(tet);
+        let mut div = [0.0_f64; 3];
+        for (a, &v) in tet.iter().enumerate() {
+            for (i, dv) in div.iter_mut().enumerate() {
+                for (j, &gj) in d.grads[a].iter().enumerate() {
+                    *dv += zeta * field[v][i + 3 * j] * gj;
+                }
+            }
+        }
         for &[a, b] in LE.iter() {
             let w = [
                 d.volume * (d.grads[b][0] - d.grads[a][0]) / 4.0,

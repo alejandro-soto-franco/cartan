@@ -23,12 +23,13 @@ pub mod group;
 pub mod invariant;
 pub mod knot;
 pub mod quasipotential;
+pub mod recovery;
 pub mod selection;
 pub mod simulation;
 pub mod spin;
 pub mod stokes;
 
-pub use active::active_force;
+pub use active::{active_force, active_force_general};
 pub use boundary::{Boundary, rotor_taking_z_to};
 pub use complex3::Complex3;
 pub use defect::{DefectField, PiercedFace};
