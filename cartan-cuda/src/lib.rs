@@ -76,6 +76,10 @@ pub mod kernels {
     /// cell-major, with `u32::MAX` marking a constrained face, which is skipped
     /// in the column loop exactly as the host path skips it.
     #[kernel]
+    // Every parameter is a separate launch argument. Grouping them behind a
+    // struct needs that struct laid out identically on both sides of the
+    // driver ABI, which this codegen backend does not give.
+    #[allow(clippy::too_many_arguments)]
     pub fn hodge_mass_apply(
         offsets: &[u32],
         entries: &[u32],
@@ -97,8 +101,8 @@ pub mod kernels {
         let end = offsets[i + 1] as usize;
 
         let mut sum = 0.0f64;
-        for e in start..end {
-            let slot = entries[e] as usize;
+        for &entry in &entries[start..end] {
+            let slot = entry as usize;
             let cell = slot / n;
             let local_row = slot % n;
             let row_base = (cell * n + local_row) * n;

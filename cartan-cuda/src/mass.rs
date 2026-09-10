@@ -36,7 +36,7 @@ impl DeviceHodgeMass {
             expected: 1,
             got: 0,
         })?;
-        if nlocal == 0 || dofs.len() % nlocal != 0 {
+        if nlocal == 0 || !dofs.len().is_multiple_of(nlocal) {
             return Err(CudaError::Shape {
                 what: "cell degree-of-freedom map",
                 expected: dofs.len().next_multiple_of(nlocal.max(1)),
