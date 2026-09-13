@@ -13,9 +13,9 @@ documentation = "https://docs.rs/cartan-remesh"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core      = { path = "../cartan-core", version = "0.9" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.9" }
-cartan-dec       = { path = "../cartan-dec", version = "0.9" }
+cartan-core      = { path = "../cartan-core", version = "0.10" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.10" }
+cartan-dec       = { path = "../cartan-dec", version = "0.10" }
 nalgebra         = { workspace = true }
 thiserror        = { workspace = true }
 

@@ -13,7 +13,7 @@ documentation = "https://docs.rs/cartan-patic"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core = { path = "../cartan-core", version = "0.9" }
+cartan-core = { path = "../cartan-core", version = "0.10" }
 nalgebra    = { workspace = true, features = ["std"] }
 nalgebra-sparse = { workspace = true }
 thiserror   = { workspace = true }
@@ -22,4 +22,4 @@ thiserror   = { workspace = true }
 approx      = { workspace = true }
 nalgebra    = { workspace = true, features = ["std"] }
 nalgebra-sparse = { workspace = true }
-cartan-core = { path = "../cartan-core", version = "0.9" }
+cartan-core = { path = "../cartan-core", version = "0.10" }

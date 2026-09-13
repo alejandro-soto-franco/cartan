@@ -4,6 +4,62 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [0.10.0]
+
+Two new crates, a matrix-free Hodge mass for evolving metrics, and the
+retirement of cartan-gpu from the workspace.
+
+### Added
+
+- **`cartan-mimetic`: mimetic Hodge stars at every form degree.** A diagonal
+  star has `C(n+1, k+1)` unknowns against `C(n,k)(C(n,k)+1)/2` consistency
+  equations. At `n = 2, k = 1` the system is square and gives the cotangent
+  weights of DEC, negative on an obtuse triangle; at `n = 3, k = 2` it is
+  overdetermined and a generic tetrahedron leaves a 17 per cent residual.
+  `local_star` drops diagonality, stays consistent to machine precision, and is
+  positive definite on every simplex tested, slivers, needles and caps
+  included. `assemble_star` sums the local stars over a mesh with orientation
+  signs, and `diagonal_star` reports whether the diagonal star exists on a cell.
+
+- **`cartan-patic`: active liquid crystals of arbitrary rotational symmetry on
+  Riemannian 3-manifolds.** The state is a rotor with amplitudes, a section of
+  the bundle associated to the spin structure, so defect charges live in the
+  binary lift of the point group. The crate contains the cyclic, dicyclic and
+  polyhedral groups, invariant order parameters by Reynolds averaging, the spin
+  structure as a `Z_2` cocycle, the Landau functional and its gradient flow, the
+  tetrahedral complex with Whitney masses, Stokes flow with the active force at
+  any harmonic degree, anchoring and no-slip, disclination detection by gauge
+  holonomy, disclination cross-section profiles, the quasipotential and Conley
+  decomposition, semi-Lagrangian transport, knot invariants and VTK output.
+
+- **`cartan-matfree`: a matrix-free Galerkin Hodge mass.** `HostMass` keeps the
+  element matrices, computed once per metric, and applies them in a
+  Jacobi-preconditioned conjugate gradient solve. The iteration count stays
+  independent of the mesh: 31 at both 10,836 and 17,486 interior degrees of
+  freedom.
+
+- **3D stability tests for the Maxwell evolver.** The Gauss residual is at
+  round-off, the energy band is the same at 500 and at 20,000 steps, and the CFL
+  margin is 2.6 against 4.5 in 2D.
+
+- **`cartan-cuda`: an fp64 Hodge mass kernel**, `hodge_mass_apply`, for the
+  operator `cartan-matfree` builds. The cuda-oxide dependencies are pinned to
+  one revision.
+
+### Changed
+
+- **The Maxwell Ampere update is matrix-free.** It densified the interior
+  grade-1 mass and factorised it on every step, cubic in the interior degree of
+  freedom count. It now applies the mass through `cartan-matfree` and solves by
+  preconditioned conjugate gradients warm-started from `E^n`, and a step
+  assembles no sparse matrix.
+
+- **`cartan-gpu` leaves the workspace.** WGSL has no `f64`, and its dependency
+  tree broke the 0.9.0 release. The published crate stays at 0.9.0; the
+  double-precision device path is `cartan-cuda`.
+
+- **`cartan.__version__`** in the Python bindings reads the crate version.
+
 ## [0.9.0]
 
 Performance across the manifold layer and the crates built on it, and one

@@ -13,9 +13,9 @@ documentation = "https://docs.rs/cartan-io"
 homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
-cartan-core      = { path = "../cartan-core", version = "0.9" }
-cartan-dec       = { path = "../cartan-dec", version = "0.9" }
-cartan-manifolds = { path = "../cartan-manifolds", version = "0.9" }
+cartan-core      = { path = "../cartan-core", version = "0.10" }
+cartan-dec       = { path = "../cartan-dec", version = "0.10" }
+cartan-manifolds = { path = "../cartan-manifolds", version = "0.10" }
 simplicial       = { workspace = true }
 derham           = { workspace = true }
 nalgebra         = { workspace = true }

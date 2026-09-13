@@ -48,17 +48,17 @@ full-field = ["homog", "remesh", "std", "cartan-homog/full-field"]
 full = ["std", "dec", "remesh", "stochastic", "homog", "full-field", "io", "matfree", "maxwell"]
 
 [dependencies]
-cartan-core       = { path = "../cartan-core",       version = "0.9", default-features = false }
-cartan-manifolds  = { path = "../cartan-manifolds",  version = "0.9", default-features = false }
-cartan-optim      = { path = "../cartan-optim",      version = "0.9", default-features = false }
-cartan-geo        = { path = "../cartan-geo",        version = "0.9", default-features = false }
-cartan-dec        = { path = "../cartan-dec",        version = "0.9", optional = true }
-cartan-remesh     = { path = "../cartan-remesh",     version = "0.9", optional = true }
-cartan-stochastic = { path = "../cartan-stochastic", version = "0.9", optional = true }
-cartan-homog      = { path = "../cartan-homog",      version = "0.9", optional = true, default-features = false }
-cartan-io         = { path = "../cartan-io",         version = "0.9", optional = true }
-cartan-matfree    = { path = "../cartan-matfree",    version = "0.9", optional = true }
-cartan-maxwell    = { path = "../cartan-maxwell",    version = "0.9", optional = true }
+cartan-core       = { path = "../cartan-core",       version = "0.10", default-features = false }
+cartan-manifolds  = { path = "../cartan-manifolds",  version = "0.10", default-features = false }
+cartan-optim      = { path = "../cartan-optim",      version = "0.10", default-features = false }
+cartan-geo        = { path = "../cartan-geo",        version = "0.10", default-features = false }
+cartan-dec        = { path = "../cartan-dec",        version = "0.10", optional = true }
+cartan-remesh     = { path = "../cartan-remesh",     version = "0.10", optional = true }
+cartan-stochastic = { path = "../cartan-stochastic", version = "0.10", optional = true }
+cartan-homog      = { path = "../cartan-homog",      version = "0.10", optional = true, default-features = false }
+cartan-io         = { path = "../cartan-io",         version = "0.10", optional = true }
+cartan-matfree    = { path = "../cartan-matfree",    version = "0.10", optional = true }
+cartan-maxwell    = { path = "../cartan-maxwell",    version = "0.10", optional = true }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std_rng", "std", "os_rng", "thread_rng"] }
