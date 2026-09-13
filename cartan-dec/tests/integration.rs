@@ -965,7 +965,9 @@ fn from_graph_d0_is_signed_incidence_and_builds_graph_laplacian() {
     assert_eq!(l.get_entry(0, 0).unwrap().into_value(), 1.0); // endpoint degree 1
     assert_eq!(l.get_entry(0, 1).unwrap().into_value(), -1.0); // adjacency
     for r in 0..3 {
-        let s: f64 = (0..3).map(|c| l.get_entry(r, c).map(|e| e.into_value()).unwrap_or(0.0)).sum();
+        let s: f64 = (0..3)
+            .map(|c| l.get_entry(r, c).map(|e| e.into_value()).unwrap_or(0.0))
+            .sum();
         assert!(s.abs() < 1e-15, "row {r} of graph Laplacian must sum to 0");
     }
 }

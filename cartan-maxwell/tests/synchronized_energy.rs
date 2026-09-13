@@ -1,5 +1,7 @@
+use cartan_maxwell::{
+    FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver, cfl_dt, coboundary_matrix,
+};
 use derham::cochain::Cochain;
-use cartan_maxwell::{cfl_dt, coboundary_matrix, FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver};
 use simplicial::r#gen::cartesian::CartesianGrid;
 
 #[test]
@@ -31,6 +33,14 @@ fn synchronized_energy_is_tightly_conserved_on_static_cavity() {
         umax = umax.max(u);
     }
     // Tighter band: synchronized energy conserved within +-5%.
-    assert!(umax / u0 < 1.05, "synchronized energy grew: umax/u0 = {}", umax / u0);
-    assert!(umin / u0 > 0.95, "synchronized energy decayed: umin/u0 = {}", umin / u0);
+    assert!(
+        umax / u0 < 1.05,
+        "synchronized energy grew: umax/u0 = {}",
+        umax / u0
+    );
+    assert!(
+        umin / u0 > 0.95,
+        "synchronized energy decayed: umin/u0 = {}",
+        umin / u0
+    );
 }

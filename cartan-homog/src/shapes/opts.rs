@@ -9,6 +9,10 @@ impl Default for IntegrationOpts {
     fn default() -> Self {
         // Degree 14 is what v1.3 ships; 26/50/110/194 are v1.4 when we need
         // crack-limit accuracy (small-aspect spheroids in anisotropic ref).
-        Self { lebedev_degree: 14, eps_abs: 1e-10, eps_rel: 1e-10 }
+        Self {
+            lebedev_degree: 14,
+            eps_abs: 1e-10,
+            eps_rel: 1e-10,
+        }
     }
 }

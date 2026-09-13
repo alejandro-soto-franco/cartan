@@ -20,7 +20,7 @@ use nalgebra::{Unit, Vector3};
 use cartan_homog::{
     rve::{Phase, Rve},
     schemes::{
-        AsymmetricSc, Dilute, DiluteStress, Differential, Maxwell, MoriTanaka,
+        AsymmetricSc, Differential, Dilute, DiluteStress, Maxwell, MoriTanaka,
         PonteCastanedaWillis, ReussBound, Scheme, SchemeOpts, SelfConsistent, VoigtBound,
     },
     shapes::{PennyCrack, Sphere, Spheroid},
@@ -49,7 +49,7 @@ fn main() {
     // Sweep parameters.
     let fractions_sphere = [0.05, 0.10, 0.20, 0.30, 0.40];
     let fractions_spheroid = [0.10, 0.20, 0.30];
-    let aspects = [0.1_f64, 10.0];   // oblate and prolate
+    let aspects = [0.1_f64, 10.0]; // oblate and prolate
     let densities_crack = [0.05, 0.15, 0.30];
 
     // Order2: iso matrix (k=1.0), inclusion k=5.0.
@@ -84,14 +84,22 @@ fn main() {
     }
 
     wr.flush().unwrap();
-    eprintln!("Wrote {} to {}", std::fs::metadata(&args.out).unwrap().len(), args.out);
+    eprintln!(
+        "Wrote {} to {}",
+        std::fs::metadata(&args.out).unwrap().len(),
+        args.out
+    );
 }
 
 fn scheme_list(iterative: bool) -> Vec<String> {
     let mut v = vec![
-        "VOIGT".into(), "REUSS".into(),
-        "DIL".into(), "DILD".into(),
-        "MT".into(), "MAX".into(), "PCW".into(),
+        "VOIGT".into(),
+        "REUSS".into(),
+        "DIL".into(),
+        "DILD".into(),
+        "MT".into(),
+        "MAX".into(),
+        "PCW".into(),
     ];
     if iterative {
         v.push("SC".into());
@@ -103,49 +111,84 @@ fn scheme_list(iterative: bool) -> Vec<String> {
 
 fn rve_sphere_o2(phi: f64) -> Rve<Order2> {
     let mut r = Rve::<Order2>::new();
-    r.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
-        property: Order2::scalar(1.0), fraction: 1.0 - phi });
-    r.add_phase(Phase { name: "I".into(), shape: Arc::new(Sphere),
-        property: Order2::scalar(5.0), fraction: phi });
+    r.add_phase(Phase {
+        name: "M".into(),
+        shape: Arc::new(Sphere),
+        property: Order2::scalar(1.0),
+        fraction: 1.0 - phi,
+    });
+    r.add_phase(Phase {
+        name: "I".into(),
+        shape: Arc::new(Sphere),
+        property: Order2::scalar(5.0),
+        fraction: phi,
+    });
     r.set_matrix("M");
     r
 }
 
 fn rve_spheroid_o2(phi: f64, aspect: f64) -> Rve<Order2> {
     let mut r = Rve::<Order2>::new();
-    r.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
-        property: Order2::scalar(1.0), fraction: 1.0 - phi });
-    r.add_phase(Phase { name: "I".into(),
+    r.add_phase(Phase {
+        name: "M".into(),
+        shape: Arc::new(Sphere),
+        property: Order2::scalar(1.0),
+        fraction: 1.0 - phi,
+    });
+    r.add_phase(Phase {
+        name: "I".into(),
         shape: Arc::new(Spheroid::new(Unit::new_normalize(Vector3::z()), aspect)),
-        property: Order2::scalar(5.0), fraction: phi });
+        property: Order2::scalar(5.0),
+        fraction: phi,
+    });
     r.set_matrix("M");
     r
 }
 
 fn rve_crack_o2(rho: f64) -> Rve<Order2> {
     let mut r = Rve::<Order2>::new();
-    r.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
-        property: Order2::scalar(1.0), fraction: 1.0 - rho });
-    r.add_phase(Phase { name: "C".into(),
+    r.add_phase(Phase {
+        name: "M".into(),
+        shape: Arc::new(Sphere),
+        property: Order2::scalar(1.0),
+        fraction: 1.0 - rho,
+    });
+    r.add_phase(Phase {
+        name: "C".into(),
         shape: Arc::new(PennyCrack::new(Unit::new_normalize(Vector3::z()), rho)),
-        property: Order2::scalar(5.0e-6), fraction: rho });
+        property: Order2::scalar(5.0e-6),
+        fraction: rho,
+    });
     r.set_matrix("M");
     r
 }
 
 fn rve_sphere_o4(phi: f64) -> Rve<Order4> {
     let mut r = Rve::<Order4>::new();
-    r.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
-        property: Order4::iso_stiff(72.0, 32.0), fraction: 1.0 - phi });
-    r.add_phase(Phase { name: "I".into(), shape: Arc::new(Sphere),
-        property: Order4::iso_stiff(5.0, 2.0), fraction: phi });
+    r.add_phase(Phase {
+        name: "M".into(),
+        shape: Arc::new(Sphere),
+        property: Order4::iso_stiff(72.0, 32.0),
+        fraction: 1.0 - phi,
+    });
+    r.add_phase(Phase {
+        name: "I".into(),
+        shape: Arc::new(Sphere),
+        property: Order4::iso_stiff(5.0, 2.0),
+        fraction: phi,
+    });
     r.set_matrix("M");
     r
 }
 
 fn bench_case<W: Write>(
-    wr: &mut W, order: &str, scheme: &str, rve: &Rve<Order2>,
-    param: f64, shape: &str, aspect: Option<f64>,
+    wr: &mut W,
+    order: &str,
+    scheme: &str,
+    rve: &Rve<Order2>,
+    param: f64,
+    shape: &str,
+    aspect: Option<f64>,
 ) {
     let opts = SchemeOpts::default();
     let (median_ns, result_k11) = time_scheme(scheme, rve, &opts);
@@ -163,8 +206,12 @@ fn bench_case<W: Write>(
 }
 
 fn bench_case_o4<W: Write>(
-    wr: &mut W, order: &str, scheme: &str, rve: &Rve<Order4>,
-    param: f64, shape: &str,
+    wr: &mut W,
+    order: &str,
+    scheme: &str,
+    rve: &Rve<Order4>,
+    param: f64,
+    shape: &str,
 ) {
     let opts = SchemeOpts::default();
     let (median_ns, result_c11) = time_scheme_o4(scheme, rve, &opts);
@@ -183,7 +230,9 @@ fn bench_case_o4<W: Write>(
 
 fn time_scheme(scheme: &str, rve: &Rve<Order2>, opts: &SchemeOpts) -> (Option<u128>, Option<f64>) {
     for _ in 0..WARMUP {
-        if dispatch(scheme, rve, opts).is_err() { return (None, None); }
+        if dispatch(scheme, rve, opts).is_err() {
+            return (None, None);
+        }
     }
     let mut times: Vec<u128> = Vec::with_capacity(REPS);
     let mut last = 0.0_f64;
@@ -201,9 +250,15 @@ fn time_scheme(scheme: &str, rve: &Rve<Order2>, opts: &SchemeOpts) -> (Option<u1
     (Some(times[REPS / 2]), Some(last))
 }
 
-fn time_scheme_o4(scheme: &str, rve: &Rve<Order4>, opts: &SchemeOpts) -> (Option<u128>, Option<f64>) {
+fn time_scheme_o4(
+    scheme: &str,
+    rve: &Rve<Order4>,
+    opts: &SchemeOpts,
+) -> (Option<u128>, Option<f64>) {
     for _ in 0..WARMUP {
-        if dispatch_o4(scheme, rve, opts).is_err() { return (None, None); }
+        if dispatch_o4(scheme, rve, opts).is_err() {
+            return (None, None);
+        }
     }
     let mut times: Vec<u128> = Vec::with_capacity(REPS);
     let mut last = 0.0_f64;
@@ -221,36 +276,42 @@ fn time_scheme_o4(scheme: &str, rve: &Rve<Order4>, opts: &SchemeOpts) -> (Option
     (Some(times[REPS / 2]), Some(last))
 }
 
-fn dispatch(scheme: &str, rve: &Rve<Order2>, opts: &SchemeOpts)
-    -> Result<cartan_homog::schemes::Effective<Order2>, cartan_homog::HomogError> {
+fn dispatch(
+    scheme: &str,
+    rve: &Rve<Order2>,
+    opts: &SchemeOpts,
+) -> Result<cartan_homog::schemes::Effective<Order2>, cartan_homog::HomogError> {
     match scheme {
         "VOIGT" => VoigtBound.homogenize(rve, opts),
         "REUSS" => ReussBound.homogenize(rve, opts),
-        "DIL"   => Dilute.homogenize(rve, opts),
-        "DILD"  => DiluteStress.homogenize(rve, opts),
-        "MT"    => MoriTanaka.homogenize(rve, opts),
-        "SC"    => SelfConsistent.homogenize(rve, opts),
-        "ASC"   => AsymmetricSc.homogenize(rve, opts),
-        "MAX"   => Maxwell.homogenize(rve, opts),
-        "PCW"   => PonteCastanedaWillis.homogenize(rve, opts),
-        "DIFF"  => Differential::default().homogenize(rve, opts),
+        "DIL" => Dilute.homogenize(rve, opts),
+        "DILD" => DiluteStress.homogenize(rve, opts),
+        "MT" => MoriTanaka.homogenize(rve, opts),
+        "SC" => SelfConsistent.homogenize(rve, opts),
+        "ASC" => AsymmetricSc.homogenize(rve, opts),
+        "MAX" => Maxwell.homogenize(rve, opts),
+        "PCW" => PonteCastanedaWillis.homogenize(rve, opts),
+        "DIFF" => Differential::default().homogenize(rve, opts),
         _ => panic!("unknown scheme {scheme}"),
     }
 }
 
-fn dispatch_o4(scheme: &str, rve: &Rve<Order4>, opts: &SchemeOpts)
-    -> Result<cartan_homog::schemes::Effective<Order4>, cartan_homog::HomogError> {
+fn dispatch_o4(
+    scheme: &str,
+    rve: &Rve<Order4>,
+    opts: &SchemeOpts,
+) -> Result<cartan_homog::schemes::Effective<Order4>, cartan_homog::HomogError> {
     match scheme {
         "VOIGT" => VoigtBound.homogenize(rve, opts),
         "REUSS" => ReussBound.homogenize(rve, opts),
-        "DIL"   => Dilute.homogenize(rve, opts),
-        "DILD"  => DiluteStress.homogenize(rve, opts),
-        "MT"    => MoriTanaka.homogenize(rve, opts),
-        "SC"    => SelfConsistent.homogenize(rve, opts),
-        "ASC"   => AsymmetricSc.homogenize(rve, opts),
-        "MAX"   => Maxwell.homogenize(rve, opts),
-        "PCW"   => PonteCastanedaWillis.homogenize(rve, opts),
-        "DIFF"  => Differential::default().homogenize(rve, opts),
+        "DIL" => Dilute.homogenize(rve, opts),
+        "DILD" => DiluteStress.homogenize(rve, opts),
+        "MT" => MoriTanaka.homogenize(rve, opts),
+        "SC" => SelfConsistent.homogenize(rve, opts),
+        "ASC" => AsymmetricSc.homogenize(rve, opts),
+        "MAX" => Maxwell.homogenize(rve, opts),
+        "PCW" => PonteCastanedaWillis.homogenize(rve, opts),
+        "DIFF" => Differential::default().homogenize(rve, opts),
         _ => panic!("unknown scheme {scheme}"),
     }
 }

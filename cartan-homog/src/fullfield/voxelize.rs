@@ -18,7 +18,10 @@ pub struct VoxelGrid {
 impl VoxelGrid {
     pub fn new(resolution: usize) -> Self {
         let n = resolution * resolution * resolution;
-        Self { resolution, phase_ids: alloc::vec![NO_PHASE; n] }
+        Self {
+            resolution,
+            phase_ids: alloc::vec![NO_PHASE; n],
+        }
     }
 
     pub fn set(&mut self, i: usize, j: usize, k: usize, phase: PhaseId) {
@@ -47,16 +50,26 @@ pub enum CentredInclusion {
 /// convention used by most public μCT datasets (Digital Porous Media Portal,
 /// Imperial College Berea, NIST CBT). For higher-resolution datasets beyond
 /// u8 phase ids, use load_voxel_u16.
-pub fn load_voxel_raw_u8(path: &std::path::Path, resolution: usize) -> Result<VoxelGrid, crate::error::HomogError> {
+pub fn load_voxel_raw_u8(
+    path: &std::path::Path,
+    resolution: usize,
+) -> Result<VoxelGrid, crate::error::HomogError> {
     let expected = resolution * resolution * resolution;
-    let bytes = std::fs::read(path).map_err(|e|
-        crate::error::HomogError::Mesh(alloc::format!("failed to read {}: {e}", path.display())))?;
+    let bytes = std::fs::read(path).map_err(|e| {
+        crate::error::HomogError::Mesh(alloc::format!("failed to read {}: {e}", path.display()))
+    })?;
     if bytes.len() != expected {
         return Err(crate::error::HomogError::Mesh(alloc::format!(
-            "voxel file size {} != expected {} for N={resolution}", bytes.len(), expected)));
+            "voxel file size {} != expected {} for N={resolution}",
+            bytes.len(),
+            expected
+        )));
     }
     let phase_ids: Vec<PhaseId> = bytes.iter().map(|&b| b as PhaseId).collect();
-    Ok(VoxelGrid { resolution, phase_ids })
+    Ok(VoxelGrid {
+        resolution,
+        phase_ids,
+    })
 }
 
 /// Generate a synthetic voxelisation of a `CentredInclusion` at the given
@@ -66,14 +79,18 @@ pub fn voxelize_centred(incl: &CentredInclusion, resolution: usize) -> VoxelGrid
     let n = resolution;
     let h = 1.0 / (n as f64);
     let mut g = VoxelGrid::new(n);
-    for k in 0..n { for j in 0..n { for i in 0..n {
-        let p = Vector3::new(
-            (i as f64 + 0.5) * h,
-            (j as f64 + 0.5) * h,
-            (k as f64 + 0.5) * h,
-        );
-        g.set(i, j, k, if incl.contains(&p) { 1 } else { 0 });
-    }}}
+    for k in 0..n {
+        for j in 0..n {
+            for i in 0..n {
+                let p = Vector3::new(
+                    (i as f64 + 0.5) * h,
+                    (j as f64 + 0.5) * h,
+                    (k as f64 + 0.5) * h,
+                );
+                g.set(i, j, k, if incl.contains(&p) { 1 } else { 0 });
+            }
+        }
+    }
     g
 }
 
@@ -133,17 +150,23 @@ mod tests {
     #[test]
     fn oblate_spheroid_has_zero_volume_at_aspect_zero() {
         // Sanity: limit aspect -> 0 sends volume -> 0 for fixed a.
-        let thin = CentredInclusion::Spheroid { a: 0.3, aspect: 1e-6 };
+        let thin = CentredInclusion::Spheroid {
+            a: 0.3,
+            aspect: 1e-6,
+        };
         assert!(thin.volume() < 1e-6);
     }
 
     #[test]
     fn penny_crack_contains_thin_disk_plane_points() {
         // Thin oblate spheroid (a=0.3, c=3e-4): points at z=0 with r<0.3 inside, r>0.3 outside.
-        let penny = CentredInclusion::Spheroid { a: 0.3, aspect: 1e-3 };
-        assert!(penny.contains(&Vector3::new(0.5, 0.5, 0.5)));        // centre
-        assert!(penny.contains(&Vector3::new(0.6, 0.5, 0.5)));        // in-plane, r=0.1
-        assert!(!penny.contains(&Vector3::new(0.9, 0.5, 0.5)));       // in-plane, r=0.4, outside
-        assert!(!penny.contains(&Vector3::new(0.5, 0.5, 0.502)));     // off-plane by 2e-3 > c=3e-4
+        let penny = CentredInclusion::Spheroid {
+            a: 0.3,
+            aspect: 1e-3,
+        };
+        assert!(penny.contains(&Vector3::new(0.5, 0.5, 0.5))); // centre
+        assert!(penny.contains(&Vector3::new(0.6, 0.5, 0.5))); // in-plane, r=0.1
+        assert!(!penny.contains(&Vector3::new(0.9, 0.5, 0.5))); // in-plane, r=0.4, outside
+        assert!(!penny.contains(&Vector3::new(0.5, 0.5, 0.502))); // off-plane by 2e-3 > c=3e-4
     }
 }

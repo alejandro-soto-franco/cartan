@@ -206,7 +206,9 @@ impl<const N: usize> Manifold for Sphere<N> {
             // kept as the form that is never slower rather than as a claimed
             // speedup.
             let k = theta / theta.sin();
-            Ok(SVector::<Real, N>::from_fn(|i, _| (q[i] - p[i] * cos_theta) * k))
+            Ok(SVector::<Real, N>::from_fn(|i, _| {
+                (q[i] - p[i] * cos_theta) * k
+            }))
         }
     }
 
@@ -851,7 +853,10 @@ mod tests {
         assert!(m.log_into(&north, &south, &mut out).is_err());
         assert_eq!(out, sentinel, "out was written despite the call failing");
 
-        assert!(m.transport_into(&north, &south, &sentinel, &mut out).is_err());
+        assert!(
+            m.transport_into(&north, &south, &sentinel, &mut out)
+                .is_err()
+        );
         assert_eq!(out, sentinel, "out was written despite the call failing");
     }
 

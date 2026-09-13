@@ -14,30 +14,46 @@
 #[inline]
 fn sqrt(x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { x.sqrt() }
+    {
+        x.sqrt()
+    }
     #[cfg(not(feature = "std"))]
-    { libm::sqrt(x) }
+    {
+        libm::sqrt(x)
+    }
 }
 #[inline]
 fn sin(x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { x.sin() }
+    {
+        x.sin()
+    }
     #[cfg(not(feature = "std"))]
-    { libm::sin(x) }
+    {
+        libm::sin(x)
+    }
 }
 #[inline]
 fn cos(x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { x.cos() }
+    {
+        x.cos()
+    }
     #[cfg(not(feature = "std"))]
-    { libm::cos(x) }
+    {
+        libm::cos(x)
+    }
 }
 #[inline]
 fn atan2(y: f64, x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { y.atan2(x) }
+    {
+        y.atan2(x)
+    }
     #[cfg(not(feature = "std"))]
-    { libm::atan2(y, x) }
+    {
+        libm::atan2(y, x)
+    }
 }
 
 /// A unit quaternion rotor in Cl+(3): `R = w + x*e23 + y*e31 + z*e12`.
@@ -51,7 +67,12 @@ pub struct Rotor3 {
 
 impl Rotor3 {
     /// The identity rotor.
-    pub const IDENTITY: Rotor3 = Rotor3 { w: 1.0, x: 0.0, y: 0.0, z: 0.0 };
+    pub const IDENTITY: Rotor3 = Rotor3 {
+        w: 1.0,
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
 
     /// Build a rotor from a row-major SO(3) matrix (Shepperd's method).
     pub fn from_matrix(m: &[f64; 9]) -> Rotor3 {
@@ -97,9 +118,15 @@ impl Rotor3 {
     pub fn to_matrix(&self) -> [f64; 9] {
         let Rotor3 { w, x, y, z } = *self;
         [
-            1.0 - 2.0*(y*y + z*z), 2.0*(x*y - w*z),       2.0*(x*z + w*y),
-            2.0*(x*y + w*z),       1.0 - 2.0*(x*x + z*z), 2.0*(y*z - w*x),
-            2.0*(x*z - w*y),       2.0*(y*z + w*x),       1.0 - 2.0*(x*x + y*y),
+            1.0 - 2.0 * (y * y + z * z),
+            2.0 * (x * y - w * z),
+            2.0 * (x * z + w * y),
+            2.0 * (x * y + w * z),
+            1.0 - 2.0 * (x * x + z * z),
+            2.0 * (y * z - w * x),
+            2.0 * (x * z - w * y),
+            2.0 * (y * z + w * x),
+            1.0 - 2.0 * (x * x + y * y),
         ]
     }
 
@@ -107,9 +134,9 @@ impl Rotor3 {
     pub fn rotate_vec(&self, v: [f64; 3]) -> [f64; 3] {
         let m = self.to_matrix();
         [
-            m[0]*v[0] + m[1]*v[1] + m[2]*v[2],
-            m[3]*v[0] + m[4]*v[1] + m[5]*v[2],
-            m[6]*v[0] + m[7]*v[1] + m[8]*v[2],
+            m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+            m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
+            m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
         ]
     }
 
@@ -118,25 +145,35 @@ impl Rotor3 {
         let a = self;
         let b = other;
         Rotor3 {
-            w: a.w*b.w - a.x*b.x - a.y*b.y - a.z*b.z,
-            x: a.w*b.x + a.x*b.w + a.y*b.z - a.z*b.y,
-            y: a.w*b.y - a.x*b.z + a.y*b.w + a.z*b.x,
-            z: a.w*b.z + a.x*b.y - a.y*b.x + a.z*b.w,
+            w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+            x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+            y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+            z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
         }
     }
 
     /// Reverse (conjugate): the inverse rotation.
     pub fn reverse(&self) -> Rotor3 {
-        Rotor3 { w: self.w, x: -self.x, y: -self.y, z: -self.z }
+        Rotor3 {
+            w: self.w,
+            x: -self.x,
+            y: -self.y,
+            z: -self.z,
+        }
     }
 
     /// Return a unit-normalized copy.
     pub fn normalized(&self) -> Rotor3 {
-        let n = sqrt(self.w*self.w + self.x*self.x + self.y*self.y + self.z*self.z);
+        let n = sqrt(self.w * self.w + self.x * self.x + self.y * self.y + self.z * self.z);
         if n < 1e-30 {
             Rotor3::IDENTITY
         } else {
-            Rotor3 { w: self.w/n, x: self.x/n, y: self.y/n, z: self.z/n }
+            Rotor3 {
+                w: self.w / n,
+                x: self.x / n,
+                y: self.y / n,
+                z: self.z / n,
+            }
         }
     }
 }
@@ -156,7 +193,10 @@ impl Rotor2 {
 
     /// Build the rotor that rotates a frame by `theta`.
     pub fn from_angle(theta: f64) -> Rotor2 {
-        Rotor2 { c: cos(0.5 * theta), s: sin(0.5 * theta) }
+        Rotor2 {
+            c: cos(0.5 * theta),
+            s: sin(0.5 * theta),
+        }
     }
 
     /// The full rotation angle this rotor induces on vectors.
@@ -181,7 +221,10 @@ impl Rotor2 {
 
     /// Reverse: negate the angle.
     pub fn reverse(&self) -> Rotor2 {
-        Rotor2 { c: self.c, s: -self.s }
+        Rotor2 {
+            c: self.c,
+            s: -self.s,
+        }
     }
 }
 
@@ -210,13 +253,19 @@ mod tests {
 
     // Deterministic pseudo-random rotors via a fixed set of axis/angle pairs.
     fn sample_rotations() -> Vec<[f64; 9]> {
-        let axes: &[[f64; 3]] = &[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0],
-                    [1.0, 1.0, 0.0], [0.3, -0.7, 0.5], [-0.2, 0.4, -0.9]];
+        let axes: &[[f64; 3]] = &[
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 1.0],
+            [1.0, 1.0, 0.0],
+            [0.3, -0.7, 0.5],
+            [-0.2, 0.4, -0.9],
+        ];
         let angles: &[f64] = &[0.1, 0.7, 1.3, -2.0, 3.0];
         let mut out = vec![];
         for a in axes {
-            let n = (a[0]*a[0] + a[1]*a[1] + a[2]*a[2]).sqrt();
-            let u = [a[0]/n, a[1]/n, a[2]/n];
+            let n = (a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).sqrt();
+            let u = [a[0] / n, a[1] / n, a[2] / n];
             for &th in angles {
                 out.push(axis_angle_matrix(u, th));
             }
@@ -230,24 +279,37 @@ mod tests {
         let t = 1.0 - c;
         let (ux, uy, uz) = (u[0], u[1], u[2]);
         [
-            c + ux*ux*t,      ux*uy*t - uz*s,   ux*uz*t + uy*s,
-            uy*ux*t + uz*s,   c + uy*uy*t,      uy*uz*t - ux*s,
-            uz*ux*t - uy*s,   uz*uy*t + ux*s,   c + uz*uz*t,
+            c + ux * ux * t,
+            ux * uy * t - uz * s,
+            ux * uz * t + uy * s,
+            uy * ux * t + uz * s,
+            c + uy * uy * t,
+            uy * uz * t - ux * s,
+            uz * ux * t - uy * s,
+            uz * uy * t + ux * s,
+            c + uz * uz * t,
         ]
     }
 
     fn matmul(a: &[f64; 9], b: &[f64; 9]) -> [f64; 9] {
         let mut m = [0.0; 9];
-        for i in 0..3 { for j in 0..3 {
-            let mut s = 0.0;
-            for k in 0..3 { s += a[i*3+k] * b[k*3+j]; }
-            m[i*3+j] = s;
-        }}
+        for i in 0..3 {
+            for j in 0..3 {
+                let mut s = 0.0;
+                for k in 0..3 {
+                    s += a[i * 3 + k] * b[k * 3 + j];
+                }
+                m[i * 3 + j] = s;
+            }
+        }
         m
     }
 
     fn max_abs_diff(a: &[f64], b: &[f64]) -> f64 {
-        a.iter().zip(b).map(|(x, y)| (x - y).abs()).fold(0.0, f64::max)
+        a.iter()
+            .zip(b)
+            .map(|(x, y)| (x - y).abs())
+            .fold(0.0, f64::max)
     }
 
     #[test]
@@ -264,9 +326,9 @@ mod tests {
         for m in sample_rotations() {
             let r = Rotor3::from_matrix(&m);
             let mv = [
-                m[0]*v[0] + m[1]*v[1] + m[2]*v[2],
-                m[3]*v[0] + m[4]*v[1] + m[5]*v[2],
-                m[6]*v[0] + m[7]*v[1] + m[8]*v[2],
+                m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+                m[3] * v[0] + m[4] * v[1] + m[5] * v[2],
+                m[6] * v[0] + m[7] * v[1] + m[8] * v[2],
             ];
             assert!(max_abs_diff(&r.rotate_vec(v), &mv) < 1e-12);
         }
@@ -288,7 +350,11 @@ mod tests {
             let r = Rotor3::from_matrix(&m);
             let rev = r.reverse().to_matrix();
             let mut mt = [0.0; 9];
-            for i in 0..3 { for j in 0..3 { mt[i*3+j] = m[j*3+i]; } }
+            for i in 0..3 {
+                for j in 0..3 {
+                    mt[i * 3 + j] = m[j * 3 + i];
+                }
+            }
             assert!(max_abs_diff(&rev, &mt) < 1e-12);
         }
     }
@@ -298,8 +364,8 @@ mod tests {
         let r = Rotor2::from_angle(0.6);
         let m = r.to_matrix();
         let (c, s) = (0.6_f64.cos(), 0.6_f64.sin());
-        assert!((m[0]-c).abs() < 1e-12 && (m[1]+s).abs() < 1e-12);
-        assert!((m[2]-s).abs() < 1e-12 && (m[3]-c).abs() < 1e-12);
+        assert!((m[0] - c).abs() < 1e-12 && (m[1] + s).abs() < 1e-12);
+        assert!((m[2] - s).abs() < 1e-12 && (m[3] - c).abs() < 1e-12);
     }
 
     #[test]

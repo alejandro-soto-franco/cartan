@@ -28,7 +28,9 @@ pub fn barycentric_refine_tets(
     let nt = mesh.n_simplices();
     if flags.len() != nt {
         return Err(RemeshError::InvalidInput(format!(
-            "flags length {} != n_simplices {nt}", flags.len())));
+            "flags length {} != n_simplices {nt}",
+            flags.len()
+        )));
     }
 
     let mut new_simplices: Vec<[usize; 4]> = Vec::new();
@@ -41,8 +43,10 @@ pub fn barycentric_refine_tets(
         }
         let tet = mesh.simplices[s];
         let v: [Vector3<f64>; 4] = [
-            mesh.vertices[tet[0]], mesh.vertices[tet[1]],
-            mesh.vertices[tet[2]], mesh.vertices[tet[3]],
+            mesh.vertices[tet[0]],
+            mesh.vertices[tet[1]],
+            mesh.vertices[tet[2]],
+            mesh.vertices[tet[3]],
         ];
         let bary = (v[0] + v[1] + v[2] + v[3]) / 4.0;
         let v_b = mesh.vertices.len();
@@ -53,7 +57,9 @@ pub fn barycentric_refine_tets(
             let mut sub = [0usize; 4];
             let mut j = 0;
             for (i, &vert) in tet.iter().enumerate() {
-                if i == omit { continue; }
+                if i == omit {
+                    continue;
+                }
                 sub[j] = vert;
                 j += 1;
             }
@@ -75,11 +81,17 @@ pub fn indicator_flags<F: Fn(Vector3<f64>) -> f64>(
     indicator_fn: F,
     threshold: f64,
 ) -> Vec<bool> {
-    mesh.simplices.iter().map(|tet| {
-        let bary = (mesh.vertices[tet[0]] + mesh.vertices[tet[1]]
-                  + mesh.vertices[tet[2]] + mesh.vertices[tet[3]]) / 4.0;
-        indicator_fn(bary).abs() > threshold
-    }).collect()
+    mesh.simplices
+        .iter()
+        .map(|tet| {
+            let bary = (mesh.vertices[tet[0]]
+                + mesh.vertices[tet[1]]
+                + mesh.vertices[tet[2]]
+                + mesh.vertices[tet[3]])
+                / 4.0;
+            indicator_fn(bary).abs() > threshold
+        })
+        .collect()
 }
 
 /// Conforming red (1-to-8) refinement: uniformly subdivide every flagged tet
@@ -91,9 +103,7 @@ pub fn indicator_flags<F: Fn(Vector3<f64>) -> f64>(
 ///
 /// 8-sub-tet Bey decomposition: 4 corner tets + 4 octahedral tets from
 /// splitting the midpoint-octahedron along the m₀₁-m₂₃ diagonal.
-pub fn red_refine_tets_uniform(
-    mesh: &mut Mesh<Euclidean<3>, 4, 3>,
-) -> Result<(), RemeshError> {
+pub fn red_refine_tets_uniform(mesh: &mut Mesh<Euclidean<3>, 4, 3>) -> Result<(), RemeshError> {
     let old_verts = mesh.vertices.clone();
     let old_simplices = mesh.simplices.clone();
     let mut verts = old_verts.clone();
@@ -102,7 +112,9 @@ pub fn red_refine_tets_uniform(
     let mut mid_cache: HashMap<(usize, usize), usize> = HashMap::new();
     let mut midpoint = |a: usize, b: usize, verts: &mut Vec<Vector3<f64>>| -> usize {
         let key = (a.min(b), a.max(b));
-        if let Some(&idx) = mid_cache.get(&key) { return idx; }
+        if let Some(&idx) = mid_cache.get(&key) {
+            return idx;
+        }
         let m = (old_verts[a] + old_verts[b]) * 0.5;
         let new_idx = verts.len();
         verts.push(m);
@@ -152,7 +164,9 @@ pub fn refine_to_depth<F: Fn(Vector3<f64>) -> f64>(
         let flags = indicator_flags(mesh, &indicator_fn, threshold);
         let n = barycentric_refine_tets(mesh, &flags)?;
         total += n;
-        if n == 0 { break; }
+        if n == 0 {
+            break;
+        }
     }
     Ok(total)
 }
@@ -209,7 +223,7 @@ mod tests {
     fn refine_to_depth_terminates_when_no_more_flags() {
         let mut mesh = unit_tet();
         let n = refine_to_depth(&mut mesh, 5, |_| 0.0, 1.0).unwrap();
-        assert_eq!(n, 0);   // nothing ever flagged
+        assert_eq!(n, 0); // nothing ever flagged
         assert_eq!(mesh.n_simplices(), 1);
     }
 
@@ -235,8 +249,10 @@ mod tests {
             .map(|s| mesh.simplex_volume(&manifold, s))
             .sum();
         assert_eq!(mesh.n_simplices(), 8);
-        assert!((v_new - v_orig).abs() / v_orig.max(1e-30) < 1e-10,
-                "total volume changed: {v_orig} -> {v_new}");
+        assert!(
+            (v_new - v_orig).abs() / v_orig.max(1e-30) < 1e-10,
+            "total volume changed: {v_orig} -> {v_new}"
+        );
     }
 
     #[test]

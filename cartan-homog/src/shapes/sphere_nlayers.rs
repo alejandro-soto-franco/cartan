@@ -1,9 +1,11 @@
 //! n-layer concentric spheres with Herve-Zaoui effective-modulus recursion.
 
 use crate::float::powi;
-use crate::{error::HomogError,
-            shapes::{IntegrationOpts, Shape, Sphere},
-            tensor::{Km3, Km6, Order2, Order4}};
+use crate::{
+    error::HomogError,
+    shapes::{IntegrationOpts, Shape, Sphere},
+    tensor::{Km3, Km6, Order2, Order4},
+};
 use alloc::vec::Vec;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -18,11 +20,13 @@ impl SphereNLayers {
     pub fn new(radii: Vec<f64>, layer_k: Vec<f64>) -> Result<Self, HomogError> {
         if radii.len() != layer_k.len() || radii.is_empty() {
             return Err(HomogError::Geometry(alloc::string::String::from(
-                "SphereNLayers: radii and layer_k length mismatch")));
+                "SphereNLayers: radii and layer_k length mismatch",
+            )));
         }
         if radii.windows(2).any(|w| w[0] >= w[1]) {
             return Err(HomogError::Geometry(alloc::string::String::from(
-                "SphereNLayers: radii must be strictly increasing")));
+                "SphereNLayers: radii must be strictly increasing",
+            )));
         }
         Ok(Self { radii, layer_k })
     }
@@ -41,7 +45,7 @@ impl SphereNLayers {
             let k_layer = self.layer_k[i];
             let dk = k_eff - k_layer;
             let num = 2.0 * k_layer + k_eff + 2.0 * v * dk;
-            let den = 2.0 * k_layer + k_eff -       v * dk;
+            let den = 2.0 * k_layer + k_eff - v * dk;
             k_eff = k_layer * num / den;
         }
         k_eff
@@ -54,7 +58,10 @@ impl Shape<Order2> for SphereNLayers {
     }
 
     fn concentration_dilute(
-        &self, c_ref: &Km3, _c_phase: &Km3, opts: &IntegrationOpts,
+        &self,
+        c_ref: &Km3,
+        _c_phase: &Km3,
+        opts: &IntegrationOpts,
     ) -> Result<Km3, HomogError> {
         let k_eff = self.effective_k();
         let c_effective = Km3::identity() * k_eff;

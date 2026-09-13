@@ -38,14 +38,14 @@ use serde_json::json;
 use std::sync::Arc;
 
 /// Problem parameters from the blog example.
-const L_X: f64 = 100.0;          // slab horizontal extent (m)
+const L_X: f64 = 100.0; // slab horizontal extent (m)
 const L_Y: f64 = 100.0;
-const H:   f64 = 200.0;          // vertical extent (m)
-const K0:  f64 = 1.0e-13;        // matrix permeability (m²), 100 mD
+const H: f64 = 200.0; // vertical extent (m)
+const K0: f64 = 1.0e-13; // matrix permeability (m²), 100 mD
 const RHO0: f64 = 0.2;
 const AMPL: f64 = 0.5;
-const ELL:  f64 = 40.0;          // depth wavelength (m)
-const OMEGA: f64 = 1.0e-3;       // penny-crack aspect
+const ELL: f64 = 40.0; // depth wavelength (m)
+const OMEGA: f64 = 1.0e-3; // penny-crack aspect
 
 /// Depth-varying crack density ρ(z) = ρ₀·(1 + A·sin(2πz/ℓ)).
 fn crack_density(z: f64) -> f64 {
@@ -60,8 +60,10 @@ fn rve_at_depth(z: f64) -> Rve<Order2> {
     let rho = crack_density(z);
     let mut rve = Rve::<Order2>::new();
     rve.add_phase(Phase {
-        name: "MATRIX".into(), shape: Arc::new(Sphere),
-        property: Order2::scalar(K0), fraction: 1.0 - rho,
+        name: "MATRIX".into(),
+        shape: Arc::new(Sphere),
+        property: Order2::scalar(K0),
+        fraction: 1.0 - rho,
     });
     rve.add_phase(Phase {
         name: "CRACK".into(),
@@ -86,19 +88,28 @@ fn vertical_permeability(k: &nalgebra::Matrix3<f64>) -> f64 {
 #[test]
 fn fractured_sandstone_capstone() {
     let sampled_depths: [f64; 7] = [
-        H / 8.0, H / 4.0, 3.0 * H / 8.0, H / 2.0, 5.0 * H / 8.0, 3.0 * H / 4.0, 7.0 * H / 8.0,
+        H / 8.0,
+        H / 4.0,
+        3.0 * H / 8.0,
+        H / 2.0,
+        5.0 * H / 8.0,
+        3.0 * H / 4.0,
+        7.0 * H / 8.0,
     ];
 
     let mut k_by_depth: Vec<(f64, nalgebra::Matrix3<f64>)> = Vec::new();
 
     for &z in &sampled_depths {
         let rve = rve_at_depth(z);
-        let e = MoriTanaka.homogenize(&rve, &SchemeOpts::default())
+        let e = MoriTanaka
+            .homogenize(&rve, &SchemeOpts::default())
             .unwrap_or_else(|err| panic!("MT failed at z={z}: {err}"));
-        println!("  z = {z:6.2}m  ρ = {:.4}  k_xx = {:.4e}  k_zz = {:.4e}",
-                 crack_density(z),
-                 horizontal_permeability(&e.tensor),
-                 vertical_permeability(&e.tensor));
+        println!(
+            "  z = {z:6.2}m  ρ = {:.4}  k_xx = {:.4e}  k_zz = {:.4e}",
+            crack_density(z),
+            horizontal_permeability(&e.tensor),
+            vertical_permeability(&e.tensor)
+        );
         k_by_depth.push((z, e.tensor));
     }
 
@@ -110,8 +121,10 @@ fn fractured_sandstone_capstone() {
         let kzz = vertical_permeability(k);
         let ratio = khh / kzz;
         println!("  z = {z:6.2}m  k_xx / k_zz = {ratio:.3}");
-        assert!(ratio > 1.0,
-                "crack anisotropy violated at z={z}: k_xx/k_zz = {ratio} <= 1");
+        assert!(
+            ratio > 1.0,
+            "crack anisotropy violated at z={z}: k_xx/k_zz = {ratio} <= 1"
+        );
     }
 
     // Assertion 1: homogenisation agreement.
@@ -129,16 +142,22 @@ fn fractured_sandstone_capstone() {
     let _ = std::fs::create_dir_all(&report_dir);
     let timestamp = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs()).unwrap_or(0);
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
     let report_path = report_dir.join(format!("pipeline_sandstone_{timestamp}.json"));
 
-    let per_depth: Vec<_> = k_by_depth.iter().map(|(z, k)| json!({
-        "z": z,
-        "rho": crack_density(*z),
-        "k_xx": horizontal_permeability(k),
-        "k_zz": vertical_permeability(k),
-        "anisotropy_ratio": horizontal_permeability(k) / vertical_permeability(k),
-    })).collect();
+    let per_depth: Vec<_> = k_by_depth
+        .iter()
+        .map(|(z, k)| {
+            json!({
+                "z": z,
+                "rho": crack_density(*z),
+                "k_xx": horizontal_permeability(k),
+                "k_zz": vertical_permeability(k),
+                "anisotropy_ratio": horizontal_permeability(k) / vertical_permeability(k),
+            })
+        })
+        .collect();
 
     let report = json!({
         "timestamp": timestamp,
@@ -185,8 +204,10 @@ fn a3_macroscale_darcy_effective_k() {
         let rho = RHO0 * (1.0 + AMPL * (2.0 * core::f64::consts::PI * z / ELL).sin());
         let mut rve = Rve::<Order2>::new();
         rve.add_phase(Phase {
-            name: "MATRIX".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(K0), fraction: 1.0 - rho,
+            name: "MATRIX".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(K0),
+            fraction: 1.0 - rho,
         });
         rve.add_phase(Phase {
             name: "CRACK".into(),
@@ -195,7 +216,10 @@ fn a3_macroscale_darcy_effective_k() {
             fraction: rho,
         });
         rve.set_matrix("MATRIX");
-        MoriTanaka.homogenize(&rve, &SchemeOpts::default()).unwrap().tensor
+        MoriTanaka
+            .homogenize(&rve, &SchemeOpts::default())
+            .unwrap()
+            .tensor
     });
 
     // Direct volume-averaged K_zz (analytic cross-check).
@@ -208,9 +232,12 @@ fn a3_macroscale_darcy_effective_k() {
     direct_k_zz /= n_samples as f64;
 
     let prob = SlabProblem {
-        l_x: L_X, l_y: L_Y, h: H,
+        l_x: L_X,
+        l_y: L_Y,
+        h: H,
         k_of_z,
-        p_top: 0.0, p_bot: 1.0,
+        p_top: 0.0,
+        p_bot: 1.0,
         resolution: 6,
     };
     let sol = prob.solve().unwrap();
@@ -222,8 +249,10 @@ fn a3_macroscale_darcy_effective_k() {
     // For our depth profile (modest amplitude) the two should be of the same
     // order. Loose gate: within factor 3.
     let ratio = sol.k_eff_macro[(2, 2)] / direct_k_zz;
-    assert!(ratio > 1.0 / 3.0 && ratio < 3.0,
-            "A3 slab Darcy K_zz vs arithmetic mean ratio = {ratio:.3}, expected in [1/3, 3]");
+    assert!(
+        ratio > 1.0 / 3.0 && ratio < 3.0,
+        "A3 slab Darcy K_zz vs arithmetic mean ratio = {ratio:.3}, expected in [1/3, 3]"
+    );
 }
 
 /// Assertion A2: Hausdorff distance between adaptive-refinement candidate tets
@@ -232,8 +261,10 @@ fn a3_macroscale_darcy_effective_k() {
 #[cfg(feature = "full-field")]
 #[test]
 fn a2_hausdorff_gate_on_refinement_indicator() {
-    use cartan_homog::fullfield::{hausdorff,
-        mesh::{PeriodicCubeMeshBuilder, PeriodicCubeMeshBuilderOpts}};
+    use cartan_homog::fullfield::{
+        hausdorff,
+        mesh::{PeriodicCubeMeshBuilder, PeriodicCubeMeshBuilderOpts},
+    };
     use nalgebra::Vector3;
 
     let rho_prime = |z: f64| -> f64 {
@@ -243,21 +274,27 @@ fn a2_hausdorff_gate_on_refinement_indicator() {
     let threshold = 0.5 * RHO0 * AMPL * 2.0 * core::f64::consts::PI / ELL;
 
     let builder = PeriodicCubeMeshBuilder::new(&PeriodicCubeMeshBuilderOpts {
-        resolution: 8, refine_depth: 0,
+        resolution: 8,
+        refine_depth: 0,
     });
     let (unit_mesh, _) = builder.build().unwrap();
-    let slab_bary: Vec<Vector3<f64>> = unit_mesh.simplices.iter().map(|tet| {
-        let v: [Vector3<f64>; 4] = [
-            unit_mesh.vertices[tet[0]], unit_mesh.vertices[tet[1]],
-            unit_mesh.vertices[tet[2]], unit_mesh.vertices[tet[3]],
-        ];
-        let b = (v[0] + v[1] + v[2] + v[3]) / 4.0;
-        Vector3::new(b.x * L_X, b.y * L_Y, b.z * H)
-    }).collect();
+    let slab_bary: Vec<Vector3<f64>> = unit_mesh
+        .simplices
+        .iter()
+        .map(|tet| {
+            let v: [Vector3<f64>; 4] = [
+                unit_mesh.vertices[tet[0]],
+                unit_mesh.vertices[tet[1]],
+                unit_mesh.vertices[tet[2]],
+                unit_mesh.vertices[tet[3]],
+            ];
+            let b = (v[0] + v[1] + v[2] + v[3]) / 4.0;
+            Vector3::new(b.x * L_X, b.y * L_Y, b.z * H)
+        })
+        .collect();
 
     let refined = hausdorff::refined_barycentres(&slab_bary, rho_prime, threshold);
-    let analytic = hausdorff::analytic_transition_points(
-        L_X, L_Y, H, 4, 200, rho_prime, threshold);
+    let analytic = hausdorff::analytic_transition_points(L_X, L_Y, H, 4, 200, rho_prime, threshold);
     println!("A2 Hausdorff gate:");
     println!("  refined tets:     {}", refined.len());
     println!("  analytic points:  {}", analytic.len());
@@ -265,9 +302,12 @@ fn a2_hausdorff_gate_on_refinement_indicator() {
     assert!(!analytic.is_empty());
 
     let d = hausdorff::one_sided_hausdorff(&refined, &analytic);
-    let bound = L_X / 10.0 + H / 8.0;   // one diagonal-cell slack
+    let bound = L_X / 10.0 + H / 8.0; // one diagonal-cell slack
     println!("  d_H(refined -> analytic) = {d:.3} m (bound = {bound:.3} m)");
-    assert!(d < bound, "Hausdorff gate violated: d = {d}, bound = {bound}");
+    assert!(
+        d < bound,
+        "Hausdorff gate violated: d = {d}, bound = {bound}"
+    );
 }
 
 /// Assertion A5: full-field vs mean-field cross-check on a single RVE at z = H/2.
@@ -283,8 +323,10 @@ fn a5_full_field_cross_check() {
 
     let mut rve = Rve::<Order2>::new();
     rve.add_phase(Phase {
-        name: "MATRIX".into(), shape: Arc::new(Sphere),
-        property: Order2::scalar(K0), fraction: 1.0 - phi_surrogate,
+        name: "MATRIX".into(),
+        shape: Arc::new(Sphere),
+        property: Order2::scalar(K0),
+        fraction: 1.0 - phi_surrogate,
     });
     // 10^4 contrast balances physical meaning (well past "soft" regime) with
     // CI budget: at 10^6 the periodic AMG stalls and falls through to dense
@@ -293,8 +335,10 @@ fn a5_full_field_cross_check() {
     // cartan-homog::fullfield::tests::full_field_void_limit_solves_at_1e6_contrast
     // (smaller mesh N=6, faster).
     rve.add_phase(Phase {
-        name: "INCLUSION".into(), shape: Arc::new(Sphere),
-        property: Order2::scalar(K0 * 1.0e-4), fraction: phi_surrogate,
+        name: "INCLUSION".into(),
+        shape: Arc::new(Sphere),
+        property: Order2::scalar(K0 * 1.0e-4),
+        fraction: phi_surrogate,
     });
     rve.set_matrix("MATRIX");
 
@@ -307,10 +351,18 @@ fn a5_full_field_cross_check() {
     let d = reliability_indicator_order2(&e_ff.tensor, &e_mf.tensor).unwrap();
     println!("A5 @ z = H/2:");
     println!("  rho = phi_surrogate = {phi_surrogate:.3}");
-    println!("  FF k_eff = [{:.3e}, {:.3e}, {:.3e}]",
-             e_ff.tensor[(0,0)], e_ff.tensor[(1,1)], e_ff.tensor[(2,2)]);
-    println!("  MF k_eff = [{:.3e}, {:.3e}, {:.3e}]",
-             e_mf.tensor[(0,0)], e_mf.tensor[(1,1)], e_mf.tensor[(2,2)]);
+    println!(
+        "  FF k_eff = [{:.3e}, {:.3e}, {:.3e}]",
+        e_ff.tensor[(0, 0)],
+        e_ff.tensor[(1, 1)],
+        e_ff.tensor[(2, 2)]
+    );
+    println!(
+        "  MF k_eff = [{:.3e}, {:.3e}, {:.3e}]",
+        e_mf.tensor[(0, 0)],
+        e_mf.tensor[(1, 1)],
+        e_mf.tensor[(2, 2)]
+    );
     println!("  d_AI(FF, MF) = {d:.3e}");
 
     // Moderate-contrast sphere (phi ~ 0.3, 10^6 contrast near void limit):
@@ -323,15 +375,24 @@ fn spd_geodesic_interpolation_sanity() {
     // Sanity on Stage 3 (SPD geodesic interp): halfway interpolant between two
     // RVEs at different depths must be SPD and its eigenvalues must lie between
     // the endpoint eigenvalues elementwise.
-    let k_a = MoriTanaka.homogenize(&rve_at_depth(H / 8.0), &SchemeOpts::default()).unwrap().tensor;
-    let k_b = MoriTanaka.homogenize(&rve_at_depth(7.0 * H / 8.0), &SchemeOpts::default()).unwrap().tensor;
+    let k_a = MoriTanaka
+        .homogenize(&rve_at_depth(H / 8.0), &SchemeOpts::default())
+        .unwrap()
+        .tensor;
+    let k_b = MoriTanaka
+        .homogenize(&rve_at_depth(7.0 * H / 8.0), &SchemeOpts::default())
+        .unwrap()
+        .tensor;
 
     // Halfway point on SPD(3) geodesic.
     let k_mid = Order2::spd_geodesic_step(&k_a, &k_b, 0.5).unwrap();
 
     let eig_mid = k_mid.symmetric_eigen();
-    assert!(eig_mid.eigenvalues.iter().all(|v| *v > 0.0),
-            "midpoint eigenvalues must be positive: {:?}", eig_mid.eigenvalues);
+    assert!(
+        eig_mid.eigenvalues.iter().all(|v| *v > 0.0),
+        "midpoint eigenvalues must be positive: {:?}",
+        eig_mid.eigenvalues
+    );
 
     // Triangle inequality sanity: d(a, mid) + d(mid, b) >= d(a, b).
     // NOTE: exact triangle *equality* fails for extreme-anisotropy SPDs (10^4+
@@ -342,8 +403,14 @@ fn spd_geodesic_interpolation_sanity() {
     let d_ab = ai_distance_order2(&k_a, &k_b).unwrap();
     let d_am = ai_distance_order2(&k_a, &k_mid).unwrap();
     let d_mb = ai_distance_order2(&k_mid, &k_b).unwrap();
-    let sum  = d_am + d_mb;
-    assert!(sum >= d_ab - 1e-9, "triangle inequality: d(a,mid)+d(mid,b) = {sum} < d(a,b) = {d_ab}");
-    assert!(sum < d_ab * 1.5, "geodesic path ~ half sum; got {sum} vs {d_ab}");
+    let sum = d_am + d_mb;
+    assert!(
+        sum >= d_ab - 1e-9,
+        "triangle inequality: d(a,mid)+d(mid,b) = {sum} < d(a,b) = {d_ab}"
+    );
+    assert!(
+        sum < d_ab * 1.5,
+        "geodesic path ~ half sum; got {sum} vs {d_ab}"
+    );
     assert!(d_am < d_ab && d_mb < d_ab);
 }

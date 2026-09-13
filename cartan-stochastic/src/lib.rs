@@ -56,9 +56,9 @@ pub mod horizontal;
 pub mod sde;
 pub mod wishart;
 
-pub use development::{stochastic_development, DevelopmentPath};
+pub use development::{DevelopmentPath, stochastic_development};
 pub use error::StochasticError;
-pub use frame::{random_frame_at, OrthonormalFrame};
+pub use frame::{OrthonormalFrame, random_frame_at};
 pub use horizontal::horizontal_velocity;
-pub use sde::{stratonovich_step, StratonovichDevelopment};
+pub use sde::{StratonovichDevelopment, stratonovich_step};
 pub use wishart::wishart_step;

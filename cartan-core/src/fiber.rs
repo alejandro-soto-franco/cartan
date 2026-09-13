@@ -68,7 +68,12 @@ pub trait Fiber: Clone + Send + Sync + 'static {
 /// knowing the concrete array size at compile time.
 pub trait FiberOps: Fiber {
     /// Accumulate: `target[i] += scale * (a[i] - b[i])` for all components.
-    fn accumulate_diff(target: &mut Self::Element, a: &Self::Element, b: &Self::Element, scale: f64);
+    fn accumulate_diff(
+        target: &mut Self::Element,
+        a: &Self::Element,
+        b: &Self::Element,
+        scale: f64,
+    );
 
     /// Scale: `target[i] *= scale` for all components.
     fn scale_element(target: &mut Self::Element, scale: f64);
@@ -111,7 +116,10 @@ impl<F: Fiber> VecSection<F> {
 
     /// Create from an existing Vec.
     pub fn from_vec(data: Vec<F::Element>) -> Self {
-        Self { data, _marker: core::marker::PhantomData }
+        Self {
+            data,
+            _marker: core::marker::PhantomData,
+        }
     }
 
     /// Number of vertices.
@@ -127,9 +135,15 @@ impl<F: Fiber> VecSection<F> {
 
 #[cfg(feature = "alloc")]
 impl<F: Fiber> Section<F> for VecSection<F> {
-    fn n_vertices(&self) -> usize { self.data.len() }
-    fn at(&self, v: usize) -> &F::Element { &self.data[v] }
-    fn at_mut(&mut self, v: usize) -> &mut F::Element { &mut self.data[v] }
+    fn n_vertices(&self) -> usize {
+        self.data.len()
+    }
+    fn at(&self, v: usize) -> &F::Element {
+        &self.data[v]
+    }
+    fn at_mut(&mut self, v: usize) -> &mut F::Element {
+        &mut self.data[v]
+    }
 }
 
 // ─── U1Spin2 (nematic on 2-manifolds) ────────────────────────────────────────
@@ -150,7 +164,9 @@ impl Fiber for U1Spin2 {
     type Element = [f64; 2];
     const FIBER_DIM: usize = 2;
 
-    fn zero() -> [f64; 2] { [0.0, 0.0] }
+    fn zero() -> [f64; 2] {
+        [0.0, 0.0]
+    }
 
     fn transport_by(rotation: &[f64], d: usize, element: &[f64; 2]) -> [f64; 2] {
         debug_assert_eq!(d, 2, "U1Spin2 requires d=2");
@@ -211,7 +227,9 @@ where
     type Element = [f64; D];
     const FIBER_DIM: usize = D;
 
-    fn zero() -> [f64; D] { [0.0; D] }
+    fn zero() -> [f64; D] {
+        [0.0; D]
+    }
 
     fn transport_by(rotation: &[f64], d: usize, element: &[f64; D]) -> [f64; D] {
         debug_assert_eq!(d, D);
@@ -257,14 +275,17 @@ impl Fiber for NematicFiber3D {
     type Element = [f64; 5];
     const FIBER_DIM: usize = 5;
 
-    fn zero() -> [f64; 5] { [0.0; 5] }
+    fn zero() -> [f64; 5] {
+        [0.0; 5]
+    }
 
     fn transport_by(rotation: &[f64], d: usize, element: &[f64; 5]) -> [f64; 5] {
         debug_assert_eq!(d, 3, "NematicFiber3D requires d=3");
         debug_assert!(rotation.len() >= 9);
 
         // Unpack 5 components to full 3x3 symmetric traceless.
-        let (q11, q12, q13, q22, q23) = (element[0], element[1], element[2], element[3], element[4]);
+        let (q11, q12, q13, q22, q23) =
+            (element[0], element[1], element[2], element[3], element[4]);
         let q33 = -q11 - q22;
         let q = [[q11, q12, q13], [q12, q22, q23], [q13, q23, q33]];
 
@@ -311,16 +332,22 @@ mod rotor_transport_tests {
         // Rotation about a fixed oblique axis.
         let u = {
             let a = [0.3_f64, -0.7, 0.5];
-            let n = (a[0]*a[0] + a[1]*a[1] + a[2]*a[2]).sqrt();
-            [a[0]/n, a[1]/n, a[2]/n]
+            let n = (a[0] * a[0] + a[1] * a[1] + a[2] * a[2]).sqrt();
+            [a[0] / n, a[1] / n, a[2] / n]
         };
         let (c, s) = (angle.cos(), angle.sin());
         let t = 1.0 - c;
         let (ux, uy, uz) = (u[0], u[1], u[2]);
         let m = [
-            c + ux*ux*t,    ux*uy*t - uz*s, ux*uz*t + uy*s,
-            uy*ux*t + uz*s, c + uy*uy*t,    uy*uz*t - ux*s,
-            uz*ux*t - uy*s, uz*uy*t + ux*s, c + uz*uz*t,
+            c + ux * ux * t,
+            ux * uy * t - uz * s,
+            ux * uz * t + uy * s,
+            uy * ux * t + uz * s,
+            c + uy * uy * t,
+            uy * uz * t - ux * s,
+            uz * ux * t - uy * s,
+            uz * uy * t + ux * s,
+            c + uz * uz * t,
         ];
         Rotor3::from_matrix(&m)
     }
@@ -331,8 +358,8 @@ mod rotor_transport_tests {
         let elem = [0.4, -0.9];
         let via_rotor = U1Spin2::transport_by_rotor(&Rotor::R2(rot), &elem);
         let via_matrix = U1Spin2::transport_by(&rot.to_matrix(), 2, &elem);
-        assert!((via_rotor[0]-via_matrix[0]).abs() < 1e-12);
-        assert!((via_rotor[1]-via_matrix[1]).abs() < 1e-12);
+        assert!((via_rotor[0] - via_matrix[0]).abs() < 1e-12);
+        assert!((via_rotor[1] - via_matrix[1]).abs() < 1e-12);
     }
 
     #[test]
@@ -341,7 +368,9 @@ mod rotor_transport_tests {
         let elem = [1.0, -2.0, 0.5];
         let via_rotor = TangentFiber::<3>::transport_by_rotor(&Rotor::R3(rot), &elem);
         let via_matrix = TangentFiber::<3>::transport_by(&rot.to_matrix(), 3, &elem);
-        for k in 0..3 { assert!((via_rotor[k]-via_matrix[k]).abs() < 1e-12); }
+        for k in 0..3 {
+            assert!((via_rotor[k] - via_matrix[k]).abs() < 1e-12);
+        }
     }
 
     #[test]
@@ -350,6 +379,8 @@ mod rotor_transport_tests {
         let elem = [0.2, -0.1, 0.05, 0.3, -0.15];
         let via_rotor = NematicFiber3D::transport_by_rotor(&Rotor::R3(rot), &elem);
         let via_matrix = NematicFiber3D::transport_by(&rot.to_matrix(), 3, &elem);
-        for k in 0..5 { assert!((via_rotor[k]-via_matrix[k]).abs() < 1e-12); }
+        for k in 0..5 {
+            assert!((via_rotor[k] - via_matrix[k]).abs() < 1e-12);
+        }
     }
 }

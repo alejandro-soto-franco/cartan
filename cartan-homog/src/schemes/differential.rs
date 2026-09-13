@@ -12,9 +12,12 @@
 //!
 //! Both currently support single-inclusion RVEs.
 
-use crate::{error::HomogError, rve::{Phase, Rve},
-            schemes::{Effective, Scheme, SchemeOpts},
-            tensor::TensorOrder};
+use crate::{
+    error::HomogError,
+    rve::{Phase, Rve},
+    schemes::{Effective, Scheme, SchemeOpts},
+    tensor::TensorOrder,
+};
 
 #[derive(Clone, Debug)]
 pub struct Differential {
@@ -22,18 +25,23 @@ pub struct Differential {
 }
 
 impl Default for Differential {
-    fn default() -> Self { Self { n_steps: 100 } }
+    fn default() -> Self {
+        Self { n_steps: 100 }
+    }
 }
 
 impl<O: TensorOrder> Scheme<O> for Differential {
     fn homogenize(&self, rve: &Rve<O>, opts: &SchemeOpts) -> Result<Effective<O>, HomogError> {
         let c0 = rve.matrix_property()?.clone();
-        let incls: alloc::vec::Vec<&Phase<O>> = rve.phases.iter()
+        let incls: alloc::vec::Vec<&Phase<O>> = rve
+            .phases
+            .iter()
             .filter(|p| !rve.is_matrix_phase(&p.name))
             .collect();
         if incls.len() != 1 {
             return Err(HomogError::Solver(alloc::string::String::from(
-                "Differential scheme currently supports single-inclusion RVEs")));
+                "Differential scheme currently supports single-inclusion RVEs",
+            )));
         }
         let inc = incls[0];
         let f_target = inc.fraction;
@@ -42,17 +50,40 @@ impl<O: TensorOrder> Scheme<O> for Differential {
         let mut c_hom = c0;
         let mut f = 0.0;
         for _ in 0..n {
-            let k1 = rate::<O>(&c_hom, &inc.property, inc, f,              opts)?;
-            let k2 = rate::<O>(&O::add(&c_hom, &O::scale(&k1, df * 0.5)), &inc.property, inc, f + df*0.5, opts)?;
-            let k3 = rate::<O>(&O::add(&c_hom, &O::scale(&k2, df * 0.5)), &inc.property, inc, f + df*0.5, opts)?;
-            let k4 = rate::<O>(&O::add(&c_hom, &O::scale(&k3, df      )), &inc.property, inc, f + df,       opts)?;
+            let k1 = rate::<O>(&c_hom, &inc.property, inc, f, opts)?;
+            let k2 = rate::<O>(
+                &O::add(&c_hom, &O::scale(&k1, df * 0.5)),
+                &inc.property,
+                inc,
+                f + df * 0.5,
+                opts,
+            )?;
+            let k3 = rate::<O>(
+                &O::add(&c_hom, &O::scale(&k2, df * 0.5)),
+                &inc.property,
+                inc,
+                f + df * 0.5,
+                opts,
+            )?;
+            let k4 = rate::<O>(
+                &O::add(&c_hom, &O::scale(&k3, df)),
+                &inc.property,
+                inc,
+                f + df,
+                opts,
+            )?;
             let mut delta = O::add(&k1, &O::scale(&k2, 2.0));
             delta = O::add(&delta, &O::scale(&k3, 2.0));
             delta = O::add(&delta, &k4);
             c_hom = O::add(&c_hom, &O::scale(&delta, df / 6.0));
             f += df;
         }
-        Ok(Effective { tensor: c_hom, concentration: None, iterations: Some(n), residual: None })
+        Ok(Effective {
+            tensor: c_hom,
+            concentration: None,
+            iterations: Some(n),
+            residual: None,
+        })
     }
 }
 
@@ -83,18 +114,23 @@ pub struct DifferentialCompliance {
 }
 
 impl Default for DifferentialCompliance {
-    fn default() -> Self { Self { n_steps: 100 } }
+    fn default() -> Self {
+        Self { n_steps: 100 }
+    }
 }
 
 impl<O: TensorOrder> Scheme<O> for DifferentialCompliance {
     fn homogenize(&self, rve: &Rve<O>, opts: &SchemeOpts) -> Result<Effective<O>, HomogError> {
         let c0 = rve.matrix_property()?.clone();
-        let incls: alloc::vec::Vec<&Phase<O>> = rve.phases.iter()
+        let incls: alloc::vec::Vec<&Phase<O>> = rve
+            .phases
+            .iter()
             .filter(|p| !rve.is_matrix_phase(&p.name))
             .collect();
         if incls.len() != 1 {
             return Err(HomogError::Solver(alloc::string::String::from(
-                "DifferentialCompliance scheme currently supports single-inclusion RVEs")));
+                "DifferentialCompliance scheme currently supports single-inclusion RVEs",
+            )));
         }
         let inc = incls[0];
         let f_target = inc.fraction;
@@ -106,10 +142,22 @@ impl<O: TensorOrder> Scheme<O> for DifferentialCompliance {
         let mut s_hom = s0;
         let mut f = 0.0;
         for _ in 0..n {
-            let k1 = rate_dual::<O>(&s_hom, &s1, inc, f,                                      opts)?;
-            let k2 = rate_dual::<O>(&O::add(&s_hom, &O::scale(&k1, df * 0.5)), &s1, inc, f + df * 0.5, opts)?;
-            let k3 = rate_dual::<O>(&O::add(&s_hom, &O::scale(&k2, df * 0.5)), &s1, inc, f + df * 0.5, opts)?;
-            let k4 = rate_dual::<O>(&O::add(&s_hom, &O::scale(&k3, df      )), &s1, inc, f + df,       opts)?;
+            let k1 = rate_dual::<O>(&s_hom, &s1, inc, f, opts)?;
+            let k2 = rate_dual::<O>(
+                &O::add(&s_hom, &O::scale(&k1, df * 0.5)),
+                &s1,
+                inc,
+                f + df * 0.5,
+                opts,
+            )?;
+            let k3 = rate_dual::<O>(
+                &O::add(&s_hom, &O::scale(&k2, df * 0.5)),
+                &s1,
+                inc,
+                f + df * 0.5,
+                opts,
+            )?;
+            let k4 = rate_dual::<O>(&O::add(&s_hom, &O::scale(&k3, df)), &s1, inc, f + df, opts)?;
             let mut delta = O::add(&k1, &O::scale(&k2, 2.0));
             delta = O::add(&delta, &O::scale(&k3, 2.0));
             delta = O::add(&delta, &k4);
@@ -117,7 +165,12 @@ impl<O: TensorOrder> Scheme<O> for DifferentialCompliance {
             f += df;
         }
         let c_hom = O::inverse(&s_hom)?;
-        Ok(Effective { tensor: c_hom, concentration: None, iterations: Some(n), residual: None })
+        Ok(Effective {
+            tensor: c_hom,
+            concentration: None,
+            iterations: Some(n),
+            residual: None,
+        })
     }
 }
 
@@ -149,24 +202,44 @@ mod tests {
     #[test]
     fn differential_matches_matrix_at_zero_fraction() {
         let mut rve = Rve::<Order2>::new();
-        rve.add_phase(Phase { name: String::from("M"), shape: Arc::new(Sphere),
-            property: Order2::scalar(1.0), fraction: 1.0 });
-        rve.add_phase(Phase { name: String::from("I"), shape: Arc::new(Sphere),
-            property: Order2::scalar(10.0), fraction: 0.0 });
+        rve.add_phase(Phase {
+            name: String::from("M"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0),
+            fraction: 1.0,
+        });
+        rve.add_phase(Phase {
+            name: String::from("I"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(10.0),
+            fraction: 0.0,
+        });
         rve.set_matrix("M");
-        let e = Differential::default().homogenize(&rve, &SchemeOpts::default()).unwrap();
+        let e = Differential::default()
+            .homogenize(&rve, &SchemeOpts::default())
+            .unwrap();
         assert!((e.tensor[(0, 0)] - 1.0).abs() < 1e-8);
     }
 
     #[test]
     fn differential_compliance_agrees_at_zero_fraction() {
         let mut rve = Rve::<Order2>::new();
-        rve.add_phase(Phase { name: String::from("M"), shape: Arc::new(Sphere),
-            property: Order2::scalar(1.0), fraction: 1.0 });
-        rve.add_phase(Phase { name: String::from("I"), shape: Arc::new(Sphere),
-            property: Order2::scalar(10.0), fraction: 0.0 });
+        rve.add_phase(Phase {
+            name: String::from("M"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0),
+            fraction: 1.0,
+        });
+        rve.add_phase(Phase {
+            name: String::from("I"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(10.0),
+            fraction: 0.0,
+        });
         rve.set_matrix("M");
-        let e = DifferentialCompliance::default().homogenize(&rve, &SchemeOpts::default()).unwrap();
+        let e = DifferentialCompliance::default()
+            .homogenize(&rve, &SchemeOpts::default())
+            .unwrap();
         assert!((e.tensor[(0, 0)] - 1.0).abs() < 1e-8);
     }
 
@@ -176,14 +249,26 @@ mod tests {
         // For soft inclusions the dual variant is physically preferred; both
         // converge to the same limit as phi -> 0.
         let mut rve = Rve::<Order2>::new();
-        rve.add_phase(Phase { name: String::from("M"), shape: Arc::new(Sphere),
-            property: Order2::scalar(10.0), fraction: 0.8 });
-        rve.add_phase(Phase { name: String::from("I"), shape: Arc::new(Sphere),
-            property: Order2::scalar(0.1), fraction: 0.2 });
+        rve.add_phase(Phase {
+            name: String::from("M"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(10.0),
+            fraction: 0.8,
+        });
+        rve.add_phase(Phase {
+            name: String::from("I"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(0.1),
+            fraction: 0.2,
+        });
         rve.set_matrix("M");
-        let e_primal = Differential::default().homogenize(&rve, &SchemeOpts::default()).unwrap();
-        let e_dual   = DifferentialCompliance::default().homogenize(&rve, &SchemeOpts::default()).unwrap();
+        let e_primal = Differential::default()
+            .homogenize(&rve, &SchemeOpts::default())
+            .unwrap();
+        let e_dual = DifferentialCompliance::default()
+            .homogenize(&rve, &SchemeOpts::default())
+            .unwrap();
         assert!(e_primal.tensor[(0, 0)] > 0.0 && e_primal.tensor[(0, 0)] < 10.0);
-        assert!(e_dual.tensor[(0, 0)]   > 0.0 && e_dual.tensor[(0, 0)]   < 10.0);
+        assert!(e_dual.tensor[(0, 0)] > 0.0 && e_dual.tensor[(0, 0)] < 10.0);
     }
 }

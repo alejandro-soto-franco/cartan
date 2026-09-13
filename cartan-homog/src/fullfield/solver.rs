@@ -8,20 +8,25 @@
 //!     (used for strongly anisotropic / near-singular periodic systems).
 
 use crate::error::HomogError;
+use alloc::vec::Vec;
 use nalgebra::{DMatrix, DVector};
 use nalgebra_sparse::CscMatrix;
-use alloc::vec::Vec;
 
 /// Preconditioned conjugate-gradient solve for `A x = b`, A symmetric positive definite.
 /// Returns (x, iterations, final_residual).
 pub fn pcg_jacobi(
-    a: &CscMatrix<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+    a: &CscMatrix<f64>,
+    b: &DVector<f64>,
+    tol: f64,
+    max_iter: usize,
 ) -> Result<(DVector<f64>, usize, f64), HomogError> {
     let n = b.len();
     let diag = {
         let mut d = DVector::<f64>::zeros(n);
         for (i, j, &val) in a.triplet_iter() {
-            if i == j { d[i] = val; }
+            if i == j {
+                d[i] = val;
+            }
         }
         d
     };
@@ -29,7 +34,9 @@ pub fn pcg_jacobi(
     let m_inv = |r: &DVector<f64>| -> DVector<f64> {
         let mut z = DVector::<f64>::zeros(r.len());
         for i in 0..r.len() {
-            if diag[i].abs() > 1e-30 { z[i] = r[i] / diag[i]; }
+            if diag[i].abs() > 1e-30 {
+                z[i] = r[i] / diag[i];
+            }
         }
         z
     };
@@ -49,12 +56,16 @@ pub fn pcg_jacobi(
     for iter in 0..max_iter {
         let ap = apply_a(&p);
         let pap = p.dot(&ap);
-        if pap.abs() < 1e-30 { break; }
+        if pap.abs() < 1e-30 {
+            break;
+        }
         let alpha = rz_old / pap;
         x += alpha * &p;
         r -= alpha * &ap;
         let rel = r.norm() / b_norm;
-        if rel < tol { return Ok((x, iter + 1, rel)); }
+        if rel < tol {
+            return Ok((x, iter + 1, rel));
+        }
         z = m_inv(&r);
         let rz_new = r.dot(&z);
         let beta = rz_new / rz_old;
@@ -62,7 +73,10 @@ pub fn pcg_jacobi(
         rz_old = rz_new;
     }
     let final_residual = (b - apply_a(&x)).norm() / b_norm;
-    Err(HomogError::DidNotConverge { iters: max_iter, residual: final_residual })
+    Err(HomogError::DidNotConverge {
+        iters: max_iter,
+        residual: final_residual,
+    })
 }
 
 /// ILU(0) incomplete LU factorisation with zero fill-in. Stores L and U as
@@ -71,7 +85,7 @@ pub fn pcg_jacobi(
 pub struct Ilu0 {
     /// L + U combined: L below diagonal (L's diag is 1 implicitly),
     /// diagonal is `U[i,i]`, above diagonal is `U[i,j]`.
-    pub data: Vec<Vec<(usize, f64)>>,  // row i -> sorted (col, val) pairs
+    pub data: Vec<Vec<(usize, f64)>>, // row i -> sorted (col, val) pairs
     pub n: usize,
 }
 
@@ -109,22 +123,28 @@ impl Ilu0 {
             let mut i_row = core::mem::take(&mut rows[i]);
             for idx_k in 0..i_row.len() {
                 let (k, _) = i_row[idx_k];
-                if k >= i { break; }  // only pre-diagonal entries participate in the elimination loop
+                if k >= i {
+                    break;
+                } // only pre-diagonal entries participate in the elimination loop
 
                 // Find A[k, k] for scaling.
-                let a_kk = rows[k].iter().find(|&&(j, _)| j == k)
+                let a_kk = rows[k]
+                    .iter()
+                    .find(|&&(j, _)| j == k)
                     .map(|&(_, v)| v)
                     .filter(|v| v.abs() > 1e-30);
                 let a_kk = match a_kk {
                     Some(v) => v,
-                    None => continue,   // null pivot: skip, ILU(0) accepts regularisation upstream
+                    None => continue, // null pivot: skip, ILU(0) accepts regularisation upstream
                 };
                 i_row[idx_k].1 /= a_kk;
                 let a_ik = i_row[idx_k].1;
 
                 // Update A[i, j] -= A[i, k] * A[k, j] for j > k where (i, j) already nonzero.
                 for (j, val) in i_row.iter_mut() {
-                    if *j <= k { continue; }
+                    if *j <= k {
+                        continue;
+                    }
                     if let Some(&(_, a_kj)) = rows[k].iter().find(|&&(col, _)| col == *j) {
                         *val -= a_ik * a_kj;
                     }
@@ -144,8 +164,11 @@ impl Ilu0 {
         for i in 0..n {
             let mut sum = r[i];
             for &(j, v) in &self.data[i] {
-                if j < i { sum -= v * y[j]; }
-                else { break; }
+                if j < i {
+                    sum -= v * y[j];
+                } else {
+                    break;
+                }
             }
             y[i] = sum;
         }
@@ -155,11 +178,20 @@ impl Ilu0 {
             let mut sum = y[i];
             let mut diag = 0.0;
             for &(j, v) in &self.data[i] {
-                if j < i { continue; }
-                if j == i { diag = v; continue; }
+                if j < i {
+                    continue;
+                }
+                if j == i {
+                    diag = v;
+                    continue;
+                }
                 sum -= v * x[j];
             }
-            if diag.abs() > 1e-30 { x[i] = sum / diag; } else { x[i] = 0.0; }
+            if diag.abs() > 1e-30 {
+                x[i] = sum / diag;
+            } else {
+                x[i] = 0.0;
+            }
         }
         x
     }
@@ -167,12 +199,17 @@ impl Ilu0 {
 
 /// ILU(0)-preconditioned conjugate-gradient solve.
 pub fn pcg_ilu0(
-    a: &CscMatrix<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+    a: &CscMatrix<f64>,
+    b: &DVector<f64>,
+    tol: f64,
+    max_iter: usize,
 ) -> Result<(DVector<f64>, usize, f64), HomogError> {
     let ilu = Ilu0::factor(a);
     let apply_a = |v: &DVector<f64>| -> DVector<f64> {
         let mut out = DVector::<f64>::zeros(v.len());
-        for (i, j, &val) in a.triplet_iter() { out[i] += val * v[j]; }
+        for (i, j, &val) in a.triplet_iter() {
+            out[i] += val * v[j];
+        }
         out
     };
     let n = b.len();
@@ -185,12 +222,16 @@ pub fn pcg_ilu0(
     for iter in 0..max_iter {
         let ap = apply_a(&p);
         let pap = p.dot(&ap);
-        if pap.abs() < 1e-30 { break; }
+        if pap.abs() < 1e-30 {
+            break;
+        }
         let alpha = rz_old / pap;
         x += alpha * &p;
         r -= alpha * &ap;
         let rel = r.norm() / b_norm;
-        if rel < tol { return Ok((x, iter + 1, rel)); }
+        if rel < tol {
+            return Ok((x, iter + 1, rel));
+        }
         z = ilu.apply(&r);
         let rz_new = r.dot(&z);
         let beta = rz_new / rz_old;
@@ -198,7 +239,10 @@ pub fn pcg_ilu0(
         rz_old = rz_new;
     }
     let final_residual = (b - apply_a(&x)).norm() / b_norm;
-    Err(HomogError::DidNotConverge { iters: max_iter, residual: final_residual })
+    Err(HomogError::DidNotConverge {
+        iters: max_iter,
+        residual: final_residual,
+    })
 }
 
 /// Dense LU solve for `A x = b`. Pays a O(n^3) cost; use for small n or when
@@ -210,8 +254,11 @@ pub fn solve_dense_lu(a: &CscMatrix<f64>, b: &DVector<f64>) -> Result<DVector<f6
         dense[(i, j)] += val;
     }
     let lu = dense.lu();
-    lu.solve(b).ok_or_else(|| HomogError::Solver(alloc::string::String::from(
-        "dense LU solve failed: matrix is singular or near-singular")))
+    lu.solve(b).ok_or_else(|| {
+        HomogError::Solver(alloc::string::String::from(
+            "dense LU solve failed: matrix is singular or near-singular",
+        ))
+    })
 }
 
 /// Two-level aggregation AMG + Jacobi smoother + dense-LU coarse solve.
@@ -245,12 +292,15 @@ impl Amg {
         // Fine diagonal.
         let mut diag_fine = DVector::<f64>::zeros(n);
         for (i, j, &val) in a.triplet_iter() {
-            if i == j { diag_fine[i] += val; }
+            if i == j {
+                diag_fine[i] += val;
+            }
         }
 
         // Strong-connection graph (Ruge-Stüben style).
         use alloc::collections::BTreeMap;
-        let mut strong: alloc::vec::Vec<alloc::vec::Vec<usize>> = alloc::vec![alloc::vec::Vec::new(); n];
+        let mut strong: alloc::vec::Vec<alloc::vec::Vec<usize>> =
+            alloc::vec![alloc::vec::Vec::new(); n];
         // Collect off-diagonal entries per row then filter by strength criterion.
         let mut row_map: alloc::vec::Vec<BTreeMap<usize, f64>> = alloc::vec![BTreeMap::new(); n];
         for (i, j, &val) in a.triplet_iter() {
@@ -273,7 +323,9 @@ impl Amg {
         let mut aggregate_of: Vec<usize> = alloc::vec![usize::MAX; n];
         let mut n_coarse = 0;
         for i in 0..n {
-            if aggregate_of[i] != usize::MAX { continue; }
+            if aggregate_of[i] != usize::MAX {
+                continue;
+            }
             let agg = n_coarse;
             n_coarse += 1;
             aggregate_of[i] = agg;
@@ -318,14 +370,16 @@ impl Amg {
             let res = r - &ax;
             for i in 0..n {
                 if self.diag_fine[i].abs() > 1e-30 {
-                    x[i] += 0.6 * res[i] / self.diag_fine[i];  // damped Jacobi
+                    x[i] += 0.6 * res[i] / self.diag_fine[i]; // damped Jacobi
                 }
             }
         }
 
         // Residual at fine level.
         let mut ax = DVector::<f64>::zeros(n);
-        for (i, j, &val) in self.a_fine.triplet_iter() { ax[i] += val * x[j]; }
+        for (i, j, &val) in self.a_fine.triplet_iter() {
+            ax[i] += val * x[j];
+        }
         let residual_fine = r - ax;
 
         // Restrict to coarse.
@@ -335,7 +389,9 @@ impl Amg {
         }
 
         // Direct-solve A_c · e_c = r_c using the pre-factored LU (cached in `build`).
-        let e_coarse = self.a_coarse_lu.solve(&residual_coarse)
+        let e_coarse = self
+            .a_coarse_lu
+            .solve(&residual_coarse)
             .unwrap_or_else(|| DVector::zeros(self.n_coarse));
 
         // Prolong coarse correction back to fine and apply.
@@ -345,7 +401,9 @@ impl Amg {
 
         // Post-smooth: one more Jacobi step.
         let mut ax = DVector::<f64>::zeros(n);
-        for (i, j, &val) in self.a_fine.triplet_iter() { ax[i] += val * x[j]; }
+        for (i, j, &val) in self.a_fine.triplet_iter() {
+            ax[i] += val * x[j];
+        }
         let res = r - &ax;
         for i in 0..n {
             if self.diag_fine[i].abs() > 1e-30 {
@@ -358,13 +416,18 @@ impl Amg {
 
 /// AMG-preconditioned conjugate gradient.
 pub fn pcg_amg(
-    a: &CscMatrix<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+    a: &CscMatrix<f64>,
+    b: &DVector<f64>,
+    tol: f64,
+    max_iter: usize,
 ) -> Result<(DVector<f64>, usize, f64), HomogError> {
     let amg = Amg::build(a, 0.25);
     let n = b.len();
     let apply_a = |v: &DVector<f64>| -> DVector<f64> {
         let mut out = DVector::<f64>::zeros(v.len());
-        for (i, j, &val) in a.triplet_iter() { out[i] += val * v[j]; }
+        for (i, j, &val) in a.triplet_iter() {
+            out[i] += val * v[j];
+        }
         out
     };
     let mut x = DVector::<f64>::zeros(n);
@@ -376,12 +439,16 @@ pub fn pcg_amg(
     for iter in 0..max_iter {
         let ap = apply_a(&p);
         let pap = p.dot(&ap);
-        if pap.abs() < 1e-30 { break; }
+        if pap.abs() < 1e-30 {
+            break;
+        }
         let alpha = rz_old / pap;
         x += alpha * &p;
         r -= alpha * &ap;
         let rel = r.norm() / b_norm;
-        if rel < tol { return Ok((x, iter + 1, rel)); }
+        if rel < tol {
+            return Ok((x, iter + 1, rel));
+        }
         z = amg.apply(&r);
         let rz_new = r.dot(&z);
         let beta = rz_new / rz_old;
@@ -389,13 +456,19 @@ pub fn pcg_amg(
         rz_old = rz_new;
     }
     let final_residual = (b - apply_a(&x)).norm() / b_norm;
-    Err(HomogError::DidNotConverge { iters: max_iter, residual: final_residual })
+    Err(HomogError::DidNotConverge {
+        iters: max_iter,
+        residual: final_residual,
+    })
 }
 
 /// Solve ladder: Jacobi-PCG -> ILU(0)-PCG -> AMG-PCG -> dense LU.
 /// Each step is tried in turn with the given `tol`/`max_iter`.
 pub fn solve_with_fallback(
-    a: &CscMatrix<f64>, b: &DVector<f64>, tol: f64, max_iter: usize,
+    a: &CscMatrix<f64>,
+    b: &DVector<f64>,
+    tol: f64,
+    max_iter: usize,
 ) -> Result<(DVector<f64>, usize, f64), HomogError> {
     match pcg_jacobi(a, b, tol, max_iter) {
         Ok(t) => return Ok(t),
@@ -449,17 +522,28 @@ mod tests {
             for i in 0..n_side {
                 let k = j * n_side + i;
                 tri.push(k, k, 4.0);
-                if i > 0         { tri.push(k, k - 1, -1.0); }
-                if i < n_side - 1 { tri.push(k, k + 1, -1.0); }
-                if j > 0         { tri.push(k, k - n_side, -1.0); }
-                if j < n_side - 1 { tri.push(k, k + n_side, -1.0); }
+                if i > 0 {
+                    tri.push(k, k - 1, -1.0);
+                }
+                if i < n_side - 1 {
+                    tri.push(k, k + 1, -1.0);
+                }
+                if j > 0 {
+                    tri.push(k, k - n_side, -1.0);
+                }
+                if j < n_side - 1 {
+                    tri.push(k, k + n_side, -1.0);
+                }
             }
         }
         let a = CscMatrix::from(&tri);
         let b = DVector::from_vec(alloc::vec![1.0; n]);
         let (_x, iters, res) = pcg_amg(&a, &b, 1e-10, 200).unwrap();
         assert!(res < 1e-8, "AMG-PCG residual {res}");
-        assert!(iters < n, "AMG-PCG should take fewer than n iterations: got {iters}");
+        assert!(
+            iters < n,
+            "AMG-PCG should take fewer than n iterations: got {iters}"
+        );
     }
 
     #[test]
@@ -469,16 +553,26 @@ mod tests {
         let mut tri = CooMatrix::<f64>::new(n, n);
         for i in 0..n {
             tri.push(i, i, 2.0);
-            if i > 0 { tri.push(i, i - 1, -1.0); tri.push(i - 1, i, -1.0); }
+            if i > 0 {
+                tri.push(i, i - 1, -1.0);
+                tri.push(i - 1, i, -1.0);
+            }
         }
         let a = CscMatrix::from(&tri);
         let b = DVector::from_vec(alloc::vec![1.0; n]);
         let (x, iters, res) = pcg_ilu0(&a, &b, 1e-12, 50).unwrap();
         assert!(res < 1e-10, "ILU-PCG residual {res}");
-        assert!(iters < n, "ILU-PCG should converge in <n iters, got {iters}");
+        assert!(
+            iters < n,
+            "ILU-PCG should converge in <n iters, got {iters}"
+        );
         // Reconstruct A*x and compare with b.
         let mut ax = DVector::<f64>::zeros(n);
-        for (i, j, &val) in a.triplet_iter() { ax[i] += val * x[j]; }
-        for i in 0..n { assert!((ax[i] - b[i]).abs() < 1e-8); }
+        for (i, j, &val) in a.triplet_iter() {
+            ax[i] += val * x[j];
+        }
+        for i in 0..n {
+            assert!((ax[i] - b[i]).abs() < 1e-8);
+        }
     }
 }

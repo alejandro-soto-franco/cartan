@@ -1,7 +1,7 @@
 //! The element-by-element operator must agree with the assembled Galerkin
 //! matrix, and the CG solve with the dense factorisation it replaces.
 
-use cartan_matfree::{pcg, HostMass, Interior, MassBackend};
+use cartan_matfree::{HostMass, Interior, MassBackend, pcg};
 use formoniq::whitney_complex::{RelativeWhitneyComplex, WhitneyComplex};
 use nalgebra::{DMatrix, DVector};
 use nalgebra_sparse::CsrMatrix;

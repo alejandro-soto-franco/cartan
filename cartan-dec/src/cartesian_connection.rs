@@ -26,9 +26,8 @@ pub fn cartesian_3d_connection(
     dx: f64,
 ) -> (EdgeTransport3D, CovLaplacian) {
     let n = nx * ny * nz;
-    let idx = |i: usize, j: usize, k: usize| -> usize {
-        ((i % nx) * ny + (j % ny)) * nz + (k % nz)
-    };
+    let idx =
+        |i: usize, j: usize, k: usize| -> usize { ((i % nx) * ny + (j % ny)) * nz + (k % nz) };
 
     let identity_3x3: [f64; 9] = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0];
 
@@ -53,7 +52,10 @@ pub fn cartesian_3d_connection(
         }
     }
 
-    let transport = EdgeTransport3D { edges: edges.clone(), transports };
+    let transport = EdgeTransport3D {
+        edges: edges.clone(),
+        transports,
+    };
 
     // DEC weights for regular grid:
     // Cotangent weight = 1/dx (gives the standard 1/dx^2 Laplacian stencil
@@ -83,9 +85,7 @@ mod tests {
     fn cartesian_3d_uniform_laplacian_zero() {
         let (transport, cov_lap) = cartesian_3d_connection(4, 4, 4, 1.0);
         let n = 4 * 4 * 4;
-        let field = VecSection::<NematicFiber3D>::from_vec(
-            vec![[0.1, 0.2, 0.3, 0.15, 0.25]; n]
-        );
+        let field = VecSection::<NematicFiber3D>::from_vec(vec![[0.1, 0.2, 0.3, 0.15, 0.25]; n]);
         let result = cov_lap.apply::<NematicFiber3D, 3, _>(&field, &transport);
         for v in 0..n {
             for c in 0..5 {

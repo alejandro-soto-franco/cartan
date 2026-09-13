@@ -174,8 +174,7 @@ pub fn cs_density_su2(conn: &Su2Connection, u: f64, v: f64, w: f64) -> Real {
     let d_v_a1 = (conn.partials[0][1])(u, v, w);
 
     // Tr( A wedge dA ) coefficient
-    let lin =
-        (a1 * (d_v_a3 - d_w_a2) - a2 * (d_u_a3 - d_w_a1) + a3 * (d_u_a2 - d_v_a1)).trace();
+    let lin = (a1 * (d_v_a3 - d_w_a2) - a2 * (d_u_a3 - d_w_a1) + a3 * (d_u_a2 - d_v_a1)).trace();
 
     // (2/3) Tr( A wedge A wedge A ) coefficient = 2 Tr( A_1 [A_2, A_3] )
     let comm_23 = a2 * a3 - a3 * a2;
@@ -188,30 +187,18 @@ pub fn cs_density_su2(conn: &Su2Connection, u: f64, v: f64, w: f64) -> Real {
 /// abelian `U(1)` case via tensor-product Gauss-Legendre quadrature.
 ///
 /// `n_per_axis` selects the quadrature rule. Supported values: 4, 5, 8, 16.
-pub fn integrate_cs_u1(
-    conn: &U1Connection,
-    bounds: [(f64, f64); 3],
-    n_per_axis: usize,
-) -> Real {
+pub fn integrate_cs_u1(conn: &U1Connection, bounds: [(f64, f64); 3], n_per_axis: usize) -> Real {
     integrate_box(bounds, n_per_axis, |u, v, w| cs_density_u1(conn, u, v, w))
 }
 
 /// Integrate `CS(A)` over a 3D box for the non-abelian `su(2)` case.
 ///
 /// `n_per_axis` selects the quadrature rule. Supported values: 4, 5, 8, 16.
-pub fn integrate_cs_su2(
-    conn: &Su2Connection,
-    bounds: [(f64, f64); 3],
-    n_per_axis: usize,
-) -> Real {
+pub fn integrate_cs_su2(conn: &Su2Connection, bounds: [(f64, f64); 3], n_per_axis: usize) -> Real {
     integrate_box(bounds, n_per_axis, |u, v, w| cs_density_su2(conn, u, v, w))
 }
 
-fn integrate_box(
-    bounds: [(f64, f64); 3],
-    n: usize,
-    f: impl Fn(f64, f64, f64) -> f64,
-) -> f64 {
+fn integrate_box(bounds: [(f64, f64); 3], n: usize, f: impl Fn(f64, f64, f64) -> f64) -> f64 {
     let (nodes, weights) = gauss_legendre(n);
     let half = [
         (bounds[0].1 - bounds[0].0) * 0.5,
@@ -246,7 +233,9 @@ fn gauss_legendre(n: usize) -> (&'static [f64], &'static [f64]) {
         5 => (&GL5_NODES, &GL5_WEIGHTS),
         8 => (&GL8_NODES, &GL8_WEIGHTS),
         16 => (&GL16_NODES, &GL16_WEIGHTS),
-        _ => panic!("cartan-geo::chern_simons: unsupported Gauss-Legendre order {n}; supported: 4, 5, 8, 16"),
+        _ => panic!(
+            "cartan-geo::chern_simons: unsupported Gauss-Legendre order {n}; supported: 4, 5, 8, 16"
+        ),
     }
 }
 

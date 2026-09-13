@@ -1,8 +1,11 @@
 //! Sphere shape: closed-form Hill tensor for isotropic reference.
 
-use crate::{error::HomogError, kelvin_mandel::iso_detect_order2,
-            shapes::{IntegrationOpts, Shape},
-            tensor::{Km3, Km6, Order2, Order4}};
+use crate::{
+    error::HomogError,
+    kelvin_mandel::iso_detect_order2,
+    shapes::{IntegrationOpts, Shape},
+    tensor::{Km3, Km6, Order2, Order4},
+};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Sphere;
@@ -14,7 +17,9 @@ impl Shape<Order2> for Sphere {
             // Anisotropic-reference branch (v1.3): Lebedev quadrature.
             return crate::shapes::lebedev::hill_order2_anisotropic(c_ref, opts.lebedev_degree);
         }
-        if avg <= 0.0 { return Err(HomogError::NotPositiveDefinite); }
+        if avg <= 0.0 {
+            return Err(HomogError::NotPositiveDefinite);
+        }
         Ok(Km3::identity() * (1.0 / (3.0 * avg)))
     }
 }
@@ -28,7 +33,7 @@ pub(crate) fn extract_k_mu_iso(c: &Km6) -> Result<(f64, f64), HomogError> {
         return Err(HomogError::NotPositiveDefinite);
     }
     let three_k = (j * c).trace() / trace_j;
-    let two_mu  = (k_proj * c).trace() / trace_k;
+    let two_mu = (k_proj * c).trace() / trace_k;
     Ok((three_k / 3.0, two_mu / 2.0))
 }
 
@@ -38,10 +43,12 @@ impl Shape<Order4> for Sphere {
         // For anisotropic reference (e.g., during SC iteration), use the nearest
         // isotropic approximation. This biases the Hill tensor slightly but keeps
         // iterative schemes alive. Full Order4 Lebedev quadrature is v1.4.
-        if k0 <= 0.0 || mu0 <= 0.0 { return Err(HomogError::NotPositiveDefinite); }
+        if k0 <= 0.0 || mu0 <= 0.0 {
+            return Err(HomogError::NotPositiveDefinite);
+        }
         let (j, k_proj) = Order4::iso_projectors();
         let alpha = 1.0 / (3.0 * k0 + 4.0 * mu0);
-        let beta  = 3.0 * (k0 + 2.0 * mu0) / (5.0 * mu0 * (3.0 * k0 + 4.0 * mu0));
+        let beta = 3.0 * (k0 + 2.0 * mu0) / (5.0 * mu0 * (3.0 * k0 + 4.0 * mu0));
         Ok(alpha * j + beta * k_proj)
     }
 }
@@ -55,7 +62,8 @@ mod tests {
     #[test]
     fn hill_sphere_iso_order2_matches_1_over_3k() {
         let c_ref = Order2::scalar(4.0);
-        let p = <Sphere as Shape<Order2>>::hill(&Sphere, &c_ref, &IntegrationOpts::default()).unwrap();
+        let p =
+            <Sphere as Shape<Order2>>::hill(&Sphere, &c_ref, &IntegrationOpts::default()).unwrap();
         let expected = Km3::identity() * (1.0 / 12.0);
         assert_relative_eq!(p, expected, epsilon = 1e-12);
     }
@@ -65,7 +73,8 @@ mod tests {
         // v1.3: anisotropic reference no longer rejected; falls through to
         // Lebedev quadrature and produces an SPD Hill tensor.
         let c_ref = crate::kelvin_mandel::ti_order2(10.0, 1.0);
-        let p = <Sphere as Shape<Order2>>::hill(&Sphere, &c_ref, &IntegrationOpts::default()).unwrap();
+        let p =
+            <Sphere as Shape<Order2>>::hill(&Sphere, &c_ref, &IntegrationOpts::default()).unwrap();
         let eig = p.symmetric_eigen();
         assert!(eig.eigenvalues.iter().all(|v| *v > 0.0));
     }
@@ -75,7 +84,12 @@ mod tests {
         let c_ref = Order2::scalar(1.0);
         let c_phase = Order2::scalar(5.0);
         let a = <Sphere as Shape<Order2>>::concentration_dilute(
-            &Sphere, &c_ref, &c_phase, &IntegrationOpts::default()).unwrap();
+            &Sphere,
+            &c_ref,
+            &c_phase,
+            &IntegrationOpts::default(),
+        )
+        .unwrap();
         let expected = Km3::identity() * (3.0 / 7.0);
         assert_relative_eq!(a, expected, epsilon = 1e-12);
     }
@@ -83,7 +97,8 @@ mod tests {
     #[test]
     fn hill_sphere_iso_order4_hydrostatic_component() {
         let c_ref = Order4::iso_stiff(72.0, 32.0);
-        let p: Km6 = <Sphere as Shape<Order4>>::hill(&Sphere, &c_ref, &IntegrationOpts::default()).unwrap();
+        let p: Km6 =
+            <Sphere as Shape<Order4>>::hill(&Sphere, &c_ref, &IntegrationOpts::default()).unwrap();
         let (j, _k) = Order4::iso_projectors();
         let pj = (p * j).trace() / j.trace();
         let expected_alpha = 1.0 / (3.0 * 72.0 + 4.0 * 32.0);

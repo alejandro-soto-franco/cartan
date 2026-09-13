@@ -1,7 +1,9 @@
-use nalgebra_sparse::CsrMatrix;
-use formoniq::whitney_complex::WhitneyComplex;
+use cartan_maxwell::{
+    FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver, cfl_dt, coboundary_matrix,
+};
 use derham::cochain::Cochain;
-use cartan_maxwell::{cfl_dt, coboundary_matrix, FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver};
+use formoniq::whitney_complex::WhitneyComplex;
+use nalgebra_sparse::CsrMatrix;
 use simplicial::r#gen::cartesian::CartesianGrid;
 
 #[test]
@@ -34,7 +36,10 @@ fn flrw_expansion_is_stable_and_flux_conserving() {
         last_energy = u;
     }
     // Structural law is exact even on the moving background.
-    assert!(max_resid < 1e-9, "flux not conserved under expansion: {max_resid:e}");
+    assert!(
+        max_resid < 1e-9,
+        "flux not conserved under expansion: {max_resid:e}"
+    );
     // Field stayed bounded (no instability) over the expansion.
     assert!(last_energy.is_finite() && last_energy >= 0.0);
 }

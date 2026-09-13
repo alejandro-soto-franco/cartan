@@ -195,7 +195,11 @@ mod tests {
 
         let csr = CsrMatrix::from(&coo);
 
-        assert_eq!(csr.get_entry(0, 0).unwrap().into_value(), 7.0, "duplicates must sum");
+        assert_eq!(
+            csr.get_entry(0, 0).unwrap().into_value(),
+            7.0,
+            "duplicates must sum"
+        );
         assert_eq!(csr.get_entry(1, 1).unwrap().into_value(), -3.0);
         assert_eq!(csr.get_entry(0, 1).unwrap().into_value(), 0.5);
         assert_eq!(csr.nnz(), 3, "summed duplicates occupy one entry");
@@ -215,7 +219,11 @@ mod tests {
 
         let csc = CscMatrix::from(&coo);
 
-        assert_eq!(csc.get_entry(0, 0).unwrap().into_value(), 7.0, "duplicates must sum");
+        assert_eq!(
+            csc.get_entry(0, 0).unwrap().into_value(),
+            7.0,
+            "duplicates must sum"
+        );
         assert_eq!(csc.get_entry(1, 1).unwrap().into_value(), -3.0);
         assert_eq!(csc.nnz(), 2, "summed duplicates occupy one entry");
     }

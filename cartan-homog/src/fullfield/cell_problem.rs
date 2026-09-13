@@ -18,9 +18,9 @@ use nalgebra_sparse::{CooMatrix, CscMatrix};
 /// Per-tet conductivity (isotropic scalar K) plus precomputed barycentric gradients
 /// and volume. Built once per mesh, reused across directions.
 pub struct TetData {
-    pub grads: Vec<[Vector3<f64>; 4]>,  // gradient of each P1 basis function on each tet
+    pub grads: Vec<[Vector3<f64>; 4]>, // gradient of each P1 basis function on each tet
     pub volumes: Vec<f64>,
-    pub k_per_tet: Vec<f64>,             // isotropic conductivity per tet
+    pub k_per_tet: Vec<f64>, // isotropic conductivity per tet
 }
 
 /// Precompute per-tet geometry from the mesh vertices + tet indices.
@@ -31,26 +31,34 @@ pub fn build_tet_data(
     let nt = mesh.n_simplices();
     if k_per_tet.len() != nt {
         return Err(HomogError::Solver(alloc::format!(
-            "build_tet_data: k_per_tet len {} != n_simplices {nt}", k_per_tet.len())));
+            "build_tet_data: k_per_tet len {} != n_simplices {nt}",
+            k_per_tet.len()
+        )));
     }
     let mut grads = Vec::with_capacity(nt);
     let mut volumes = Vec::with_capacity(nt);
     for s in 0..nt {
         let tet = mesh.simplices[s];
         let v: [Vector3<f64>; 4] = [
-            mesh.vertices[tet[0]], mesh.vertices[tet[1]],
-            mesh.vertices[tet[2]], mesh.vertices[tet[3]],
+            mesh.vertices[tet[0]],
+            mesh.vertices[tet[1]],
+            mesh.vertices[tet[2]],
+            mesh.vertices[tet[3]],
         ];
         // Reference matrix [v1-v0, v2-v0, v3-v0] (3x3).
         let jac = Matrix3::from_columns(&[v[1] - v[0], v[2] - v[0], v[3] - v[0]]);
         let det = jac.determinant();
         let vol = det.abs() / 6.0;
         if vol < 1e-18 {
-            return Err(HomogError::Mesh(alloc::format!("degenerate tet {s}: vol={vol}")));
+            return Err(HomogError::Mesh(alloc::format!(
+                "degenerate tet {s}: vol={vol}"
+            )));
         }
         // Barycentric gradients: grad(λ_0) = -(grad(λ_1) + grad(λ_2) + grad(λ_3)),
         // grad(λ_{1..3}) = rows of (jac^{-T}) transposed, i.e., columns of jac^{-1}.
-        let jinv = jac.try_inverse().ok_or(HomogError::Mesh(alloc::format!("tet {s} jacobian singular")))?;
+        let jinv = jac.try_inverse().ok_or(HomogError::Mesh(alloc::format!(
+            "tet {s} jacobian singular"
+        )))?;
         let jit: Matrix3<f64> = jinv.transpose();
         // grad(λ_1), λ_2, λ_3 are rows of jit (the gradient operator).
         // Actually: grad(λ_k) in physical coordinates is the row of jit (since λ_k = ξ_k
@@ -62,15 +70,17 @@ pub fn build_tet_data(
         grads.push([g0, g1, g2, g3]);
         volumes.push(vol);
     }
-    Ok(TetData { grads, volumes, k_per_tet })
+    Ok(TetData {
+        grads,
+        volumes,
+        k_per_tet,
+    })
 }
 
 /// Assemble the global sparse stiffness matrix K-weighted Laplacian
 ///     A[i, j] = Σ_tets  K_tet · vol_tet · (∇φ_i · ∇φ_j)
 /// Dirichlet BCs handled downstream by row/column elimination on boundary vertices.
-pub fn assemble_stiffness(
-    mesh: &Mesh<Euclidean<3>, 4, 3>, td: &TetData,
-) -> CscMatrix<f64> {
+pub fn assemble_stiffness(mesh: &Mesh<Euclidean<3>, 4, 3>, td: &TetData) -> CscMatrix<f64> {
     let nv = mesh.n_vertices();
     let mut tri = CooMatrix::<f64>::new(nv, nv);
     for s in 0..mesh.n_simplices() {
@@ -94,7 +104,9 @@ pub fn assemble_stiffness(
 /// correction field χ the sign flips to +; the resulting χ satisfies
 /// (e_dir + ∇χ_i) · gradient = local flux.
 pub fn assemble_rhs(
-    mesh: &Mesh<Euclidean<3>, 4, 3>, td: &TetData, e_dir: usize,
+    mesh: &Mesh<Euclidean<3>, 4, 3>,
+    td: &TetData,
+    e_dir: usize,
 ) -> nalgebra::DVector<f64> {
     let nv = mesh.n_vertices();
     let mut b = nalgebra::DVector::<f64>::zeros(nv);
@@ -112,7 +124,9 @@ pub fn assemble_rhs(
 /// Apply homogeneous Dirichlet BCs (`χ = 0` on boundary vertices) by zeroing their
 /// rows/cols in the sparse matrix and setting `A[b, b] = 1`, `b[b] = 0`.
 pub fn apply_dirichlet_zero(
-    a: &mut CscMatrix<f64>, b: &mut nalgebra::DVector<f64>, boundary: &[usize],
+    a: &mut CscMatrix<f64>,
+    b: &mut nalgebra::DVector<f64>,
+    boundary: &[usize],
 ) {
     use std::collections::HashSet;
     let bset: HashSet<usize> = boundary.iter().copied().collect();
@@ -120,8 +134,12 @@ pub fn apply_dirichlet_zero(
     let n = a.nrows();
     let mut tri = CooMatrix::<f64>::new(n, n);
     for (i, j, &val) in a.triplet_iter() {
-        if bset.contains(&i) { continue; }   // drop boundary rows
-        if bset.contains(&j) { continue; }   // drop boundary cols (implicit zero)
+        if bset.contains(&i) {
+            continue;
+        } // drop boundary rows
+        if bset.contains(&j) {
+            continue;
+        } // drop boundary cols (implicit zero)
         tri.push(i, j, val);
     }
     for &bi in boundary {
@@ -148,7 +166,9 @@ pub fn apply_periodic(
     use alloc::collections::BTreeMap;
     // slave -> master lookup.
     let mut master_of: BTreeMap<usize, usize> = BTreeMap::new();
-    for &(s, m) in pairs { master_of.insert(s, m); }
+    for &(s, m) in pairs {
+        master_of.insert(s, m);
+    }
 
     let n = a.nrows();
     let mut tri = CooMatrix::<f64>::new(n, n);
@@ -192,8 +212,10 @@ pub fn expand_periodic(chi: &mut nalgebra::DVector<f64>, pairs: &[(usize, usize)
 ///
 /// `K_eff[:, e_dir] = Σ_tets K_tet · (e_dir + Σ_a χ[tet[a]] · ∇φ_a) · vol_tet / total_vol`.
 pub fn effective_column(
-    mesh: &Mesh<Euclidean<3>, 4, 3>, td: &TetData,
-    chi: &nalgebra::DVector<f64>, e_dir: usize,
+    mesh: &Mesh<Euclidean<3>, 4, 3>,
+    td: &TetData,
+    chi: &nalgebra::DVector<f64>,
+    e_dir: usize,
 ) -> Vector3<f64> {
     let mut total_vol = 0.0;
     let mut acc = Vector3::zeros();
@@ -202,10 +224,8 @@ pub fn effective_column(
     for s in 0..mesh.n_simplices() {
         let tet = mesh.simplices[s];
         let g = &td.grads[s];
-        let grad_chi = chi[tet[0]] * g[0]
-                     + chi[tet[1]] * g[1]
-                     + chi[tet[2]] * g[2]
-                     + chi[tet[3]] * g[3];
+        let grad_chi =
+            chi[tet[0]] * g[0] + chi[tet[1]] * g[1] + chi[tet[2]] * g[2] + chi[tet[3]] * g[3];
         let local = td.k_per_tet[s] * (e_vec + grad_chi);
         acc += local * td.volumes[s];
         total_vol += td.volumes[s];
@@ -215,7 +235,9 @@ pub fn effective_column(
 
 /// Compute the full effective tensor: column i is `effective_column(chi_i, e_i)`.
 pub fn effective_tensor(
-    mesh: &Mesh<Euclidean<3>, 4, 3>, td: &TetData, chi_cols: [&nalgebra::DVector<f64>; 3],
+    mesh: &Mesh<Euclidean<3>, 4, 3>,
+    td: &TetData,
+    chi_cols: [&nalgebra::DVector<f64>; 3],
 ) -> Matrix3<f64> {
     let c0 = effective_column(mesh, td, chi_cols[0], 0);
     let c1 = effective_column(mesh, td, chi_cols[1], 1);
@@ -230,10 +252,16 @@ mod tests {
 
     #[test]
     fn per_tet_data_total_volume_equals_one() {
-        let b = PeriodicCubeMeshBuilder::new(&PeriodicCubeMeshBuilderOpts { resolution: 4, refine_depth: 0 });
+        let b = PeriodicCubeMeshBuilder::new(&PeriodicCubeMeshBuilderOpts {
+            resolution: 4,
+            refine_depth: 0,
+        });
         let (mesh, _) = b.build().unwrap();
         let td = build_tet_data(&mesh, alloc::vec![1.0; mesh.n_simplices()]).unwrap();
         let total: f64 = td.volumes.iter().sum();
-        assert!((total - 1.0).abs() < 1e-12, "unit cube volume should be 1, got {total}");
+        assert!(
+            (total - 1.0).abs() < 1e-12,
+            "unit cube volume should be 1, got {total}"
+        );
     }
 }

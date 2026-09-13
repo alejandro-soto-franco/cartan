@@ -1,8 +1,11 @@
 //! Voigt (arithmetic mean) and Reuss (harmonic mean) bounds.
 
-use crate::{error::HomogError, rve::Rve,
-            schemes::{Effective, Scheme, SchemeOpts},
-            tensor::TensorOrder};
+use crate::{
+    error::HomogError,
+    rve::Rve,
+    schemes::{Effective, Scheme, SchemeOpts},
+    tensor::TensorOrder,
+};
 
 #[derive(Clone, Debug, Default)]
 pub struct VoigtBound;
@@ -13,7 +16,12 @@ impl<O: TensorOrder> Scheme<O> for VoigtBound {
         for ph in &rve.phases {
             acc = O::add(&acc, &O::scale(&ph.property, ph.fraction));
         }
-        Ok(Effective { tensor: acc, concentration: None, iterations: None, residual: None })
+        Ok(Effective {
+            tensor: acc,
+            concentration: None,
+            iterations: None,
+            residual: None,
+        })
     }
 }
 
@@ -28,7 +36,12 @@ impl<O: TensorOrder> Scheme<O> for ReussBound {
             acc = O::add(&acc, &O::scale(&inv, ph.fraction));
         }
         let eff = O::inverse(&acc)?;
-        Ok(Effective { tensor: eff, concentration: None, iterations: None, residual: None })
+        Ok(Effective {
+            tensor: eff,
+            concentration: None,
+            iterations: None,
+            residual: None,
+        })
     }
 }
 
@@ -41,10 +54,18 @@ mod tests {
 
     fn two_phase(k0: f64, k1: f64, f1: f64) -> Rve<Order2> {
         let mut r = Rve::<Order2>::new();
-        r.add_phase(Phase { name: String::from("M"), shape: Arc::new(Sphere),
-            property: Order2::scalar(k0), fraction: 1.0 - f1 });
-        r.add_phase(Phase { name: String::from("I"), shape: Arc::new(Sphere),
-            property: Order2::scalar(k1), fraction: f1 });
+        r.add_phase(Phase {
+            name: String::from("M"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(k0),
+            fraction: 1.0 - f1,
+        });
+        r.add_phase(Phase {
+            name: String::from("I"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(k1),
+            fraction: f1,
+        });
         r.set_matrix("M");
         r
     }

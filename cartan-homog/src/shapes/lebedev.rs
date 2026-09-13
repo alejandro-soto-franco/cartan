@@ -52,7 +52,8 @@ pub fn lebedev_grid(degree: usize) -> Result<&'static [(f64, f64, f64, f64)], Ho
 /// Evaluates by Lebedev quadrature of the given degree. For isotropic `c_ref`
 /// this matches the closed-form `Sphere::hill` to floating-point precision.
 pub fn hill_order2_anisotropic(
-    c_ref: &Matrix3<f64>, degree: usize,
+    c_ref: &Matrix3<f64>,
+    degree: usize,
 ) -> Result<Matrix3<f64>, HomogError> {
     let grid = lebedev_grid(degree)?;
     let mut acc = Matrix3::<f64>::zeros();
@@ -105,8 +106,11 @@ mod tests {
         assert!(eig.eigenvalues.iter().all(|v| *v > 0.0));
         // For conductivity, the highest-conductivity direction should get the
         // smallest P eigenvalue (P ~ 1/C qualitatively).
-        let (max_c_idx, _) = [10.0, 10.0, 1.0].iter().enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap()).unwrap();
+        let (max_c_idx, _) = [10.0, 10.0, 1.0]
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .unwrap();
         let p_xx = p[(max_c_idx, max_c_idx)];
         let p_zz = p[(2, 2)];
         assert!(p_xx < p_zz, "expected P_xx (high-C direction) < P_zz");

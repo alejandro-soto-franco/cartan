@@ -4,10 +4,16 @@ use std::path::Path;
 pub fn write_pvd(path: &Path, entries: &[(f64, String)]) -> Result<(), Box<dyn std::error::Error>> {
     let mut f = std::fs::File::create(path)?;
     writeln!(f, r#"<?xml version="1.0"?>"#)?;
-    writeln!(f, r#"<VTKFile type="Collection" version="1.0" byte_order="LittleEndian">"#)?;
+    writeln!(
+        f,
+        r#"<VTKFile type="Collection" version="1.0" byte_order="LittleEndian">"#
+    )?;
     writeln!(f, r#"  <Collection>"#)?;
     for (t, file) in entries {
-        writeln!(f, r#"    <DataSet timestep="{t}" group="" part="0" file="{file}"/>"#)?;
+        writeln!(
+            f,
+            r#"    <DataSet timestep="{t}" group="" part="0" file="{file}"/>"#
+        )?;
     }
     writeln!(f, r#"  </Collection>"#)?;
     writeln!(f, r#"</VTKFile>"#)?;

@@ -1,8 +1,8 @@
 //! Validation harness for `cartan-homog`: NPZ fixtures generated from ECHOES,
 //! affine-invariant tolerance macros, and the capstone fractured-sandstone pipeline test.
 
-pub mod fixture;
 pub mod approx;
+pub mod fixture;
 
 #[cfg(test)]
 mod smoke {

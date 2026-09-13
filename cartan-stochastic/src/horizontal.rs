@@ -36,7 +36,9 @@ pub fn horizontal_velocity<M: Manifold>(
     // a base point, so we build the sum by scaling the first basis vector
     // and accumulating. This works because Tangent: Add + Mul<Real>.
     let mut iter = frame.basis.iter().zip(dw.iter());
-    let (e0, w0) = iter.next().expect("frame must be non-empty for horizontal lift");
+    let (e0, w0) = iter
+        .next()
+        .expect("frame must be non-empty for horizontal lift");
     let mut acc = e0.clone() * *w0;
     for (e, w) in iter {
         acc = acc + e.clone() * *w;

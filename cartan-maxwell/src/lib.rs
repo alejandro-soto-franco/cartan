@@ -37,5 +37,5 @@ pub mod evolver;
 pub mod state;
 
 pub use driver::{FlrwDriver, MetricDriver};
-pub use evolver::{cfl_dt, coboundary_matrix, MaxwellEvolver};
+pub use evolver::{MaxwellEvolver, cfl_dt, coboundary_matrix};
 pub use state::MaxwellState;

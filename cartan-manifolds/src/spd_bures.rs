@@ -370,10 +370,7 @@ impl<const N: usize> VectorTransport for SpdBuresWasserstein<N> {
 /// implementation routes through `log` + `norm`, which requires two
 /// eigendecompositions and a Lyapunov solve. This closed form uses only the
 /// square-root eigendecompositions and is faster.
-pub fn bw_distance_sq<const N: usize>(
-    p: &SMatrix<Real, N, N>,
-    q: &SMatrix<Real, N, N>,
-) -> Real {
+pub fn bw_distance_sq<const N: usize>(p: &SMatrix<Real, N, N>, q: &SMatrix<Real, N, N>) -> Real {
     let sqrt_p = sym_sqrt(p);
     let inner = sqrt_p * q * sqrt_p;
     let inner_sqrt = sym_sqrt(&inner);

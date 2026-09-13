@@ -2,15 +2,19 @@
 //! scheme in Rust, assert affine-invariant agreement within the tolerance tier.
 
 use cartan_homog::{
+    HomogError,
     rve::{Phase, Rve},
-    schemes::{Dilute, DiluteStress, MoriTanaka, SelfConsistent, AsymmetricSc,
-              Maxwell, PonteCastanedaWillis, Differential, VoigtBound, ReussBound,
-              Scheme, SchemeOpts},
+    schemes::{
+        AsymmetricSc, Differential, Dilute, DiluteStress, Maxwell, MoriTanaka,
+        PonteCastanedaWillis, ReussBound, Scheme, SchemeOpts, SelfConsistent, VoigtBound,
+    },
     shapes::{PennyCrack, Sphere, Spheroid, UserInclusion},
     tensor::{Order2, Order4, TensorOrder},
-    HomogError,
 };
-use cartan_homog_valid::{approx::{ai_distance_order2, ai_distance_order4}, fixture::{Fixture, fixture_root}};
+use cartan_homog_valid::{
+    approx::{ai_distance_order2, ai_distance_order4},
+    fixture::{Fixture, fixture_root},
+};
 use nalgebra::{Unit, Vector3};
 use ndarray_npy::NpzReader;
 use std::fs::File;
@@ -18,14 +22,14 @@ use std::sync::Arc;
 
 const K_MATRIX_O2: f64 = 1.0;
 const K_INCLUSION_O2: f64 = 5.0;
-const K_MATRIX_O4:   (f64, f64) = (72.0, 32.0);
-const K_INCLUSION_O4: (f64, f64) = (5.0,  2.0);
+const K_MATRIX_O4: (f64, f64) = (72.0, 32.0);
+const K_INCLUSION_O4: (f64, f64) = (5.0, 2.0);
 
 #[derive(Debug, Clone)]
 enum ShapeKind {
     Sphere,
-    Spheroid(f64),  // aspect
-    Crack,          // penny crack with normal = z
+    Spheroid(f64), // aspect
+    Crack,         // penny crack with normal = z
 }
 
 /// Parse the microstructure + parameter from the case_id, e.g.
@@ -58,31 +62,43 @@ fn parse_case(case_id: &str) -> (ShapeKind, f64) {
 
 fn arc_shape_o2(kind: &ShapeKind) -> UserInclusion<Order2> {
     match kind {
-        ShapeKind::Sphere          => Arc::new(Sphere),
-        ShapeKind::Spheroid(aspect) => Arc::new(Spheroid::new(Unit::new_normalize(Vector3::z()), *aspect)),
-        ShapeKind::Crack           => Arc::new(PennyCrack::new(Unit::new_normalize(Vector3::z()), 0.0)),
+        ShapeKind::Sphere => Arc::new(Sphere),
+        ShapeKind::Spheroid(aspect) => {
+            Arc::new(Spheroid::new(Unit::new_normalize(Vector3::z()), *aspect))
+        }
+        ShapeKind::Crack => Arc::new(PennyCrack::new(Unit::new_normalize(Vector3::z()), 0.0)),
     }
 }
 
 fn arc_shape_o4(kind: &ShapeKind) -> UserInclusion<Order4> {
     match kind {
-        ShapeKind::Sphere          => Arc::new(Sphere),
-        ShapeKind::Spheroid(aspect) => Arc::new(Spheroid::new(Unit::new_normalize(Vector3::z()), *aspect)),
-        ShapeKind::Crack           => Arc::new(PennyCrack::new(Unit::new_normalize(Vector3::z()), 0.0)),
+        ShapeKind::Sphere => Arc::new(Sphere),
+        ShapeKind::Spheroid(aspect) => {
+            Arc::new(Spheroid::new(Unit::new_normalize(Vector3::z()), *aspect))
+        }
+        ShapeKind::Crack => Arc::new(PennyCrack::new(Unit::new_normalize(Vector3::z()), 0.0)),
     }
 }
 
 fn rve_o2(kind: &ShapeKind, param: f64) -> Rve<Order2> {
     let is_crack = matches!(kind, ShapeKind::Crack);
-    let k_inc = if is_crack { K_INCLUSION_O2 * 1e-6 } else { K_INCLUSION_O2 };
+    let k_inc = if is_crack {
+        K_INCLUSION_O2 * 1e-6
+    } else {
+        K_INCLUSION_O2
+    };
     let mut rve = Rve::<Order2>::new();
     rve.add_phase(Phase {
-        name: "MATRIX".into(), shape: Arc::new(Sphere),
-        property: Order2::scalar(K_MATRIX_O2), fraction: 1.0 - param,
+        name: "MATRIX".into(),
+        shape: Arc::new(Sphere),
+        property: Order2::scalar(K_MATRIX_O2),
+        fraction: 1.0 - param,
     });
     rve.add_phase(Phase {
-        name: "INCLUSION".into(), shape: arc_shape_o2(kind),
-        property: Order2::scalar(k_inc), fraction: param,
+        name: "INCLUSION".into(),
+        shape: arc_shape_o2(kind),
+        property: Order2::scalar(k_inc),
+        fraction: param,
     });
     rve.set_matrix("MATRIX");
     rve
@@ -97,12 +113,16 @@ fn rve_o4(kind: &ShapeKind, param: f64) -> Rve<Order4> {
     };
     let mut rve = Rve::<Order4>::new();
     rve.add_phase(Phase {
-        name: "MATRIX".into(), shape: Arc::new(Sphere),
-        property: Order4::iso_stiff(K_MATRIX_O4.0, K_MATRIX_O4.1), fraction: 1.0 - param,
+        name: "MATRIX".into(),
+        shape: Arc::new(Sphere),
+        property: Order4::iso_stiff(K_MATRIX_O4.0, K_MATRIX_O4.1),
+        fraction: 1.0 - param,
     });
     rve.add_phase(Phase {
-        name: "INCLUSION".into(), shape: arc_shape_o4(kind),
-        property: c_inc, fraction: param,
+        name: "INCLUSION".into(),
+        shape: arc_shape_o4(kind),
+        property: c_inc,
+        fraction: param,
     });
     rve.set_matrix("MATRIX");
     rve
@@ -113,14 +133,14 @@ fn homog_o2(scheme: &str, rve: &Rve<Order2>) -> Result<nalgebra::Matrix3<f64>, H
     let e = match scheme {
         "VOIGT" => VoigtBound.homogenize(rve, &opts)?,
         "REUSS" => ReussBound.homogenize(rve, &opts)?,
-        "DIL"   => Dilute.homogenize(rve, &opts)?,
-        "DILD"  => DiluteStress.homogenize(rve, &opts)?,
-        "MT"    => MoriTanaka.homogenize(rve, &opts)?,
-        "SC"    => SelfConsistent.homogenize(rve, &opts)?,
-        "ASC"   => AsymmetricSc.homogenize(rve, &opts)?,
-        "MAX"   => Maxwell.homogenize(rve, &opts)?,
-        "PCW"   => PonteCastanedaWillis.homogenize(rve, &opts)?,
-        "DIFF"  => Differential::default().homogenize(rve, &opts)?,
+        "DIL" => Dilute.homogenize(rve, &opts)?,
+        "DILD" => DiluteStress.homogenize(rve, &opts)?,
+        "MT" => MoriTanaka.homogenize(rve, &opts)?,
+        "SC" => SelfConsistent.homogenize(rve, &opts)?,
+        "ASC" => AsymmetricSc.homogenize(rve, &opts)?,
+        "MAX" => Maxwell.homogenize(rve, &opts)?,
+        "PCW" => PonteCastanedaWillis.homogenize(rve, &opts)?,
+        "DIFF" => Differential::default().homogenize(rve, &opts)?,
         _ => return Err(HomogError::Solver(format!("unknown scheme `{scheme}`"))),
     };
     Ok(e.tensor)
@@ -131,14 +151,14 @@ fn homog_o4(scheme: &str, rve: &Rve<Order4>) -> Result<nalgebra::SMatrix<f64, 6,
     let e = match scheme {
         "VOIGT" => VoigtBound.homogenize(rve, &opts)?,
         "REUSS" => ReussBound.homogenize(rve, &opts)?,
-        "DIL"   => Dilute.homogenize(rve, &opts)?,
-        "DILD"  => DiluteStress.homogenize(rve, &opts)?,
-        "MT"    => MoriTanaka.homogenize(rve, &opts)?,
-        "SC"    => SelfConsistent.homogenize(rve, &opts)?,
-        "ASC"   => AsymmetricSc.homogenize(rve, &opts)?,
-        "MAX"   => Maxwell.homogenize(rve, &opts)?,
-        "PCW"   => PonteCastanedaWillis.homogenize(rve, &opts)?,
-        "DIFF"  => Differential::default().homogenize(rve, &opts)?,
+        "DIL" => Dilute.homogenize(rve, &opts)?,
+        "DILD" => DiluteStress.homogenize(rve, &opts)?,
+        "MT" => MoriTanaka.homogenize(rve, &opts)?,
+        "SC" => SelfConsistent.homogenize(rve, &opts)?,
+        "ASC" => AsymmetricSc.homogenize(rve, &opts)?,
+        "MAX" => Maxwell.homogenize(rve, &opts)?,
+        "PCW" => PonteCastanedaWillis.homogenize(rve, &opts)?,
+        "DIFF" => Differential::default().homogenize(rve, &opts)?,
         _ => return Err(HomogError::Solver(format!("unknown scheme `{scheme}`"))),
     };
     Ok(e.tensor)
@@ -147,7 +167,8 @@ fn homog_o4(scheme: &str, rve: &Rve<Order4>) -> Result<nalgebra::SMatrix<f64, 6,
 fn load_expected_o2(path: &std::path::Path) -> nalgebra::Matrix3<f64> {
     let file = File::open(path).expect("open npz");
     let mut npz = NpzReader::new(file).expect("npz reader");
-    let arr: ndarray::Array2<f64> = npz.by_name("c_eff.npy")
+    let arr: ndarray::Array2<f64> = npz
+        .by_name("c_eff.npy")
         .or_else(|_| npz.by_name("c_eff"))
         .expect("c_eff in npz");
     assert_eq!(arr.shape(), &[3, 3]);
@@ -157,7 +178,8 @@ fn load_expected_o2(path: &std::path::Path) -> nalgebra::Matrix3<f64> {
 fn load_expected_o4(path: &std::path::Path) -> nalgebra::SMatrix<f64, 6, 6> {
     let file = File::open(path).expect("open npz");
     let mut npz = NpzReader::new(file).expect("npz reader");
-    let arr: ndarray::Array2<f64> = npz.by_name("c_eff.npy")
+    let arr: ndarray::Array2<f64> = npz
+        .by_name("c_eff.npy")
         .or_else(|_| npz.by_name("c_eff"))
         .expect("c_eff in npz");
     assert_eq!(arr.shape(), &[6, 6]);
@@ -186,7 +208,7 @@ fn all_basic_fixtures_pass() {
                     match ai_distance_order2(&c_rust, &c_echoes) {
                         Some(d) if d < tol => Ok(d),
                         Some(d) => Err(format!("d_AI = {d:.3e} > tol {tol:.3e}")),
-                        None    => Err(String::from("SPD distance failed")),
+                        None => Err(String::from("SPD distance failed")),
                     }
                 }
                 Err(e) => Err(format!("rust homogenize error: {e}")),
@@ -199,7 +221,7 @@ fn all_basic_fixtures_pass() {
                     match ai_distance_order4(&c_rust, &c_echoes) {
                         Some(d) if d < tol => Ok(d),
                         Some(d) => Err(format!("d_AI = {d:.3e} > tol {tol:.3e}")),
-                        None    => Err(String::from("SPD distance failed")),
+                        None => Err(String::from("SPD distance failed")),
                     }
                 }
                 Err(e) => Err(format!("rust homogenize error: {e}")),
@@ -208,8 +230,10 @@ fn all_basic_fixtures_pass() {
 
         match result {
             Ok(d) => {
-                println!("  [PASS] {:<50}  d_AI = {:.2e}  tier = {}",
-                         fx.meta.case_id, d, fx.meta.tolerance_tier);
+                println!(
+                    "  [PASS] {:<50}  d_AI = {:.2e}  tier = {}",
+                    fx.meta.case_id, d, fx.meta.tolerance_tier
+                );
                 passed += 1;
             }
             Err(msg) if msg.starts_with("rust homogenize error") => {
@@ -223,7 +247,10 @@ fn all_basic_fixtures_pass() {
         }
     }
 
-    println!("\nSummary: {passed} passed, {skipped} skipped, {} failed, {} total",
-             failed.len(), fixtures.len());
+    println!(
+        "\nSummary: {passed} passed, {skipped} skipped, {} failed, {} total",
+        failed.len(),
+        fixtures.len()
+    );
     assert!(failed.is_empty(), "fixtures with disagreement: {failed:?}");
 }

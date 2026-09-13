@@ -1,5 +1,5 @@
-use thiserror::Error;
 use alloc::string::String;
+use thiserror::Error;
 
 #[derive(Debug, Error, Clone, PartialEq)]
 pub enum HomogError {

@@ -32,7 +32,9 @@ pub trait TensorOrder: 'static + Sized + Clone + core::fmt::Debug {
     /// affine-invariant SPD(KM_DIM) manifold, with damping coefficient `damping`.
     /// Falls back to Euclidean damping when either operand is not SPD.
     fn spd_geodesic_step(
-        from: &Self::KmMatrix, to: &Self::KmMatrix, damping: f64,
+        from: &Self::KmMatrix,
+        to: &Self::KmMatrix,
+        damping: f64,
     ) -> Result<Self::KmMatrix, HomogError>;
 }
 
@@ -43,19 +45,35 @@ impl TensorOrder for Order2 {
     const KM_DIM: usize = 3;
     type KmMatrix = Km3;
 
-    fn identity() -> Km3     { Km3::identity() }
-    fn zero() -> Km3         { Km3::zeros() }
-    fn scalar(s: f64) -> Km3 { Km3::identity() * s }
+    fn identity() -> Km3 {
+        Km3::identity()
+    }
+    fn zero() -> Km3 {
+        Km3::zeros()
+    }
+    fn scalar(s: f64) -> Km3 {
+        Km3::identity() * s
+    }
 
-    fn add(a: &Km3, b: &Km3) -> Km3        { a + b }
-    fn sub(a: &Km3, b: &Km3) -> Km3        { a - b }
-    fn scale(a: &Km3, s: f64) -> Km3       { a * s }
-    fn mat_mul(a: &Km3, b: &Km3) -> Km3    { a * b }
+    fn add(a: &Km3, b: &Km3) -> Km3 {
+        a + b
+    }
+    fn sub(a: &Km3, b: &Km3) -> Km3 {
+        a - b
+    }
+    fn scale(a: &Km3, s: f64) -> Km3 {
+        a * s
+    }
+    fn mat_mul(a: &Km3, b: &Km3) -> Km3 {
+        a * b
+    }
 
     fn inverse(a: &Km3) -> Result<Km3, HomogError> {
         a.try_inverse().ok_or(HomogError::SingularMatrix)
     }
-    fn frobenius_norm(a: &Km3) -> f64 { a.norm() }
+    fn frobenius_norm(a: &Km3) -> f64 {
+        a.norm()
+    }
 
     fn check_spd(a: &Km3, tol: f64) -> Result<Km3, HomogError> {
         let sym = (a + a.transpose()) * 0.5;
@@ -77,11 +95,16 @@ impl TensorOrder for Order2 {
             use cartan_manifolds::Spd;
             let spd = Spd::<3>;
             if let (Ok(p), Ok(q)) = (Self::check_spd(from, 1e-14), Self::check_spd(to, 1e-14)) {
-                let v = spd.log(&p, &q).map_err(|e| HomogError::Solver(alloc::format!("{e}")))?;
+                let v = spd
+                    .log(&p, &q)
+                    .map_err(|e| HomogError::Solver(alloc::format!("{e}")))?;
                 return Ok(spd.exp(&p, &(v * damping)));
             }
         }
-        Ok(Self::add(&Self::scale(from, 1.0 - damping), &Self::scale(to, damping)))
+        Ok(Self::add(
+            &Self::scale(from, 1.0 - damping),
+            &Self::scale(to, damping),
+        ))
     }
 }
 
@@ -92,7 +115,11 @@ impl Order4 {
     /// Kelvin-Mandel hydrostatic and deviatoric projectors for isotropic algebra.
     pub fn iso_projectors() -> (Km6, Km6) {
         let mut j = Km6::zeros();
-        for i in 0..3 { for jj in 0..3 { j[(i, jj)] = 1.0 / 3.0; } }
+        for i in 0..3 {
+            for jj in 0..3 {
+                j[(i, jj)] = 1.0 / 3.0;
+            }
+        }
         let k = Km6::identity() - j;
         (j, k)
     }
@@ -109,19 +136,35 @@ impl TensorOrder for Order4 {
     const KM_DIM: usize = 6;
     type KmMatrix = Km6;
 
-    fn identity() -> Km6     { Km6::identity() }
-    fn zero() -> Km6         { Km6::zeros() }
-    fn scalar(s: f64) -> Km6 { Km6::identity() * s }
+    fn identity() -> Km6 {
+        Km6::identity()
+    }
+    fn zero() -> Km6 {
+        Km6::zeros()
+    }
+    fn scalar(s: f64) -> Km6 {
+        Km6::identity() * s
+    }
 
-    fn add(a: &Km6, b: &Km6) -> Km6     { a + b }
-    fn sub(a: &Km6, b: &Km6) -> Km6     { a - b }
-    fn scale(a: &Km6, s: f64) -> Km6    { a * s }
-    fn mat_mul(a: &Km6, b: &Km6) -> Km6 { a * b }
+    fn add(a: &Km6, b: &Km6) -> Km6 {
+        a + b
+    }
+    fn sub(a: &Km6, b: &Km6) -> Km6 {
+        a - b
+    }
+    fn scale(a: &Km6, s: f64) -> Km6 {
+        a * s
+    }
+    fn mat_mul(a: &Km6, b: &Km6) -> Km6 {
+        a * b
+    }
 
     fn inverse(a: &Km6) -> Result<Km6, HomogError> {
         a.try_inverse().ok_or(HomogError::SingularMatrix)
     }
-    fn frobenius_norm(a: &Km6) -> f64 { a.norm() }
+    fn frobenius_norm(a: &Km6) -> f64 {
+        a.norm()
+    }
 
     fn check_spd(a: &Km6, tol: f64) -> Result<Km6, HomogError> {
         let sym = (a + a.transpose()) * 0.5;
@@ -140,11 +183,16 @@ impl TensorOrder for Order4 {
             use cartan_manifolds::Spd;
             let spd = Spd::<6>;
             if let (Ok(p), Ok(q)) = (Self::check_spd(from, 1e-14), Self::check_spd(to, 1e-14)) {
-                let v = spd.log(&p, &q).map_err(|e| HomogError::Solver(alloc::format!("{e}")))?;
+                let v = spd
+                    .log(&p, &q)
+                    .map_err(|e| HomogError::Solver(alloc::format!("{e}")))?;
                 return Ok(spd.exp(&p, &(v * damping)));
             }
         }
-        Ok(Self::add(&Self::scale(from, 1.0 - damping), &Self::scale(to, damping)))
+        Ok(Self::add(
+            &Self::scale(from, 1.0 - damping),
+            &Self::scale(to, damping),
+        ))
     }
 }
 
@@ -171,14 +219,20 @@ mod tests {
     #[test]
     fn order2_singular_errors() {
         let zero = Order2::zero();
-        assert!(matches!(Order2::inverse(&zero), Err(HomogError::SingularMatrix)));
+        assert!(matches!(
+            Order2::inverse(&zero),
+            Err(HomogError::SingularMatrix)
+        ));
     }
 
     #[test]
     fn order2_check_spd_rejects_zero_eigenvalue() {
         let mut k = Order2::scalar(1.0);
         k[(2, 2)] = 0.0;
-        assert!(matches!(Order2::check_spd(&k, 1e-12), Err(HomogError::PercolationThreshold)));
+        assert!(matches!(
+            Order2::check_spd(&k, 1e-12),
+            Err(HomogError::PercolationThreshold)
+        ));
     }
 
     #[test]
@@ -195,9 +249,9 @@ mod tests {
         let (j, k_proj) = Order4::iso_projectors();
         // C = 3k·J + 2mu·K with J, K complementary projectors:
         //   trace(C·J)/trace(J) = 3k  and  trace(C·K)/trace(K) = 2mu.
-        let eig_bulk  = (c * j).trace()      / j.trace();
+        let eig_bulk = (c * j).trace() / j.trace();
         let eig_shear = (c * k_proj).trace() / k_proj.trace();
-        assert_relative_eq!(eig_bulk,  3.0 * 72.0, epsilon = 1e-10);
+        assert_relative_eq!(eig_bulk, 3.0 * 72.0, epsilon = 1e-10);
         assert_relative_eq!(eig_shear, 2.0 * 32.0, epsilon = 1e-10);
     }
 }

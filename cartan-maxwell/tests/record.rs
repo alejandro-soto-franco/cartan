@@ -1,8 +1,10 @@
-use nalgebra_sparse::CsrMatrix;
-use formoniq::whitney_complex::WhitneyComplex;
-use derham::cochain::Cochain;
 use cartan_io::run::RunWriter;
-use cartan_maxwell::{cfl_dt, coboundary_matrix, FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver};
+use cartan_maxwell::{
+    FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver, cfl_dt, coboundary_matrix,
+};
+use derham::cochain::Cochain;
+use formoniq::whitney_complex::WhitneyComplex;
+use nalgebra_sparse::CsrMatrix;
 use simplicial::r#gen::cartesian::CartesianGrid;
 use simplicial::geometry::coord::mesh::MeshCoords;
 
@@ -35,7 +37,8 @@ fn flrw_run_produces_valid_run_dir() {
             let m2 = CsrMatrix::from(&WhitneyComplex::new(&complex, &lt).mass(2));
             let energy = state.energy(&m1, &m2);
             let resid = evolver.magnetic_gauss_residual(&state);
-            run.push_frame(t, &complex, &coords_t, &state.b, &state.e, energy, resid).unwrap();
+            run.push_frame(t, &complex, &coords_t, &state.b, &state.e, energy, resid)
+                .unwrap();
             recorded += 1;
         }
         evolver.step(&mut state, None);

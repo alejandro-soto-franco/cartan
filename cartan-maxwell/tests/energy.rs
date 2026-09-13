@@ -1,7 +1,9 @@
-use nalgebra_sparse::CsrMatrix;
-use formoniq::whitney_complex::WhitneyComplex;
+use cartan_maxwell::{
+    FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver, cfl_dt, coboundary_matrix,
+};
 use derham::cochain::Cochain;
-use cartan_maxwell::{cfl_dt, coboundary_matrix, FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver};
+use formoniq::whitney_complex::WhitneyComplex;
+use nalgebra_sparse::CsrMatrix;
 use simplicial::r#gen::cartesian::CartesianGrid;
 
 #[test]

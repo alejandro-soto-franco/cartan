@@ -73,5 +73,5 @@ pub use so::SpecialOrthogonal;
 #[cfg(feature = "std")]
 pub use spd::Spd;
 #[cfg(feature = "std")]
-pub use spd_bures::{bw_distance_sq, SpdBuresWasserstein};
+pub use spd_bures::{SpdBuresWasserstein, bw_distance_sq};
 pub use sphere::Sphere;

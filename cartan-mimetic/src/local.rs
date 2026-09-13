@@ -2,8 +2,8 @@
 
 use nalgebra::{DMatrix, DVector};
 
-use crate::combinatorics::{form_indices, k_faces};
 use crate::Consistency;
+use crate::combinatorics::{form_indices, k_faces};
 
 /// A simplex, by the coordinates of its vertices in whatever space it sits in.
 ///

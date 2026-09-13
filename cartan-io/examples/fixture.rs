@@ -5,11 +5,11 @@
 //! Writes into <output-dir>:
 //!   surface.vtp   - one triangle mesh with a scalar field
 
-use std::path::PathBuf;
-use nalgebra::SVector;
 use cartan_dec::mesh::Mesh;
+use cartan_io::{Field, write_vtp};
 use cartan_manifolds::euclidean::Euclidean;
-use cartan_io::{write_vtp, Field};
+use nalgebra::SVector;
+use std::path::PathBuf;
 
 fn main() {
     let out_dir: PathBuf = std::env::args()
@@ -25,11 +25,7 @@ fn main() {
         SVector::<f64, 3>::new(1.0, 0.0, 0.0),
         SVector::<f64, 3>::new(0.0, 1.0, 0.0),
     ];
-    let mesh = Mesh::<Euclidean<3>, 3, 2>::from_simplices(
-        &Euclidean::<3>,
-        verts,
-        vec![[0, 1, 2]],
-    );
+    let mesh = Mesh::<Euclidean<3>, 3, 2>::from_simplices(&Euclidean::<3>, verts, vec![[0, 1, 2]]);
     let scalar = Field::Scalar {
         name: "temp".into(),
         values: vec![1.0, 2.0, 3.0],
@@ -39,7 +35,7 @@ fn main() {
     // the __nematic suffix convention.
     let director = Field::Vector {
         name: "director".into(),
-        values: vec![1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0],
+        values: vec![1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0],
         nematic: true,
     };
 

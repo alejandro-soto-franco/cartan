@@ -814,7 +814,7 @@ fn se3_pure_translation_gives_correct_result() {
     let t_desired = SVector::<Real, 3>::new(1.0, 2.0, 3.0);
     let v_pure_trans = SETangent::<3> {
         rotation: SMatrix::<Real, 3, 3>::zeros(), // zero rotational velocity
-        translation: t_desired,           // spatial translational velocity
+        translation: t_desired,                   // spatial translational velocity
     };
 
     // Apply the exponential map.

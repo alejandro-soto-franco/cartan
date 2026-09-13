@@ -1,5 +1,5 @@
-use cartan_dec::line_bundle::Section;
 use crate::vtp::Field;
+use cartan_dec::line_bundle::Section;
 
 /// Convert a spin-2 nematic Section on a FLAT (z=0) mesh to a per-vertex 3D
 /// director vector, scaled by the scalar order parameter. The director is a
@@ -15,7 +15,11 @@ pub fn director_field_flat(section: &Section<2>) -> Field {
         values.push(order * theta.sin());
         values.push(0.0);
     }
-    Field::Vector { name: "director".into(), values, nematic: true }
+    Field::Vector {
+        name: "director".into(),
+        values,
+        nematic: true,
+    }
 }
 
 #[cfg(test)]
@@ -30,11 +34,16 @@ mod tests {
         let mut s = Section::<2>::zeros(1);
         s.values[0] = Complex::new(0.5, 0.0); // |z|=0.5 -> scalar order 1.0, theta=0
         let field = director_field_flat(&s);
-        if let Field::Vector { values, nematic, .. } = field {
+        if let Field::Vector {
+            values, nematic, ..
+        } = field
+        {
             assert!(nematic);
             assert!((values[0] - 1.0).abs() < 1e-12); // x-component = order * cos(0)
             assert!(values[1].abs() < 1e-12);
             assert!(values[2].abs() < 1e-12);
-        } else { panic!("expected vector field"); }
+        } else {
+            panic!("expected vector field");
+        }
     }
 }

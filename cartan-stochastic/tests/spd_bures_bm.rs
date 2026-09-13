@@ -58,9 +58,10 @@ fn bw_spd_bm_from_nontrivial_point() {
     let p0 = SMatrix::<Real, N, N>::new(2.0, 0.4, 0.4, 1.3);
     m.check_point(&p0).unwrap();
     let frame = random_frame_at(&m, &p0, &mut rng).expect("frame");
-    let result = stochastic_development(&m, &p0, frame, 50, 0.001, &mut rng, 1e-8)
-        .expect("development");
+    let result =
+        stochastic_development(&m, &p0, frame, 50, 0.001, &mut rng, 1e-8).expect("development");
     for (i, p) in result.path.iter().enumerate() {
-        m.check_point(p).unwrap_or_else(|e| panic!("step {i}: {e:?}"));
+        m.check_point(p)
+            .unwrap_or_else(|e| panic!("step {i}: {e:?}"));
     }
 }

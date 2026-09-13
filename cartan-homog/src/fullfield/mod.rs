@@ -7,21 +7,26 @@
 //! because per-tet K weighting is cleaner expressed as element stiffness than
 //! as a modified Hodge star.
 
-use crate::{error::HomogError, rve::Rve, schemes::Effective, tensor::{Order2, TensorOrder}};
+use crate::{
+    error::HomogError,
+    rve::Rve,
+    schemes::Effective,
+    tensor::{Order2, TensorOrder},
+};
 
-pub mod voxelize;
-pub mod mesh;
 pub mod cell_problem;
-pub mod solver;
-pub mod macroscale;
 pub mod hausdorff;
+pub mod macroscale;
+pub mod mesh;
+pub mod solver;
 #[cfg(feature = "gpu-fft")]
 pub mod spectral;
+pub mod voxelize;
 
 pub use mesh::{PeriodicCubeMeshBuilder, PeriodicCubeMeshBuilderOpts, partition_boundary};
-pub use voxelize::{CentredInclusion, VoxelGrid, load_voxel_raw_u8, voxelize_centred};
 #[cfg(feature = "gpu-fft")]
 pub use spectral::SpectralFullField;
+pub use voxelize::{CentredInclusion, VoxelGrid, load_voxel_raw_u8, voxelize_centred};
 
 use nalgebra::{DVector, Matrix3};
 
@@ -67,7 +72,10 @@ impl<O: TensorOrder> Default for FullField<O> {
 impl<O: TensorOrder> FullField<O> {
     pub fn new_with_resolution(resolution: usize) -> Self {
         Self {
-            mesh_opts: PeriodicCubeMeshBuilderOpts { resolution, refine_depth: 0 },
+            mesh_opts: PeriodicCubeMeshBuilderOpts {
+                resolution,
+                refine_depth: 0,
+            },
             ..Default::default()
         }
     }
@@ -86,7 +94,12 @@ impl FullField<Order2> {
         if rve.phases.len() < 2 {
             // Homogeneous case: K_eff == matrix property, no solve required.
             let c = *rve.matrix_property()?;
-            return Ok(Effective { tensor: c, concentration: None, iterations: None, residual: None });
+            return Ok(Effective {
+                tensor: c,
+                concentration: None,
+                iterations: None,
+                residual: None,
+            });
         }
 
         let builder = PeriodicCubeMeshBuilder::new(&self.mesh_opts);
@@ -102,26 +115,37 @@ impl FullField<Order2> {
             let aspect = classify_aspect(&inc_phase.shape);
             let inclusion = CentredInclusion::from_volume_fraction(inc_fraction, aspect);
             for _ in 0..self.refine_depth {
-                let flags: alloc::vec::Vec<bool> = (0..mesh.n_simplices()).map(|s| {
-                    let tet = mesh.simplices[s];
-                    let inside_vs = [
-                        inclusion.contains(&mesh.vertices[tet[0]]),
-                        inclusion.contains(&mesh.vertices[tet[1]]),
-                        inclusion.contains(&mesh.vertices[tet[2]]),
-                        inclusion.contains(&mesh.vertices[tet[3]]),
-                    ];
-                    let first = inside_vs[0];
-                    inside_vs.iter().any(|&b| b != first)
-                }).collect();
+                let flags: alloc::vec::Vec<bool> = (0..mesh.n_simplices())
+                    .map(|s| {
+                        let tet = mesh.simplices[s];
+                        let inside_vs = [
+                            inclusion.contains(&mesh.vertices[tet[0]]),
+                            inclusion.contains(&mesh.vertices[tet[1]]),
+                            inclusion.contains(&mesh.vertices[tet[2]]),
+                            inclusion.contains(&mesh.vertices[tet[3]]),
+                        ];
+                        let first = inside_vs[0];
+                        inside_vs.iter().any(|&b| b != first)
+                    })
+                    .collect();
                 let n_refined = cartan_remesh::barycentric_refine_tets(&mut mesh, &flags)
                     .map_err(|e| HomogError::Mesh(alloc::format!("refine pass failed: {e}")))?;
-                if n_refined == 0 { break; }
+                if n_refined == 0 {
+                    break;
+                }
             }
             // Recompute barycentres after refinement.
-            barycenters = mesh.simplices.iter().map(|tet| {
-                (mesh.vertices[tet[0]] + mesh.vertices[tet[1]]
-               + mesh.vertices[tet[2]] + mesh.vertices[tet[3]]) / 4.0
-            }).collect();
+            barycenters = mesh
+                .simplices
+                .iter()
+                .map(|tet| {
+                    (mesh.vertices[tet[0]]
+                        + mesh.vertices[tet[1]]
+                        + mesh.vertices[tet[2]]
+                        + mesh.vertices[tet[3]])
+                        / 4.0
+                })
+                .collect();
         }
 
         let (boundary_verts, _interior) = partition_boundary(&mesh.vertices, 1e-12);
@@ -140,14 +164,22 @@ impl FullField<Order2> {
         let k_matrix = extract_k(&rve.phases[0].property);
         let k_inclusion = extract_k(&rve.phases[1].property);
 
-        let k_per_tet: alloc::vec::Vec<f64> = barycenters.iter().map(|b| {
-            if inclusion.contains(b) { k_inclusion } else { k_matrix }
-        }).collect();
+        let k_per_tet: alloc::vec::Vec<f64> = barycenters
+            .iter()
+            .map(|b| {
+                if inclusion.contains(b) {
+                    k_inclusion
+                } else {
+                    k_matrix
+                }
+            })
+            .collect();
 
         let td = cell_problem::build_tet_data(&mesh, k_per_tet)?;
 
         let nv = mesh.n_vertices();
-        let mut chi_cols: [DVector<f64>; 3] = [DVector::zeros(nv), DVector::zeros(nv), DVector::zeros(nv)];
+        let mut chi_cols: [DVector<f64>; 3] =
+            [DVector::zeros(nv), DVector::zeros(nv), DVector::zeros(nv)];
         let mut total_iters = 0;
         let mut worst_residual = 0.0_f64;
         let periodic_pairs = if self.bc == BoundaryConditions::Periodic {
@@ -166,7 +198,8 @@ impl FullField<Order2> {
                     cell_problem::apply_periodic(&mut a, &mut b, &periodic_pairs, 0);
                 }
             }
-            let (mut chi, iters, res) = solver::solve_with_fallback(&a, &b, self.tol, self.max_iter)?;
+            let (mut chi, iters, res) =
+                solver::solve_with_fallback(&a, &b, self.tol, self.max_iter)?;
             if self.bc == BoundaryConditions::Periodic {
                 cell_problem::expand_periodic(&mut chi, &periodic_pairs);
             }
@@ -175,10 +208,8 @@ impl FullField<Order2> {
             worst_residual = worst_residual.max(res);
         }
 
-        let k_eff = cell_problem::effective_tensor(
-            &mesh, &td,
-            [&chi_cols[0], &chi_cols[1], &chi_cols[2]],
-        );
+        let k_eff =
+            cell_problem::effective_tensor(&mesh, &td, [&chi_cols[0], &chi_cols[1], &chi_cols[2]]);
         // Symmetrise (the solve is exact up to tol; round-off breaks exact symmetry).
         let k_eff_sym = (k_eff + k_eff.transpose()) * 0.5;
 
@@ -198,12 +229,16 @@ impl FullField<Order2> {
     /// `self.bc`; the K per tet is taken from the phase id at the tet barycentre's
     /// containing voxel.
     pub fn homogenize_voxel(
-        &self, voxel: &VoxelGrid, phase_props: &[f64],
+        &self,
+        voxel: &VoxelGrid,
+        phase_props: &[f64],
     ) -> Result<Effective<Order2>, HomogError> {
         if voxel.resolution != self.mesh_opts.resolution {
             return Err(HomogError::Mesh(alloc::format!(
                 "voxel resolution {} != mesh resolution {}",
-                voxel.resolution, self.mesh_opts.resolution)));
+                voxel.resolution,
+                self.mesh_opts.resolution
+            )));
         }
         let builder = PeriodicCubeMeshBuilder::new(&self.mesh_opts);
         let (mesh, barycenters) = builder.build()?;
@@ -211,17 +246,24 @@ impl FullField<Order2> {
 
         let n = voxel.resolution;
         let h = 1.0 / (n as f64);
-        let k_per_tet: alloc::vec::Vec<f64> = barycenters.iter().map(|b| {
-            let ii = ((b.x / h) as usize).min(n - 1);
-            let jj = ((b.y / h) as usize).min(n - 1);
-            let kk = ((b.z / h) as usize).min(n - 1);
-            let phase = voxel.get(ii, jj, kk) as usize;
-            phase_props.get(phase).copied().unwrap_or_else(|| phase_props[0])
-        }).collect();
+        let k_per_tet: alloc::vec::Vec<f64> = barycenters
+            .iter()
+            .map(|b| {
+                let ii = ((b.x / h) as usize).min(n - 1);
+                let jj = ((b.y / h) as usize).min(n - 1);
+                let kk = ((b.z / h) as usize).min(n - 1);
+                let phase = voxel.get(ii, jj, kk) as usize;
+                phase_props
+                    .get(phase)
+                    .copied()
+                    .unwrap_or_else(|| phase_props[0])
+            })
+            .collect();
 
         let td = cell_problem::build_tet_data(&mesh, k_per_tet)?;
         let nv = mesh.n_vertices();
-        let mut chi_cols: [DVector<f64>; 3] = [DVector::zeros(nv), DVector::zeros(nv), DVector::zeros(nv)];
+        let mut chi_cols: [DVector<f64>; 3] =
+            [DVector::zeros(nv), DVector::zeros(nv), DVector::zeros(nv)];
         let mut total_iters = 0;
         let mut worst_residual = 0.0_f64;
         let periodic_pairs = if self.bc == BoundaryConditions::Periodic {
@@ -240,7 +282,8 @@ impl FullField<Order2> {
                     cell_problem::apply_periodic(&mut a, &mut b, &periodic_pairs, 0);
                 }
             }
-            let (mut chi, iters, res) = solver::solve_with_fallback(&a, &b, self.tol, self.max_iter)?;
+            let (mut chi, iters, res) =
+                solver::solve_with_fallback(&a, &b, self.tol, self.max_iter)?;
             if self.bc == BoundaryConditions::Periodic {
                 cell_problem::expand_periodic(&mut chi, &periodic_pairs);
             }
@@ -248,8 +291,8 @@ impl FullField<Order2> {
             total_iters += iters;
             worst_residual = worst_residual.max(res);
         }
-        let k_eff = cell_problem::effective_tensor(
-            &mesh, &td, [&chi_cols[0], &chi_cols[1], &chi_cols[2]]);
+        let k_eff =
+            cell_problem::effective_tensor(&mesh, &td, [&chi_cols[0], &chi_cols[1], &chi_cols[2]]);
         let k_eff_sym = (k_eff + k_eff.transpose()) * 0.5;
         Ok(Effective {
             tensor: k_eff_sym,
@@ -270,7 +313,9 @@ fn classify_aspect(shape: &crate::shapes::UserInclusion<Order2>) -> f64 {
         // Pull "tiny_aspect: <f>" out of the Debug string. Safe default 1e-3 if not found.
         if let Some(idx) = dbg.find("tiny_aspect: ") {
             let tail = &dbg[idx + "tiny_aspect: ".len()..];
-            if let Some(end) = tail.find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'e' && c != '-' && c != '+') {
+            if let Some(end) = tail
+                .find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'e' && c != '-' && c != '+')
+            {
                 return tail[..end].parse::<f64>().unwrap_or(1e-3);
             }
         }
@@ -280,7 +325,9 @@ fn classify_aspect(shape: &crate::shapes::UserInclusion<Order2>) -> f64 {
         && let Some(idx) = dbg.find("aspect: ")
     {
         let tail = &dbg[idx + "aspect: ".len()..];
-        if let Some(end) = tail.find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'e' && c != '-' && c != '+') {
+        if let Some(end) =
+            tail.find(|c: char| !c.is_ascii_digit() && c != '.' && c != 'e' && c != '-' && c != '+')
+        {
             return tail[..end].parse::<f64>().unwrap_or(1.0);
         }
     }
@@ -288,9 +335,7 @@ fn classify_aspect(shape: &crate::shapes::UserInclusion<Order2>) -> f64 {
 }
 
 /// Affine-invariant reliability indicator: d_AI(C_MF, C_FF) on SPD(KM_DIM).
-pub fn reliability_indicator_order2(
-    c_mf: &Matrix3<f64>, c_ff: &Matrix3<f64>,
-) -> Option<f64> {
+pub fn reliability_indicator_order2(c_mf: &Matrix3<f64>, c_ff: &Matrix3<f64>) -> Option<f64> {
     use cartan_core::Manifold;
     let spd = cartan_manifolds::Spd::<3>;
     let sa = (c_mf + c_mf.transpose()) * 0.5;
@@ -327,10 +372,18 @@ mod tests {
         let e_voxel = ff.homogenize_voxel(&voxel, &[1.0, 5.0]).unwrap();
 
         let mut rve = Rve::<Order2>::new();
-        rve.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(1.0), fraction: 1.0 - phi });
-        rve.add_phase(Phase { name: "I".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(5.0), fraction: phi });
+        rve.add_phase(Phase {
+            name: "M".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0),
+            fraction: 1.0 - phi,
+        });
+        rve.add_phase(Phase {
+            name: "I".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(5.0),
+            fraction: phi,
+        });
         rve.set_matrix("M");
         let e_analytic = ff.homogenize(&rve).unwrap();
 
@@ -346,8 +399,10 @@ mod tests {
         // Matrix-only RVE: the cell problem has chi = 0 solution, K_eff = K_matrix.
         let mut rve = Rve::<Order2>::new();
         rve.add_phase(Phase {
-            name: "M".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(2.5), fraction: 1.0,
+            name: "M".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(2.5),
+            fraction: 1.0,
         });
         rve.set_matrix("M");
         let ff = FullField::<Order2>::new_with_resolution(4);
@@ -362,10 +417,18 @@ mod tests {
         let k1 = 5.0;
         let phi = 0.2;
         let mut rve = Rve::<Order2>::new();
-        rve.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(k0), fraction: 1.0 - phi });
-        rve.add_phase(Phase { name: "I".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(k1), fraction: phi });
+        rve.add_phase(Phase {
+            name: "M".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(k0),
+            fraction: 1.0 - phi,
+        });
+        rve.add_phase(Phase {
+            name: "I".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(k1),
+            fraction: phi,
+        });
         rve.set_matrix("M");
 
         let ff_coarse = FullField::<Order2>::new_with_resolution(6);
@@ -383,8 +446,10 @@ mod tests {
         // Refinement should not make things meaningfully worse. With 1 pass of
         // boundary-flagged refinement the gap either improves or stays within
         // a small factor (barycentric refinement alone has some bias).
-        assert!(d_refined < d_coarse * 1.5,
-                "refined gap {d_refined} should be <= 1.5x coarse gap {d_coarse}");
+        assert!(
+            d_refined < d_coarse * 1.5,
+            "refined gap {d_refined} should be <= 1.5x coarse gap {d_coarse}"
+        );
     }
 
     #[test]
@@ -393,22 +458,40 @@ mod tests {
         // stalled on this; the new ladder (Jacobi -> ILU -> dense LU) succeeds.
         use crate::schemes::{MoriTanaka, Scheme, SchemeOpts};
         let mut rve = Rve::<Order2>::new();
-        rve.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(1.0), fraction: 0.8 });
-        rve.add_phase(Phase { name: "I".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(1.0e-6), fraction: 0.2 });
+        rve.add_phase(Phase {
+            name: "M".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0),
+            fraction: 0.8,
+        });
+        rve.add_phase(Phase {
+            name: "I".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0e-6),
+            fraction: 0.2,
+        });
         rve.set_matrix("M");
 
         let mut ff = FullField::<Order2>::new_with_resolution(6);
         ff.tol = 1e-6;
         ff.max_iter = 20_000;
-        let e_ff = ff.homogenize(&rve).expect("FF should now solve at 10^6 contrast");
+        let e_ff = ff
+            .homogenize(&rve)
+            .expect("FF should now solve at 10^6 contrast");
         let e_mf = MoriTanaka.homogenize(&rve, &SchemeOpts::default()).unwrap();
         let d = reliability_indicator_order2(&e_ff.tensor, &e_mf.tensor).unwrap();
-        println!("  void-limit FF k_eff diag:  [{}, {}, {}]",
-                 e_ff.tensor[(0,0)], e_ff.tensor[(1,1)], e_ff.tensor[(2,2)]);
-        println!("  void-limit MT k_eff diag:  [{}, {}, {}]",
-                 e_mf.tensor[(0,0)], e_mf.tensor[(1,1)], e_mf.tensor[(2,2)]);
+        println!(
+            "  void-limit FF k_eff diag:  [{}, {}, {}]",
+            e_ff.tensor[(0, 0)],
+            e_ff.tensor[(1, 1)],
+            e_ff.tensor[(2, 2)]
+        );
+        println!(
+            "  void-limit MT k_eff diag:  [{}, {}, {}]",
+            e_mf.tensor[(0, 0)],
+            e_mf.tensor[(1, 1)],
+            e_mf.tensor[(2, 2)]
+        );
         println!("  void-limit d_AI(FF, MF) = {d:.3e}");
         // The gap at the void limit is inherently large because FF resolves the
         // voids exactly as holes while MT remains an approximation. We just
@@ -427,10 +510,18 @@ mod tests {
         let k1 = 5.0;
         let phi = 0.05;
         let mut rve = Rve::<Order2>::new();
-        rve.add_phase(Phase { name: "M".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(k0), fraction: 1.0 - phi });
-        rve.add_phase(Phase { name: "I".into(), shape: Arc::new(Sphere),
-            property: Order2::scalar(k1), fraction: phi });
+        rve.add_phase(Phase {
+            name: "M".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(k0),
+            fraction: 1.0 - phi,
+        });
+        rve.add_phase(Phase {
+            name: "I".into(),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(k1),
+            fraction: phi,
+        });
         rve.set_matrix("M");
 
         let ff = FullField::<Order2>::new_with_resolution(8);
@@ -439,10 +530,18 @@ mod tests {
         let e_mf = MoriTanaka.homogenize(&rve, &SchemeOpts::default()).unwrap();
 
         let d = reliability_indicator_order2(&e_ff.tensor, &e_mf.tensor).unwrap();
-        println!("  FF k_eff diag:  [{}, {}, {}]",
-                 e_ff.tensor[(0, 0)], e_ff.tensor[(1, 1)], e_ff.tensor[(2, 2)]);
-        println!("  MT k_eff diag:  [{}, {}, {}]",
-                 e_mf.tensor[(0, 0)], e_mf.tensor[(1, 1)], e_mf.tensor[(2, 2)]);
+        println!(
+            "  FF k_eff diag:  [{}, {}, {}]",
+            e_ff.tensor[(0, 0)],
+            e_ff.tensor[(1, 1)],
+            e_ff.tensor[(2, 2)]
+        );
+        println!(
+            "  MT k_eff diag:  [{}, {}, {}]",
+            e_mf.tensor[(0, 0)],
+            e_mf.tensor[(1, 1)],
+            e_mf.tensor[(2, 2)]
+        );
         println!("  d_AI(FF, MF) = {d:.3e}");
         // With N=8 voxelisation + Dirichlet BCs, dilute-limit agreement is ~0.1.
         // This test is the v1 infrastructure proof; tighter agreement requires

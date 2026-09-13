@@ -59,11 +59,11 @@ pub mod stokes;
 pub use advection::{
     apply_scalar_advection, apply_scalar_advection_generic, apply_vector_advection,
 };
+pub use cartesian_connection::cartesian_3d_connection;
 pub use divergence::{apply_divergence, apply_divergence_generic, apply_tensor_divergence};
 pub use error::DecError;
 pub use exterior::ExteriorDerivative;
 pub use hodge::HodgeStar;
 pub use laplace::Operators;
-pub use cartesian_connection::cartesian_3d_connection;
-pub use levi_civita::{levi_civita_2d, edge_transport_from_angles};
+pub use levi_civita::{edge_transport_from_angles, levi_civita_2d};
 pub use mesh::{FlatMesh, Mesh};

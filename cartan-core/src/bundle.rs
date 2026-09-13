@@ -64,9 +64,15 @@ pub struct EdgeTransport2D {
 }
 
 impl DiscreteConnection<2> for EdgeTransport2D {
-    fn n_edges(&self) -> usize { self.edges.len() }
-    fn edge_vertices(&self, e: usize) -> [usize; 2] { self.edges[e] }
-    fn frame_transport(&self, e: usize) -> &[f64] { &self.transports[e] }
+    fn n_edges(&self) -> usize {
+        self.edges.len()
+    }
+    fn edge_vertices(&self, e: usize) -> [usize; 2] {
+        self.edges[e]
+    }
+    fn frame_transport(&self, e: usize) -> &[f64] {
+        &self.transports[e]
+    }
 }
 
 /// Edge-based transport storage for SO(3) (9 floats per edge).
@@ -79,9 +85,15 @@ pub struct EdgeTransport3D {
 }
 
 impl DiscreteConnection<3> for EdgeTransport3D {
-    fn n_edges(&self) -> usize { self.edges.len() }
-    fn edge_vertices(&self, e: usize) -> [usize; 2] { self.edges[e] }
-    fn frame_transport(&self, e: usize) -> &[f64] { &self.transports[e] }
+    fn n_edges(&self) -> usize {
+        self.edges.len()
+    }
+    fn edge_vertices(&self, e: usize) -> [usize; 2] {
+        self.edges[e]
+    }
+    fn frame_transport(&self, e: usize) -> &[f64] {
+        &self.transports[e]
+    }
 }
 
 /// Discrete connection storing a rotor (Cl+(D) element) per edge.
@@ -119,9 +131,15 @@ pub struct EdgeTransportRotor2D {
 }
 
 impl RotorConnection<2> for EdgeTransportRotor2D {
-    fn n_edges(&self) -> usize { self.edges.len() }
-    fn edge_vertices(&self, e: usize) -> [usize; 2] { self.edges[e] }
-    fn rotor(&self, e: usize) -> Rotor { Rotor::R2(self.rotors[e]) }
+    fn n_edges(&self) -> usize {
+        self.edges.len()
+    }
+    fn edge_vertices(&self, e: usize) -> [usize; 2] {
+        self.edges[e]
+    }
+    fn rotor(&self, e: usize) -> Rotor {
+        Rotor::R2(self.rotors[e])
+    }
 }
 
 /// Edge-based rotor storage for SO(3) (one `Rotor3` per edge).
@@ -134,9 +152,15 @@ pub struct EdgeTransportRotor3D {
 }
 
 impl RotorConnection<3> for EdgeTransportRotor3D {
-    fn n_edges(&self) -> usize { self.edges.len() }
-    fn edge_vertices(&self, e: usize) -> [usize; 2] { self.edges[e] }
-    fn rotor(&self, e: usize) -> Rotor { Rotor::R3(self.rotors[e]) }
+    fn n_edges(&self) -> usize {
+        self.edges.len()
+    }
+    fn edge_vertices(&self, e: usize) -> [usize; 2] {
+        self.edges[e]
+    }
+    fn rotor(&self, e: usize) -> Rotor {
+        Rotor::R3(self.rotors[e])
+    }
 }
 
 /// Generic covariant Laplacian on fiber bundle sections.
@@ -191,11 +215,7 @@ impl CovLaplacian {
     /// Apply the covariant Laplacian with a discrete connection.
     ///
     /// Generic over fiber type `F` and connection dimension `D`.
-    pub fn apply<F, const D: usize, C>(
-        &self,
-        section: &impl Section<F>,
-        conn: &C,
-    ) -> VecSection<F>
+    pub fn apply<F, const D: usize, C>(&self, section: &impl Section<F>, conn: &C) -> VecSection<F>
     where
         F: FiberOps,
         C: DiscreteConnection<D>,
@@ -207,7 +227,11 @@ impl CovLaplacian {
             let s_v = section.at(v);
 
             for &(e, is_v0) in &self.vertex_edges[v] {
-                let neighbor = if is_v0 { self.edges[e][1] } else { self.edges[e][0] };
+                let neighbor = if is_v0 {
+                    self.edges[e][1]
+                } else {
+                    self.edges[e][0]
+                };
                 let s_neighbor = section.at(neighbor);
                 let w = self.cot_weights[e];
 
@@ -252,7 +276,11 @@ impl CovLaplacian {
             let s_v = section.at(v);
 
             for &(e, is_v0) in &self.vertex_edges[v] {
-                let neighbor = if is_v0 { self.edges[e][1] } else { self.edges[e][0] };
+                let neighbor = if is_v0 {
+                    self.edges[e][1]
+                } else {
+                    self.edges[e][0]
+                };
                 let s_neighbor = section.at(neighbor);
                 let w = self.cot_weights[e];
 
@@ -283,20 +311,26 @@ mod rotor_conn_tests {
     #[test]
     fn rotor3_connection_forward_matches_matrix_connection() {
         let edges = vec![[0usize, 1usize]];
-        let r = Rotor3::from_matrix(&[
-            0.0, -1.0, 0.0,
-            1.0,  0.0, 0.0,
-            0.0,  0.0, 1.0,
-        ]);
-        let rconn = EdgeTransportRotor3D { edges: edges.clone(), rotors: vec![r] };
-        let mconn = EdgeTransport3D { edges, transports: vec![r.to_matrix()] };
+        let r = Rotor3::from_matrix(&[0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
+        let rconn = EdgeTransportRotor3D {
+            edges: edges.clone(),
+            rotors: vec![r],
+        };
+        let mconn = EdgeTransport3D {
+            edges,
+            transports: vec![r.to_matrix()],
+        };
         let v = [1.0, 2.0, 3.0];
         let fwd_rotor = rconn.transport_forward_rotor::<TangentFiber<3>>(0, &v);
         let fwd_mat = mconn.transport_forward::<TangentFiber<3>>(0, &v);
-        for k in 0..3 { assert!((fwd_rotor[k]-fwd_mat[k]).abs() < 1e-12); }
+        for k in 0..3 {
+            assert!((fwd_rotor[k] - fwd_mat[k]).abs() < 1e-12);
+        }
         let rev_rotor = rconn.transport_reverse_rotor::<TangentFiber<3>>(0, &v);
         let rev_mat = mconn.transport_reverse::<TangentFiber<3>>(0, &v);
-        for k in 0..3 { assert!((rev_rotor[k]-rev_mat[k]).abs() < 1e-12); }
+        for k in 0..3 {
+            assert!((rev_rotor[k] - rev_mat[k]).abs() < 1e-12);
+        }
     }
 
     #[test]
@@ -311,18 +345,22 @@ mod rotor_conn_tests {
 
     #[test]
     fn apply_rotor_matches_matrix_apply() {
-        use crate::fiber::{TangentFiber, VecSection, Section};
+        use crate::fiber::{Section, TangentFiber, VecSection};
         // Triangle mesh: 3 vertices, 3 edges.
         let edges = [[0usize, 1usize], [1, 2], [2, 0]];
         let cot = [0.5, 0.5, 0.5];
         let areas = [1.0, 1.0, 1.0];
         let lap = CovLaplacian::new(3, &edges, &cot, &areas);
 
-        let rots = [Rotor3::from_matrix(&[
-            1.0,0.0,0.0, 0.0,1.0,0.0, 0.0,0.0,1.0]),
-            Rotor3::from_matrix(&[0.0,-1.0,0.0, 1.0,0.0,0.0, 0.0,0.0,1.0]),
-            Rotor3::from_matrix(&[1.0,0.0,0.0, 0.0,0.0,-1.0, 0.0,1.0,0.0])];
-        let rconn = EdgeTransportRotor3D { edges: edges.to_vec(), rotors: rots.to_vec() };
+        let rots = [
+            Rotor3::from_matrix(&[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]),
+            Rotor3::from_matrix(&[0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]),
+            Rotor3::from_matrix(&[1.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0]),
+        ];
+        let rconn = EdgeTransportRotor3D {
+            edges: edges.to_vec(),
+            rotors: rots.to_vec(),
+        };
         let mconn = EdgeTransport3D {
             edges: edges.to_vec(),
             transports: rots.iter().map(|r| r.to_matrix()).collect(),

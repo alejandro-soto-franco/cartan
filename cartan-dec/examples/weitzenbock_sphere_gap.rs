@@ -18,8 +18,8 @@
 //! Run with:  cargo run -p cartan-dec --example weitzenbock_sphere_gap --release
 
 use cartan_core::{Curvature, Manifold};
-use cartan_dec::mesh_gen::icosphere;
 use cartan_dec::Operators;
+use cartan_dec::mesh_gen::icosphere;
 use cartan_manifolds::sphere::Sphere;
 use nalgebra::{DVector, SVector};
 
@@ -32,8 +32,14 @@ fn main() {
 
     println!("=== Weitzenbock gap = Ricci on the unit S^2 (cartan-dec) ===");
     println!("manifold: Sphere<3>  intrinsic dim = {}", sphere.dim());
-    println!("icosphere level {level}: n_vertices = {nv}, n_faces = {}", mesh.n_simplices());
-    println!("sphere radius a = {a}, so the article's Ricci term = +1/a^2 = {}", 1.0 / (a * a));
+    println!(
+        "icosphere level {level}: n_vertices = {nv}, n_faces = {}",
+        mesh.n_simplices()
+    );
+    println!(
+        "sphere radius a = {a}, so the article's Ricci term = +1/a^2 = {}",
+        1.0 / (a * a)
+    );
 
     // --- analytic curvature from the manifold itself ---
     // For S^{N-1} of constant sectional curvature K=1: Ric(u,v) = (dim-1)*K*<u,v>.
@@ -53,7 +59,9 @@ fn main() {
     println!("scalar_curvature S = {scal:.15}   (analytic n(n-1)K = 2*1*1 = 2)");
 
     let ric_eigenvalue = ric11; // = +1/a^2 expected
-    let ric_residual = (ric11 - 1.0 / (a * a)).abs().max((ric22 - 1.0 / (a * a)).abs());
+    let ric_residual = (ric11 - 1.0 / (a * a))
+        .abs()
+        .max((ric22 - 1.0 / (a * a)).abs());
     let scal_residual = (scal - 2.0).abs();
 
     // --- assemble the discrete operators ---
@@ -88,20 +96,28 @@ fn main() {
     println!("Delta_L - nabla*nabla applied to a test vector field u:");
     println!("  ||gap - (+1/a^2) u||_2          = {vec_abs_residual:.3e}");
     println!("  relative residual               = {vec_rel_residual:.3e}");
-    println!("  recovered Ricci eigenvalue <gap,u>/<u,u> = {recovered_kappa:.15}  (expect +1/a^2 = {kappa})");
+    println!(
+        "  recovered Ricci eigenvalue <gap,u>/<u,u> = {recovered_kappa:.15}  (expect +1/a^2 = {kappa})"
+    );
 
     // === (B) TENSOR / LICHNEROWICZ Laplacian on a symmetric 2-tensor (the Q-tensor) ===
     // For a K=1 space form the Weitzenbock curvature endomorphism on symmetric
     // trace-handled 2-tensors reduces to the diagonal 2K = +2 correction the
     // operator API documents: c = 2K * Id_{3x3}.
     let kappa_t = 2.0 * (1.0 / (a * a)); // = +2 for the unit sphere
-    let lich_corr = |_v: usize| [[kappa_t, 0.0, 0.0], [0.0, kappa_t, 0.0], [0.0, 0.0, kappa_t]];
+    let lich_corr = |_v: usize| {
+        [
+            [kappa_t, 0.0, 0.0],
+            [0.0, kappa_t, 0.0],
+            [0.0, 0.0, kappa_t],
+        ]
+    };
     let mut q = DVector::<f64>::zeros(3 * nv);
     for v in 0..nv {
         let x = mesh.vertices[v];
-        q[v] = (x[0] - x[1]).sin();           // Qxx
+        q[v] = (x[0] - x[1]).sin(); // Qxx
         q[nv + v] = (x[1] + 0.5 * x[2]).cos(); // Qxy
-        q[2 * nv + v] = (x[2] - x[0]).sin();   // Qyy
+        q[2 * nv + v] = (x[2] - x[0]).sin(); // Qyy
     }
     let lich_full = ops.apply_lichnerowicz_laplacian(&q, Some(&lich_corr));
     let lich_rough = ops.apply_lichnerowicz_laplacian(&q, None);
@@ -115,7 +131,9 @@ fn main() {
     println!("Delta_L - nabla*nabla applied to a test Q-tensor field:");
     println!("  ||gap - 2K q||_2                = {ten_abs_residual:.3e}");
     println!("  relative residual              = {ten_rel_residual:.3e}");
-    println!("  recovered <gap,q>/<q,q>         = {recovered_kappa_t:.15}  (expect 2K = {kappa_t})");
+    println!(
+        "  recovered <gap,q>/<q,q>         = {recovered_kappa_t:.15}  (expect 2K = {kappa_t})"
+    );
 
     // === verdict ===
     let tol = 1e-9;
@@ -124,9 +142,17 @@ fn main() {
         && vec_abs_residual < tol
         && ten_abs_residual < tol;
     println!("\n=== SUMMARY ===");
-    println!("analytic Ricci eigenvalue (Sphere<3>)      = {ric_eigenvalue} (expect +1/a^2 = 1) residual {ric_residual:.2e}");
-    println!("analytic scalar curvature (Sphere<3>)      = {scal} (expect 2) residual {scal_residual:.2e}");
-    println!("Bochner gap recovered Ricci eigenvalue     = {recovered_kappa} residual {vec_abs_residual:.2e}");
-    println!("Lichnerowicz gap recovered eigenvalue (2K) = {recovered_kappa_t} residual {ten_abs_residual:.2e}");
+    println!(
+        "analytic Ricci eigenvalue (Sphere<3>)      = {ric_eigenvalue} (expect +1/a^2 = 1) residual {ric_residual:.2e}"
+    );
+    println!(
+        "analytic scalar curvature (Sphere<3>)      = {scal} (expect 2) residual {scal_residual:.2e}"
+    );
+    println!(
+        "Bochner gap recovered Ricci eigenvalue     = {recovered_kappa} residual {vec_abs_residual:.2e}"
+    );
+    println!(
+        "Lichnerowicz gap recovered eigenvalue (2K) = {recovered_kappa_t} residual {ten_abs_residual:.2e}"
+    );
     println!("VERDICT: {}", if pass { "PASS" } else { "FAIL" });
 }

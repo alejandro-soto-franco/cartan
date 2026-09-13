@@ -1,9 +1,7 @@
 use std::f64::consts::{FRAC_PI_3, FRAC_PI_4, FRAC_PI_6, PI};
 
 use cartan_core::bundle::{CovLaplacian, EdgeTransport2D, EdgeTransport3D};
-use cartan_core::fiber::{
-    Fiber, NematicFiber3D, Section, TangentFiber, U1Spin2, VecSection,
-};
+use cartan_core::fiber::{Fiber, NematicFiber3D, Section, TangentFiber, U1Spin2, VecSection};
 
 // ─── U1Spin2 tests ───────────────────────────────────────────────────────────
 
@@ -235,8 +233,7 @@ fn cov_laplacian_3d_uniform_vanishes() {
     };
     let lap = CovLaplacian::new(3, &edges, &cot_weights, &dual_areas);
 
-    let field =
-        VecSection::<NematicFiber3D>::from_vec(vec![[0.1, 0.2, 0.3, 0.15, 0.25]; 3]);
+    let field = VecSection::<NematicFiber3D>::from_vec(vec![[0.1, 0.2, 0.3, 0.15, 0.25]; 3]);
     let result = lap.apply::<NematicFiber3D, 3, _>(&field, &conn);
 
     for v in 0..3 {

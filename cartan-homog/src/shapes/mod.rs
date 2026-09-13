@@ -6,24 +6,23 @@
 use crate::{error::HomogError, tensor::TensorOrder};
 use alloc::sync::Arc;
 
-pub mod opts;
-pub mod lebedev;
-pub mod sphere;
-pub mod spheroid;
 pub mod crack;
 pub mod ellipsoid;
+pub mod lebedev;
+pub mod opts;
+pub mod sphere;
 pub mod sphere_nlayers;
+pub mod spheroid;
 
+pub use crack::PennyCrack;
+pub use ellipsoid::{Ellipsoid, carlson_rd};
 pub use opts::IntegrationOpts;
 pub use sphere::Sphere;
-pub use spheroid::Spheroid;
-pub use crack::PennyCrack;
-pub use ellipsoid::{carlson_rd, Ellipsoid};
 pub use sphere_nlayers::SphereNLayers;
+pub use spheroid::Spheroid;
 
 pub trait Shape<O: TensorOrder>: Send + Sync + core::fmt::Debug {
-    fn hill(&self, c_ref: &O::KmMatrix, opts: &IntegrationOpts)
-        -> Result<O::KmMatrix, HomogError>;
+    fn hill(&self, c_ref: &O::KmMatrix, opts: &IntegrationOpts) -> Result<O::KmMatrix, HomogError>;
 
     fn concentration_dilute(
         &self,

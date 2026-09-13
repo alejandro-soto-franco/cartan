@@ -1,21 +1,28 @@
 //! VTK PolyData (.vtp) writer for cartan-dec triangle surface meshes.
 
-use std::io::Write;
-use std::path::Path;
+use crate::xml::{encode_f64_le, encode_i64_le};
 use cartan_core::Manifold;
 use cartan_dec::mesh::Mesh;
 use nalgebra::SVector;
-use crate::xml::{encode_f64_le, encode_i64_le};
+use std::io::Write;
+use std::path::Path;
 
 pub enum Field {
-    Scalar { name: String, values: Vec<f64> },
+    Scalar {
+        name: String,
+        values: Vec<f64>,
+    },
     /// A vector field on the surface mesh.
     ///
     /// When `nematic` is true the field is a headless director (draw it
     /// double-ended). The DataArray Name is written as `{name}__nematic` so
     /// the suffix survives a round-trip through pyvista and the renderer can
     /// detect it without relying on non-standard XML attributes.
-    Vector { name: String, values: Vec<f64>, nematic: bool },
+    Vector {
+        name: String,
+        values: Vec<f64>,
+        nematic: bool,
+    },
 }
 
 pub fn write_vtp<M>(
@@ -104,7 +111,11 @@ where
                     enc = encode_f64_le(values),
                 )?;
             }
-            Field::Vector { name, values, nematic } => {
+            Field::Vector {
+                name,
+                values,
+                nematic,
+            } => {
                 let da_name = if *nematic {
                     format!("{name}__nematic")
                 } else {
@@ -146,11 +157,8 @@ mod tests {
             SVector::<f64, 3>::new(1.0, 0.0, 0.0),
             SVector::<f64, 3>::new(0.0, 1.0, 0.0),
         ];
-        let mesh = Mesh::<Euclidean<3>, 3, 2>::from_simplices(
-            &Euclidean::<3>,
-            verts,
-            vec![[0, 1, 2]],
-        );
+        let mesh =
+            Mesh::<Euclidean<3>, 3, 2>::from_simplices(&Euclidean::<3>, verts, vec![[0, 1, 2]]);
         let f = Field::Scalar {
             name: "temp".into(),
             values: vec![1.0, 2.0, 3.0],
@@ -170,21 +178,18 @@ mod tests {
             SVector::<f64, 3>::new(1.0, 0.0, 0.0),
             SVector::<f64, 3>::new(0.0, 1.0, 0.0),
         ];
-        let mesh = Mesh::<Euclidean<3>, 3, 2>::from_simplices(
-            &Euclidean::<3>,
-            verts,
-            vec![[0, 1, 2]],
-        );
+        let mesh =
+            Mesh::<Euclidean<3>, 3, 2>::from_simplices(&Euclidean::<3>, verts, vec![[0, 1, 2]]);
 
         // 3 vertices x 3 components = 9 values.
         let vec_field = Field::Vector {
             name: "velocity".into(),
-            values: vec![1.0, 0.0, 0.0,  0.0, 1.0, 0.0,  0.0, 0.0, 1.0],
+            values: vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
             nematic: false,
         };
         let nem_field = Field::Vector {
             name: "director".into(),
-            values: vec![1.0, 0.0, 0.0,  0.0, 1.0, 0.0,  0.0, 0.0, 1.0],
+            values: vec![1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
             nematic: true,
         };
 

@@ -1,7 +1,7 @@
 //! Iteration count of Jacobi-preconditioned CG on the interior grade-1 mass,
 //! across a refinement sequence.
 
-use cartan_matfree::{pcg, HostMass, Interior, MassBackend};
+use cartan_matfree::{HostMass, Interior, MassBackend, pcg};
 use simplicial::r#gen::cartesian::CartesianGrid;
 
 fn probe(n: usize, seed: u64) -> Vec<f64> {
@@ -17,7 +17,10 @@ fn probe(n: usize, seed: u64) -> Vec<f64> {
 }
 
 fn main() {
-    println!("{:>4} {:>10} {:>8} {:>12}", "ref", "ndofs", "iters", "residual");
+    println!(
+        "{:>4} {:>10} {:>8} {:>12}",
+        "ref", "ndofs", "iters", "residual"
+    );
     for refinement in 2..=8 {
         let (topology, coords) = CartesianGrid::new_unit(3, refinement).triangulate();
         let geometry = coords.to_edge_lengths_sq(&topology);
@@ -27,6 +30,9 @@ fn main() {
         let rhs = probe(n, 7);
         let mut x = vec![0.0; n];
         let r = pcg(&mass, &rhs, &mut x, 1e-10, 2000);
-        println!("{refinement:>4} {n:>10} {:>8} {:>12.3e}", r.iterations, r.residual);
+        println!(
+            "{refinement:>4} {n:>10} {:>8} {:>12.3e}",
+            r.iterations, r.residual
+        );
     }
 }

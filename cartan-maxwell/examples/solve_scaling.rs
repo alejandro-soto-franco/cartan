@@ -1,7 +1,7 @@
 //! Cost of one Ampere solve: the dense factorisation against the matrix-free
 //! iteration, over a refinement sequence.
 
-use cartan_matfree::{pcg, HostMass, Interior, MassBackend};
+use cartan_matfree::{HostMass, Interior, MassBackend, pcg};
 use formoniq::whitney_complex::{RelativeWhitneyComplex, WhitneyComplex};
 use nalgebra::{DMatrix, DVector};
 use simplicial::r#gen::cartesian::CartesianGrid;

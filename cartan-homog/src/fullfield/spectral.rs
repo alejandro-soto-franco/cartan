@@ -21,14 +21,14 @@ use alloc::format;
 use alloc::vec::Vec;
 
 use gpufft::{
-    vulkan::{DeviceOptions, VulkanBackend, VulkanDevice},
     BufferOps, C2cPlanOps, Device, Direction, PlanDesc, Shape,
+    vulkan::{DeviceOptions, VulkanBackend, VulkanDevice},
 };
 use nalgebra::Matrix3;
 use num_complex::Complex32;
 
 use crate::error::HomogError;
-use crate::fullfield::voxelize::{VoxelGrid, NO_PHASE};
+use crate::fullfield::voxelize::{NO_PHASE, VoxelGrid};
 use crate::schemes::Effective;
 use crate::tensor::Order2;
 
@@ -90,8 +90,7 @@ impl SpectralFullField {
         let mut total_iters = 0usize;
         let mut worst_res = 0.0f64;
         for i_dir in 0..3 {
-            let (col, iters, res) =
-                self.run_direction(&dev, &kappa, kappa0, i_dir, n)?;
+            let (col, iters, res) = self.run_direction(&dev, &kappa, kappa0, i_dir, n)?;
             for r in 0..3 {
                 k_eff[(r, i_dir)] = col[r] as f64;
             }
@@ -139,7 +138,13 @@ impl SpectralFullField {
 
         // Precompute signed integer frequencies along each axis.
         let freqs: Vec<i32> = (0..n)
-            .map(|k| if k <= n / 2 { k as i32 } else { k as i32 - n as i32 })
+            .map(|k| {
+                if k <= n / 2 {
+                    k as i32
+                } else {
+                    k as i32 - n as i32
+                }
+            })
             .collect();
 
         let mut last_res = f32::INFINITY;
@@ -184,11 +189,7 @@ impl SpectralFullField {
                 for ky in 0..n {
                     for kx in 0..n {
                         let idx = kx + ky * n + kz * n * n;
-                        let xi = [
-                            freqs[kx] as f32,
-                            freqs[ky] as f32,
-                            freqs[kz] as f32,
-                        ];
+                        let xi = [freqs[kx] as f32, freqs[ky] as f32, freqs[kz] as f32];
                         let xi_sq = xi[0] * xi[0] + xi[1] * xi[1] + xi[2] * xi[2];
                         if xi_sq < 1e-12 {
                             for (a, hat) in eps_hat.iter_mut().enumerate() {

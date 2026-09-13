@@ -3,7 +3,7 @@
 //! Each test states a claim the crate's documentation makes, so a change that
 //! breaks one breaks the claim with it.
 
-use cartan_mimetic::{diagonal_star, local_star, n_choose_k, Simplex};
+use cartan_mimetic::{Simplex, diagonal_star, local_star, n_choose_k};
 
 fn simplex(points: &[&[f64]]) -> Simplex {
     Simplex::new(&points.iter().map(|p| p.to_vec()).collect::<Vec<_>>())
@@ -20,12 +20,35 @@ fn tet(a: [f64; 3], b: [f64; 3], c: [f64; 3], d: [f64; 3]) -> Simplex {
 /// The shapes a mesher actually produces, including the ones it should not.
 fn awkward_tets() -> Vec<(&'static str, Simplex)> {
     vec![
-        ("regular", tet([1., 1., 1.], [1., -1., -1.], [-1., 1., -1.], [-1., -1., 1.])),
-        ("reference corner", tet([0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [0., 0., 1.])),
-        ("generic", tet([0., 0., 0.], [1., 0., 0.], [0.3, 0.9, 0.], [0.2, 0.4, 1.1])),
-        ("flat sliver", tet([0., 0., 0.], [1., 0., 0.], [0.3, 0.9, 0.], [0.4, 0.3, 0.08])),
-        ("needle", tet([0., 0., 0.], [1., 0., 0.], [0.5, 0.05, 0.], [0.5, 0.02, 0.9])),
-        ("cap", tet([0., 0., 0.], [1., 0., 0.], [0.5, 0.9, 0.], [0.5, 0.3, 0.02])),
+        (
+            "regular",
+            tet([1., 1., 1.], [1., -1., -1.], [-1., 1., -1.], [-1., -1., 1.]),
+        ),
+        (
+            "reference corner",
+            tet([0., 0., 0.], [1., 0., 0.], [0., 1., 0.], [0., 0., 1.]),
+        ),
+        (
+            "generic",
+            tet([0., 0., 0.], [1., 0., 0.], [0.3, 0.9, 0.], [0.2, 0.4, 1.1]),
+        ),
+        (
+            "flat sliver",
+            tet([0., 0., 0.], [1., 0., 0.], [0.3, 0.9, 0.], [0.4, 0.3, 0.08]),
+        ),
+        (
+            "needle",
+            tet(
+                [0., 0., 0.],
+                [1., 0., 0.],
+                [0.5, 0.05, 0.],
+                [0.5, 0.02, 0.9],
+            ),
+        ),
+        (
+            "cap",
+            tet([0., 0., 0.], [1., 0., 0.], [0.5, 0.9, 0.], [0.5, 0.3, 0.02]),
+        ),
     ]
 }
 
@@ -40,7 +63,10 @@ fn the_mimetic_star_is_consistent_at_every_degree() {
             let c = s.consistency(k).expect("a non-degenerate tetrahedron");
             let m = local_star(&s, k).expect("a non-degenerate tetrahedron");
             let r = c.residual(&m);
-            assert!(r < 1e-10, "{name} at k={k} left consistency residual {r:.3e}");
+            assert!(
+                r < 1e-10,
+                "{name} at k={k} left consistency residual {r:.3e}"
+            );
         }
     }
 }
@@ -109,7 +135,10 @@ fn that_diagonal_star_turns_negative_exactly_when_the_triangle_is_obtuse() {
     let obtuse = triangle([0.0, 0.0], [1.0, 0.0], [-0.6, 0.35]);
 
     let a = diagonal_star(&acute, 1).unwrap();
-    assert!(a.is_usable(), "an acute triangle should admit the diagonal star");
+    assert!(
+        a.is_usable(),
+        "an acute triangle should admit the diagonal star"
+    );
 
     let o = diagonal_star(&obtuse, 1).unwrap();
     assert!(o.is_consistent(), "the obtuse case is still consistent");
@@ -146,12 +175,22 @@ fn the_tetrahedra_of_a_subdivided_cube_admit_no_usable_diagonal_star() {
     // and at k=2 by consistency, which is why the diagonal path is not an option
     // for a three-dimensional solver.
     let c = [
-        [0., 0., 0.], [1., 0., 0.], [1., 1., 0.], [0., 1., 0.],
-        [0., 0., 1.], [1., 0., 1.], [1., 1., 1.], [0., 1., 1.],
+        [0., 0., 0.],
+        [1., 0., 0.],
+        [1., 1., 0.],
+        [0., 1., 0.],
+        [0., 0., 1.],
+        [1., 0., 1.],
+        [1., 1., 1.],
+        [0., 1., 1.],
     ];
     let six = [
-        [0, 1, 2, 6], [0, 1, 6, 5], [0, 4, 5, 6],
-        [0, 4, 6, 7], [0, 3, 7, 6], [0, 2, 3, 6],
+        [0, 1, 2, 6],
+        [0, 1, 6, 5],
+        [0, 4, 5, 6],
+        [0, 4, 6, 7],
+        [0, 3, 7, 6],
+        [0, 2, 3, 6],
     ];
     for (t, idx) in six.iter().enumerate() {
         let s = tet(c[idx[0]], c[idx[1]], c[idx[2]], c[idx[3]]);
@@ -188,9 +227,17 @@ fn the_unknowns_and_equations_are_the_binomials_the_table_states() {
         (3, 3, 1, 1),
     ];
     for (n, k, unknowns, equations) in expected {
-        assert_eq!(n_choose_k(n + 1, k + 1), unknowns, "unknowns at n={n}, k={k}");
+        assert_eq!(
+            n_choose_k(n + 1, k + 1),
+            unknowns,
+            "unknowns at n={n}, k={k}"
+        );
         let forms = n_choose_k(n, k);
-        assert_eq!(forms * (forms + 1) / 2, equations, "equations at n={n}, k={k}");
+        assert_eq!(
+            forms * (forms + 1) / 2,
+            equations,
+            "equations at n={n}, k={k}"
+        );
     }
 }
 
@@ -211,7 +258,10 @@ fn a_triangle_in_three_dimensions_is_treated_as_two_dimensional() {
     assert_eq!(b.shape(), (3, 3));
     for i in 0..3 {
         for j in 0..3 {
-            assert!((a[(i, j)] - b[(i, j)]).abs() < 1e-12, "the embedding changed the star");
+            assert!(
+                (a[(i, j)] - b[(i, j)]).abs() < 1e-12,
+                "the embedding changed the star"
+            );
         }
     }
 }

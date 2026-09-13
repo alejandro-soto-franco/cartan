@@ -615,13 +615,14 @@ where
         // The geodesic γ(t) from p to q satisfies ||γ'(t)||_γ(t) = const = dist(p,q),
         // so the arc length from p to γ(0.5) is 0.5 * dist(p, q).
         if let (Ok(d_pq), Ok(g_half)) = (manifold.dist(&p, &q), manifold.geodesic(&p, &q, 0.5))
-            && let Ok(d_half) = manifold.dist(&p, &g_half) {
-                assert_real_eq(
-                    d_half,
-                    0.5 * d_pq,
-                    tol * 100.0,
-                    &format!("sample {}: constant speed at t=0.5", i),
-                );
-            }
+            && let Ok(d_half) = manifold.dist(&p, &g_half)
+        {
+            assert_real_eq(
+                d_half,
+                0.5 * d_pq,
+                tol * 100.0,
+                &format!("sample {}: constant speed at t=0.5", i),
+            );
+        }
     }
 }

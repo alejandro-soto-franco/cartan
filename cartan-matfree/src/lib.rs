@@ -39,7 +39,7 @@ mod gather;
 mod mass;
 mod restrict;
 
-pub use cg::{pcg, CgReport, MassBackend};
+pub use cg::{CgReport, MassBackend, pcg};
 pub use gather::GatherMap;
 pub use mass::HostMass;
 pub use restrict::Interior;

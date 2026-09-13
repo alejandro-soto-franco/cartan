@@ -17,7 +17,7 @@ use rand_distr::{Distribution, StandardNormal};
 
 use crate::error::StochasticError;
 use crate::frame::OrthonormalFrame;
-use crate::sde::{stratonovich_step, StratonovichDevelopment};
+use crate::sde::{StratonovichDevelopment, stratonovich_step};
 
 /// A stored stochastic-development trajectory on `M`.
 ///
@@ -71,5 +71,8 @@ where
         p = p_next;
         frame = frame_next;
     }
-    Ok(DevelopmentPath { path, final_frame: frame })
+    Ok(DevelopmentPath {
+        path,
+        final_frame: frame,
+    })
 }

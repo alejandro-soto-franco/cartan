@@ -11,8 +11,8 @@
 //! - [`defect_charges`]: exact discrete topological charge per face
 //!
 
-use num_complex::Complex;
 use nalgebra_sparse::{CooMatrix, CscMatrix};
+use num_complex::Complex;
 
 use crate::hodge::HodgeStar;
 use crate::mesh::Mesh;

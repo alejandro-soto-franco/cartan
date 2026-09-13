@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use nalgebra::{SMatrix, SVector};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use cartan_core::{Manifold, ParallelTransport};
 use cartan_manifolds::{Spd, Sphere};
@@ -121,20 +121,46 @@ macro_rules! sphere_arm {
         let q = SVector::<f64, $n>::from_column_slice(&vec_of(&$case["q"]));
 
         let e = m.exp(&p, &v);
-        $out.push(record("sphere", $n, "exp", e.as_slice().to_vec(),
-                         time_ns(|| m.exp(bb(&p), bb(&v)))));
+        $out.push(record(
+            "sphere",
+            $n,
+            "exp",
+            e.as_slice().to_vec(),
+            time_ns(|| m.exp(bb(&p), bb(&v))),
+        ));
 
-        let l = m.log(&p, &q).expect("fixtures stay inside the injectivity radius");
-        $out.push(record("sphere", $n, "log", l.as_slice().to_vec(),
-                         time_ns(|| m.log(bb(&p), bb(&q)))));
+        let l = m
+            .log(&p, &q)
+            .expect("fixtures stay inside the injectivity radius");
+        $out.push(record(
+            "sphere",
+            $n,
+            "log",
+            l.as_slice().to_vec(),
+            time_ns(|| m.log(bb(&p), bb(&q))),
+        ));
 
-        let d = m.dist(&p, &q).expect("fixtures stay inside the injectivity radius");
-        $out.push(record("sphere", $n, "dist", vec![d],
-                         time_ns(|| m.dist(bb(&p), bb(&q)))));
+        let d = m
+            .dist(&p, &q)
+            .expect("fixtures stay inside the injectivity radius");
+        $out.push(record(
+            "sphere",
+            $n,
+            "dist",
+            vec![d],
+            time_ns(|| m.dist(bb(&p), bb(&q))),
+        ));
 
-        let t = m.transport(&p, &q, &v).expect("transport along a minimising geodesic");
-        $out.push(record("sphere", $n, "transport", t.as_slice().to_vec(),
-                         time_ns(|| m.transport(bb(&p), bb(&q), bb(&v)))));
+        let t = m
+            .transport(&p, &q, &v)
+            .expect("transport along a minimising geodesic");
+        $out.push(record(
+            "sphere",
+            $n,
+            "transport",
+            t.as_slice().to_vec(),
+            time_ns(|| m.transport(bb(&p), bb(&q), bb(&v))),
+        ));
     }};
 }
 
@@ -158,13 +184,33 @@ macro_rules! spd_arm {
         };
 
         let e = m.exp(&p, &v);
-        $out.push(record("spd", $n, "exp", row_major(&e), time_ns(|| m.exp(bb(&p), bb(&v)))));
+        $out.push(record(
+            "spd",
+            $n,
+            "exp",
+            row_major(&e),
+            time_ns(|| m.exp(bb(&p), bb(&v))),
+        ));
 
-        let l = m.log(&p, &q).expect("the SPD cone is complete, so log always succeeds");
-        $out.push(record("spd", $n, "log", row_major(&l), time_ns(|| m.log(bb(&p), bb(&q)))));
+        let l = m
+            .log(&p, &q)
+            .expect("the SPD cone is complete, so log always succeeds");
+        $out.push(record(
+            "spd",
+            $n,
+            "log",
+            row_major(&l),
+            time_ns(|| m.log(bb(&p), bb(&q))),
+        ));
 
         let d = m.dist(&p, &q).expect("the SPD cone is complete");
-        $out.push(record("spd", $n, "dist", vec![d], time_ns(|| m.dist(bb(&p), bb(&q)))));
+        $out.push(record(
+            "spd",
+            $n,
+            "dist",
+            vec![d],
+            time_ns(|| m.dist(bb(&p), bb(&q))),
+        ));
     }};
 }
 
@@ -184,7 +230,9 @@ fn main() {
 
     let mut out = Vec::new();
     for case in data["cases"].as_array().expect("cases must be an array") {
-        let kind = case["manifold"].as_str().expect("manifold must be a string");
+        let kind = case["manifold"]
+            .as_str()
+            .expect("manifold must be a string");
         let dim = case["dim"].as_u64().expect("dim must be an integer") as usize;
         eprintln!("benchmarking {kind} dim={dim}");
 
@@ -203,10 +251,7 @@ fn main() {
 
     fs::create_dir_all(out_path.parent().expect("results dir has a parent"))
         .expect("cannot create results directory");
-    let body: String = out
-        .iter()
-        .map(|r| format!("{r}\n"))
-        .collect();
+    let body: String = out.iter().map(|r| format!("{r}\n")).collect();
     fs::write(&out_path, body).expect("cannot write results");
 
     eprintln!("wrote {} records to {}", out.len(), out_path.display());

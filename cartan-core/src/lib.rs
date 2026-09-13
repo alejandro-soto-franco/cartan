@@ -58,9 +58,9 @@ pub use bundle::{CovLaplacian, DiscreteConnection, EdgeTransport2D, EdgeTranspor
 pub use connection::Connection;
 pub use curvature::Curvature;
 pub use error::CartanError;
-pub use fiber::{Fiber, FiberOps, NematicFiber3D, Section, TangentFiber, U1Spin2};
 #[cfg(feature = "alloc")]
 pub use fiber::VecSection;
+pub use fiber::{Fiber, FiberOps, NematicFiber3D, Section, TangentFiber, U1Spin2};
 pub use geodesic::GeodesicInterpolation;
 pub use manifold::Manifold;
 pub use retraction::Retraction;

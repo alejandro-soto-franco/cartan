@@ -1,10 +1,10 @@
 //! VTK UnstructuredGrid (.vtu) writer for runtime-dimensional simplicial complexes.
 
+use crate::xml::{encode_f64_le, encode_i64_le};
+use simplicial::geometry::coord::mesh::MeshCoords;
+use simplicial::topology::complex::Complex;
 use std::io::{self, Write};
 use std::path::Path;
-use simplicial::topology::complex::Complex;
-use simplicial::geometry::coord::mesh::MeshCoords;
-use crate::xml::{encode_f64_le, encode_i64_le};
 
 /// Write a VTK UnstructuredGrid file (.vtu) for a simplicial complex.
 ///
@@ -21,25 +21,47 @@ pub fn write_vtu(
     coords: &MeshCoords,
     point_scalars: &[(&str, &[f64])],
     point_vectors: &[(&str, &[f64])],
-    cell_scalars:  &[(&str, &[f64])],
-    cell_vectors:  &[(&str, &[f64])],
+    cell_scalars: &[(&str, &[f64])],
+    cell_vectors: &[(&str, &[f64])],
 ) -> io::Result<()> {
-    let nv    = coords.nvertices();
+    let nv = coords.nvertices();
     let ncells = complex.nsimplices(complex.dim());
-    let cdim  = complex.dim();
+    let cdim = complex.dim();
 
     // Validate array lengths (panic with clear message on mismatch).
     for (name, vals) in point_scalars {
-        assert_eq!(vals.len(), nv, "point scalar '{name}': expected {nv} values, got {}", vals.len());
+        assert_eq!(
+            vals.len(),
+            nv,
+            "point scalar '{name}': expected {nv} values, got {}",
+            vals.len()
+        );
     }
     for (name, vals) in point_vectors {
-        assert_eq!(vals.len(), 3 * nv, "point vector '{name}': expected {} values, got {}", 3 * nv, vals.len());
+        assert_eq!(
+            vals.len(),
+            3 * nv,
+            "point vector '{name}': expected {} values, got {}",
+            3 * nv,
+            vals.len()
+        );
     }
     for (name, vals) in cell_scalars {
-        assert_eq!(vals.len(), ncells, "cell scalar '{name}': expected {ncells} values, got {}", vals.len());
+        assert_eq!(
+            vals.len(),
+            ncells,
+            "cell scalar '{name}': expected {ncells} values, got {}",
+            vals.len()
+        );
     }
     for (name, vals) in cell_vectors {
-        assert_eq!(vals.len(), 3 * ncells, "cell vector '{name}': expected {} values, got {}", 3 * ncells, vals.len());
+        assert_eq!(
+            vals.len(),
+            3 * ncells,
+            "cell vector '{name}': expected {} values, got {}",
+            3 * ncells,
+            vals.len()
+        );
     }
 
     // Points: x,y,z interleaved (pad z=0 for 2D).
@@ -75,7 +97,9 @@ pub fn write_vtu(
 
     let mut f = io::BufWriter::new(std::fs::File::create(path)?);
 
-    write!(f, r#"<?xml version="1.0"?>
+    write!(
+        f,
+        r#"<?xml version="1.0"?>
 <VTKFile type="UnstructuredGrid" version="1.0" byte_order="LittleEndian" header_type="UInt64">
   <UnstructuredGrid>
     <Piece NumberOfPoints="{nv}" NumberOfCells="{ncells}">
@@ -89,9 +113,9 @@ pub fn write_vtu(
       </Cells>
       <PointData>
 "#,
-        nv       = nv,
-        ncells   = ncells,
-        pts_enc  = encode_f64_le(&pts),
+        nv = nv,
+        ncells = ncells,
+        pts_enc = encode_f64_le(&pts),
         conn_enc = encode_i64_le(&conn),
         offs_enc = encode_i64_le(&offs),
         types_enc = encode_i64_le(&types),
@@ -102,7 +126,7 @@ pub fn write_vtu(
             f,
             r#"        <DataArray type="Float64" Name="{name}" NumberOfComponents="1" format="binary">{enc}</DataArray>"#,
             name = name,
-            enc  = encode_f64_le(vals),
+            enc = encode_f64_le(vals),
         )?;
     }
     for (name, vals) in point_vectors {
@@ -110,20 +134,23 @@ pub fn write_vtu(
             f,
             r#"        <DataArray type="Float64" Name="{name}" NumberOfComponents="3" format="binary">{enc}</DataArray>"#,
             name = name,
-            enc  = encode_f64_le(vals),
+            enc = encode_f64_le(vals),
         )?;
     }
 
-    write!(f, r#"      </PointData>
+    write!(
+        f,
+        r#"      </PointData>
       <CellData>
-"#)?;
+"#
+    )?;
 
     for (name, vals) in cell_scalars {
         writeln!(
             f,
             r#"        <DataArray type="Float64" Name="{name}" NumberOfComponents="1" format="binary">{enc}</DataArray>"#,
             name = name,
-            enc  = encode_f64_le(vals),
+            enc = encode_f64_le(vals),
         )?;
     }
     for (name, vals) in cell_vectors {
@@ -131,15 +158,18 @@ pub fn write_vtu(
             f,
             r#"        <DataArray type="Float64" Name="{name}" NumberOfComponents="3" format="binary">{enc}</DataArray>"#,
             name = name,
-            enc  = encode_f64_le(vals),
+            enc = encode_f64_le(vals),
         )?;
     }
 
-    write!(f, r#"      </CellData>
+    write!(
+        f,
+        r#"      </CellData>
     </Piece>
   </UnstructuredGrid>
 </VTKFile>
-"#)?;
+"#
+    )?;
 
     f.flush()?;
     Ok(())
@@ -159,7 +189,16 @@ mod tests {
         let dir = std::env::temp_dir().join("cartan_vtu_test");
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("frame.vtu");
-        write_vtu(&path, &complex, &coords, &[], &[], &[("B", &cell_scalar)], &[("E", &cell_vec)]).unwrap();
+        write_vtu(
+            &path,
+            &complex,
+            &coords,
+            &[],
+            &[],
+            &[("B", &cell_scalar)],
+            &[("E", &cell_vec)],
+        )
+        .unwrap();
         let xml = std::fs::read_to_string(&path).unwrap();
         assert!(xml.contains("type=\"UnstructuredGrid\""));
         assert!(xml.contains(&format!("NumberOfPoints=\"{}\"", coords.nvertices())));

@@ -59,7 +59,9 @@ pub fn write_mdd(path: &Path, frames: &[Vec<[f32; 3]>], times: &[f32]) -> std::i
         None => 0,
     };
     if frames.iter().any(|f| f.len() != nvertices) {
-        return Err(invalid("MDD requires a constant vertex count across frames"));
+        return Err(invalid(
+            "MDD requires a constant vertex count across frames",
+        ));
     }
 
     // Header (8 bytes) + times (4F) + positions (12 V F).

@@ -27,30 +27,47 @@ pub struct Rve<O: TensorOrder> {
 
 impl<O: TensorOrder> Rve<O> {
     pub fn new() -> Self {
-        Self { phases: Vec::new(), matrix: None, ref_medium: RefMedium::Matrix }
+        Self {
+            phases: Vec::new(),
+            matrix: None,
+            ref_medium: RefMedium::Matrix,
+        }
     }
 
-    pub fn add_phase(&mut self, p: Phase<O>) { self.phases.push(p); }
+    pub fn add_phase(&mut self, p: Phase<O>) {
+        self.phases.push(p);
+    }
 
     pub fn set_matrix(&mut self, name: impl Into<String>) {
         self.matrix = Some(name.into());
     }
 
     pub fn matrix_property(&self) -> Result<&O::KmMatrix, HomogError> {
-        let m_name = self.matrix.as_ref()
+        let m_name = self
+            .matrix
+            .as_ref()
             .or_else(|| self.phases.first().map(|p| &p.name))
             .ok_or_else(|| HomogError::UnknownPhase(String::from("(none)")))?;
-        let ph = self.phases.iter().find(|p| &p.name == m_name)
+        let ph = self
+            .phases
+            .iter()
+            .find(|p| &p.name == m_name)
             .ok_or_else(|| HomogError::UnknownPhase(m_name.clone()))?;
         Ok(&ph.property)
     }
 
-    pub fn reference_property(&self, effective: Option<&O::KmMatrix>) -> Result<O::KmMatrix, HomogError> {
+    pub fn reference_property(
+        &self,
+        effective: Option<&O::KmMatrix>,
+    ) -> Result<O::KmMatrix, HomogError> {
         match &self.ref_medium {
-            RefMedium::Matrix      => Ok(self.matrix_property()?.clone()),
+            RefMedium::Matrix => Ok(self.matrix_property()?.clone()),
             RefMedium::Explicit(c) => Ok(c.clone()),
-            RefMedium::Effective   => effective.cloned().ok_or_else(||
-                HomogError::Solver(String::from("RefMedium::Effective used outside iterative scheme"))),
+            RefMedium::Effective => effective.cloned().ok_or_else(|| {
+                HomogError::Solver(String::from(
+                    "RefMedium::Effective used outside iterative scheme",
+                ))
+            }),
         }
     }
 
@@ -64,7 +81,9 @@ impl<O: TensorOrder> Rve<O> {
 }
 
 impl<O: TensorOrder> Default for Rve<O> {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[cfg(test)]
@@ -78,12 +97,16 @@ mod tests {
     fn two_phase_rve_fractions_sum_to_one() {
         let mut rve = Rve::<Order2>::new();
         rve.add_phase(Phase {
-            name: String::from("M"), shape: Arc::new(Sphere),
-            property: Order2::scalar(1.0), fraction: 0.7,
+            name: String::from("M"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(1.0),
+            fraction: 0.7,
         });
         rve.add_phase(Phase {
-            name: String::from("I"), shape: Arc::new(Sphere),
-            property: Order2::scalar(5.0), fraction: 0.3,
+            name: String::from("I"),
+            shape: Arc::new(Sphere),
+            property: Order2::scalar(5.0),
+            fraction: 0.3,
         });
         rve.set_matrix("M");
         assert_relative_eq!(rve.sum_fractions(), 1.0);

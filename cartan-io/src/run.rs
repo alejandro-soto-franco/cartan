@@ -37,8 +37,10 @@ impl RunWriter {
     pub fn new(dir: &Path) -> io::Result<RunWriter> {
         std::fs::create_dir_all(dir)?;
         std::fs::create_dir_all(dir.join("blender"))?;
-        let diag =
-            DiagnosticsCsv::new(&dir.join("diagnostics.csv"), &["time", "energy", "magnetic_flux_residual"])?;
+        let diag = DiagnosticsCsv::new(
+            &dir.join("diagnostics.csv"),
+            &["time", "energy", "magnetic_flux_residual"],
+        )?;
         Ok(RunWriter {
             dir: dir.to_path_buf(),
             pvd_entries: Vec::new(),
@@ -120,7 +122,11 @@ impl RunWriter {
         self.diag.finish()?;
 
         let times: Vec<f32> = self.pvd_entries.iter().map(|(t, _)| *t as f32).collect();
-        write_mdd(&self.dir.join("blender").join("motion.mdd"), &self.mdd_frames, &times)?;
+        write_mdd(
+            &self.dir.join("blender").join("motion.mdd"),
+            &self.mdd_frames,
+            &times,
+        )?;
 
         Ok(())
     }
@@ -139,9 +145,16 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         let mut run = RunWriter::new(&dir).unwrap();
         for k in 0..3 {
-            let e = Cochain::new(1, nalgebra::DVector::from_element(complex.nsimplices(1), 0.1 * k as f64));
-            let b = Cochain::new(2, nalgebra::DVector::from_element(complex.nsimplices(2), 0.2));
-            run.push_frame(k as f64 * 0.1, &complex, &coords, &b, &e, 1.0, 0.0).unwrap();
+            let e = Cochain::new(
+                1,
+                nalgebra::DVector::from_element(complex.nsimplices(1), 0.1 * k as f64),
+            );
+            let b = Cochain::new(
+                2,
+                nalgebra::DVector::from_element(complex.nsimplices(2), 0.2),
+            );
+            run.push_frame(k as f64 * 0.1, &complex, &coords, &b, &e, 1.0, 0.0)
+                .unwrap();
         }
         run.finish().unwrap();
         assert!(dir.join("frames.pvd").exists());

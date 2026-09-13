@@ -895,5 +895,9 @@ fn permutation_sign<const N: usize>(from: &[usize; N], to: &[usize; N]) -> f64 {
             }
         }
     }
-    if inversions.is_multiple_of(2) { 1.0 } else { -1.0 }
+    if inversions.is_multiple_of(2) {
+        1.0
+    } else {
+        -1.0
+    }
 }

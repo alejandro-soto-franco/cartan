@@ -8,65 +8,97 @@
 #[inline]
 pub(crate) fn sqrt(x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { x.sqrt() }
+    {
+        x.sqrt()
+    }
     #[cfg(not(feature = "std"))]
-    { libm::sqrt(x) }
+    {
+        libm::sqrt(x)
+    }
 }
 
 #[inline]
 pub(crate) fn powi(x: f64, n: i32) -> f64 {
     #[cfg(feature = "std")]
-    { x.powi(n) }
+    {
+        x.powi(n)
+    }
     #[cfg(not(feature = "std"))]
-    { libm::pow(x, n as f64) }
+    {
+        libm::pow(x, n as f64)
+    }
 }
 
 #[inline]
 pub(crate) fn powf(x: f64, n: f64) -> f64 {
     #[cfg(feature = "std")]
-    { x.powf(n) }
+    {
+        x.powf(n)
+    }
     #[cfg(not(feature = "std"))]
-    { libm::pow(x, n) }
+    {
+        libm::pow(x, n)
+    }
 }
 
 #[inline]
 pub(crate) fn ln(x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { x.ln() }
+    {
+        x.ln()
+    }
     #[cfg(not(feature = "std"))]
-    { libm::log(x) }
+    {
+        libm::log(x)
+    }
 }
 
 #[inline]
 pub(crate) fn sin(x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { x.sin() }
+    {
+        x.sin()
+    }
     #[cfg(not(feature = "std"))]
-    { libm::sin(x) }
+    {
+        libm::sin(x)
+    }
 }
 
 #[inline]
 pub(crate) fn cos(x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { x.cos() }
+    {
+        x.cos()
+    }
     #[cfg(not(feature = "std"))]
-    { libm::cos(x) }
+    {
+        libm::cos(x)
+    }
 }
 
 #[inline]
 pub(crate) fn acos(x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { x.acos() }
+    {
+        x.acos()
+    }
     #[cfg(not(feature = "std"))]
-    { libm::acos(x) }
+    {
+        libm::acos(x)
+    }
 }
 
 #[inline]
 pub(crate) fn atan2(y: f64, x: f64) -> f64 {
     #[cfg(feature = "std")]
-    { y.atan2(x) }
+    {
+        y.atan2(x)
+    }
     #[cfg(not(feature = "std"))]
-    { libm::atan2(y, x) }
+    {
+        libm::atan2(y, x)
+    }
 }
 
 #[cfg(test)]

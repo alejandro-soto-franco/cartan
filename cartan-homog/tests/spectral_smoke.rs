@@ -14,8 +14,8 @@
 
 use gpufft::vulkan::{DeviceOptions, VulkanBackend, VulkanError};
 
-use cartan_homog::fullfield::voxelize::{VoxelGrid, NO_PHASE};
 use cartan_homog::fullfield::SpectralFullField;
+use cartan_homog::fullfield::voxelize::{NO_PHASE, VoxelGrid};
 
 #[test]
 fn spectral_homogeneous_medium_converges_to_kappa_identity() {

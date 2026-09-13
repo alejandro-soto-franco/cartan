@@ -27,8 +27,7 @@ fn sphere_path(seed: u64, n_steps: usize, dt: Real) -> (Sphere<3>, Vec<Vec3>) {
     let mut rng = StdRng::seed_from_u64(seed);
     let p0 = Vec3::new(0.0, 0.0, 1.0);
     let frame = random_frame_at(&s, &p0, &mut rng).expect("frame");
-    let result =
-        stochastic_development(&s, &p0, frame, n_steps, dt, &mut rng, 1e-10).expect("dev");
+    let result = stochastic_development(&s, &p0, frame, n_steps, dt, &mut rng, 1e-10).expect("dev");
     (s, result.path)
 }
 
@@ -84,7 +83,11 @@ fn jacobi_norm_bounded_on_short_horizon() {
     let j0_dot = s.random_tangent(&p0, &mut rng) * 0.05;
     let initial_norm = j0.norm() + j0_dot.norm();
     let result = integrate_jacobi_along_path(&s, &path, 0.002, j0, j0_dot).expect("jacobi");
-    let max_norm = result.field.iter().map(|v| v.norm()).fold(0.0_f64, f64::max);
+    let max_norm = result
+        .field
+        .iter()
+        .map(|v| v.norm())
+        .fold(0.0_f64, f64::max);
     assert!(
         max_norm < initial_norm * 5.0,
         "jacobi blew up: max {max_norm} vs initial {initial_norm}"

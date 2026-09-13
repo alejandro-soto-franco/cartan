@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use nalgebra::DMatrix;
 
 use crate::combinatorics::k_faces;
-use crate::{local_star, Simplex};
+use crate::{Simplex, local_star};
 
 /// A simplicial mesh: vertex coordinates, and cells as vertex index lists.
 #[derive(Debug, Clone)]
@@ -150,7 +150,10 @@ mod tests {
                 .iter()
                 .copied()
                 .fold(f64::INFINITY, f64::min);
-            assert!(min > 0.0, "k={k} assembled with smallest eigenvalue {min:.3e}");
+            assert!(
+                min > 0.0,
+                "k={k} assembled with smallest eigenvalue {min:.3e}"
+            );
         }
     }
 
@@ -162,6 +165,9 @@ mod tests {
         let m = pair();
         let g = assemble_star(&m, 2).unwrap();
         let total: f64 = (0..g.nrows()).map(|i| 1.0 / g[(i, i)]).sum();
-        assert!((total - 1.0).abs() < 1e-12, "two half-unit triangles gave area {total}");
+        assert!(
+            (total - 1.0).abs() < 1e-12,
+            "two half-unit triangles gave area {total}"
+        );
     }
 }

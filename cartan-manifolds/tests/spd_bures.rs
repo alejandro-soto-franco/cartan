@@ -1,7 +1,7 @@
 //! Bures-Wasserstein SPD: metric axioms, exp/log roundtrip, closed-form distance.
 
 use cartan_core::{Manifold, Real, Retraction};
-use cartan_manifolds::{bw_distance_sq, SpdBuresWasserstein};
+use cartan_manifolds::{SpdBuresWasserstein, bw_distance_sq};
 use nalgebra::SMatrix;
 use rand::SeedableRng;
 use rand::rngs::SmallRng;
@@ -37,7 +37,10 @@ fn exp_log_roundtrip_at_identity() {
     let q = m.exp(&p, &v);
     let v_recovered = m.log(&p, &q).unwrap();
     let diff = (v - v_recovered).norm();
-    assert!(diff < 1e-8, "roundtrip error {diff}, v={v:?}, recovered={v_recovered:?}");
+    assert!(
+        diff < 1e-8,
+        "roundtrip error {diff}, v={v:?}, recovered={v_recovered:?}"
+    );
 }
 
 #[test]

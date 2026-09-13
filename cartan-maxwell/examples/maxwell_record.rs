@@ -4,19 +4,18 @@
 //!
 //! Defaults to `out/maxwell_run` if no argument is given.
 
-use nalgebra_sparse::CsrMatrix;
-use formoniq::whitney_complex::WhitneyComplex;
-use derham::cochain::Cochain;
 use cartan_io::run::RunWriter;
-use cartan_maxwell::{cfl_dt, coboundary_matrix, FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver};
-use simplicial::geometry::coord::mesh::MeshCoords;
+use cartan_maxwell::{
+    FlrwDriver, MaxwellEvolver, MaxwellState, MetricDriver, cfl_dt, coboundary_matrix,
+};
+use derham::cochain::Cochain;
+use formoniq::whitney_complex::WhitneyComplex;
+use nalgebra_sparse::CsrMatrix;
 use simplicial::r#gen::cartesian::CartesianGrid;
+use simplicial::geometry::coord::mesh::MeshCoords;
 
 /// Return a scaled copy of `coords0`: all coordinates multiplied by `a`.
-fn scaled_coords(
-    coords0: &MeshCoords,
-    a: f64,
-) -> MeshCoords {
+fn scaled_coords(coords0: &MeshCoords, a: f64) -> MeshCoords {
     MeshCoords::new(coords0.matrix() * a)
 }
 

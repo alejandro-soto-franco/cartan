@@ -4,21 +4,21 @@
 use crate::{error::HomogError, rve::Rve, shapes::IntegrationOpts, tensor::TensorOrder};
 use alloc::vec::Vec;
 
+pub mod asymmetric_sc;
 pub mod bounds;
+pub mod differential;
 pub mod dilute;
+pub mod maxwell_pcw;
 pub mod mori_tanaka;
 pub mod self_consistent;
-pub mod asymmetric_sc;
-pub mod maxwell_pcw;
-pub mod differential;
 
+pub use asymmetric_sc::AsymmetricSc;
 pub use bounds::{ReussBound, VoigtBound};
+pub use differential::{Differential, DifferentialCompliance};
 pub use dilute::{Dilute, DiluteStress};
+pub use maxwell_pcw::{Maxwell, PonteCastanedaWillis};
 pub use mori_tanaka::MoriTanaka;
 pub use self_consistent::SelfConsistent;
-pub use asymmetric_sc::AsymmetricSc;
-pub use maxwell_pcw::{Maxwell, PonteCastanedaWillis};
-pub use differential::{Differential, DifferentialCompliance};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SchemeOpts {
@@ -33,8 +33,11 @@ pub struct SchemeOpts {
 impl Default for SchemeOpts {
     fn default() -> Self {
         Self {
-            max_iter: 100, rel_tol: 1e-10, damping: 1.0,
-            store_concentration: false, spd_iteration: true,
+            max_iter: 100,
+            rel_tol: 1e-10,
+            damping: 1.0,
+            store_concentration: false,
+            spd_iteration: true,
             integration: IntegrationOpts::default(),
         }
     }

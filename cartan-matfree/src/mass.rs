@@ -6,7 +6,7 @@ use simplicial::geometry::metric::mesh::MeshLengthsSq;
 use simplicial::topology::complex::Complex;
 
 use crate::cg::MassBackend;
-use crate::restrict::{Interior, CONSTRAINED};
+use crate::restrict::{CONSTRAINED, Interior};
 
 /// `M_k` on host memory, kept as its element matrices.
 ///
@@ -40,11 +40,7 @@ impl HostMass {
     }
 
     /// Build `E^T M_k E` over the unconstrained degrees of freedom alone.
-    pub fn restricted(
-        topology: &Complex,
-        geometry: &MeshLengthsSq,
-        interior: &Interior,
-    ) -> Self {
+    pub fn restricted(topology: &Complex, geometry: &MeshLengthsSq, interior: &Interior) -> Self {
         Self::build(topology, geometry, interior.grade(), Some(interior))
     }
 

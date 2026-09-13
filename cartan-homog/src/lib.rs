@@ -16,11 +16,11 @@ extern crate alloc;
 
 pub mod error;
 mod float;
-pub mod tensor;
 pub mod kelvin_mandel;
-pub mod shapes;
 pub mod rve;
 pub mod schemes;
+pub mod shapes;
+pub mod tensor;
 
 #[cfg(feature = "stochastic")]
 pub mod stochastic;
@@ -29,12 +29,12 @@ pub mod stochastic;
 pub mod fullfield;
 
 pub use error::HomogError;
-pub use tensor::{Order2, Order4, TensorOrder};
-pub use shapes::{Shape, Sphere, Spheroid, PennyCrack, Ellipsoid, SphereNLayers, IntegrationOpts, UserInclusion};
 pub use rve::{Phase, RefMedium, Rve};
 pub use schemes::{
-    Scheme, SchemeOpts, Effective,
-    VoigtBound, ReussBound, Dilute, DiluteStress,
-    MoriTanaka, SelfConsistent, AsymmetricSc,
-    Maxwell, PonteCastanedaWillis, Differential, DifferentialCompliance,
+    AsymmetricSc, Differential, DifferentialCompliance, Dilute, DiluteStress, Effective, Maxwell,
+    MoriTanaka, PonteCastanedaWillis, ReussBound, Scheme, SchemeOpts, SelfConsistent, VoigtBound,
 };
+pub use shapes::{
+    Ellipsoid, IntegrationOpts, PennyCrack, Shape, Sphere, SphereNLayers, Spheroid, UserInclusion,
+};
+pub use tensor::{Order2, Order4, TensorOrder};

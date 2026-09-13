@@ -60,9 +60,9 @@ mod assemble;
 mod combinatorics;
 mod local;
 
-pub use assemble::{assemble_star, Mesh};
+pub use assemble::{Mesh, assemble_star};
 pub use combinatorics::{k_faces, n_choose_k};
-pub use local::{diagonal_star, local_star, DiagonalStar, Simplex};
+pub use local::{DiagonalStar, Simplex, diagonal_star, local_star};
 
 /// The consistency data of one simplex at one form degree.
 ///

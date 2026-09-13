@@ -37,9 +37,9 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-pub mod curvature;
 #[cfg(feature = "alloc")]
 pub mod chern_simons;
+pub mod curvature;
 #[cfg(feature = "std")]
 pub mod disclination;
 pub mod geodesic;

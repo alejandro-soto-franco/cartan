@@ -13,8 +13,8 @@
 use std::sync::Arc;
 
 use cartan_homog::{
-    AsymmetricSc, Dilute, Maxwell, MoriTanaka, Order2, Phase, ReussBound, Rve, Scheme,
-    SchemeOpts, SelfConsistent, Sphere, TensorOrder, VoigtBound,
+    AsymmetricSc, Dilute, Maxwell, MoriTanaka, Order2, Phase, ReussBound, Rve, Scheme, SchemeOpts,
+    SelfConsistent, Sphere, TensorOrder, VoigtBound,
 };
 
 /// Conductivity of the surrounding matrix.
@@ -99,9 +99,7 @@ fn main() {
         }
     }
 
-    println!(
-        "\nAll schemes stayed inside the Reuss-Voigt bracket at every volume fraction."
-    );
+    println!("\nAll schemes stayed inside the Reuss-Voigt bracket at every volume fraction.");
 
     // Maxwell's scheme is the other classical single-inclusion estimate. At
     // dilute concentrations it should agree closely with Mori-Tanaka, since

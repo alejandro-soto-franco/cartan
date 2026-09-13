@@ -8,8 +8,8 @@
 //! The `CovLaplacian` then uses `Fiber::transport_by` to derive the
 //! representation-specific transport (e.g., spin-2 phase rotation for nematics).
 
-use cartan_core::bundle::EdgeTransport2D;
 use cartan_core::Manifold;
+use cartan_core::bundle::EdgeTransport2D;
 
 use crate::line_bundle::ConnectionAngles;
 use crate::mesh::Mesh;
@@ -21,10 +21,7 @@ use crate::mesh::Mesh;
 ///
 /// The resulting transport, combined with `CovLaplacian`, recovers the same
 /// covariant Laplacian as the Bochner Laplacian when applied to `U1Spin2` sections.
-pub fn levi_civita_2d<M: Manifold>(
-    mesh: &Mesh<M, 3, 2>,
-    manifold: &M,
-) -> EdgeTransport2D {
+pub fn levi_civita_2d<M: Manifold>(mesh: &Mesh<M, 3, 2>, manifold: &M) -> EdgeTransport2D {
     let conn = ConnectionAngles::from_mesh(mesh, manifold);
     let ne = mesh.n_boundaries();
 
@@ -137,10 +134,7 @@ mod tests {
         // Apply BochnerLaplacian via complex Section<2>.
         use num_complex::Complex;
         let complex_section = crate::line_bundle::Section::<2> {
-            values: data
-                .iter()
-                .map(|[r, i]| Complex::new(*r, *i))
-                .collect(),
+            values: data.iter().map(|[r, i]| Complex::new(*r, *i)).collect(),
         };
         let result_bochner = bochner.apply(&complex_section);
 

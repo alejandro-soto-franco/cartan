@@ -1,6 +1,6 @@
 //! Staggered-leapfrog Maxwell evolver on an evolving Regge background.
 
-use cartan_matfree::{pcg, HostMass, Interior, MassBackend};
+use cartan_matfree::{HostMass, Interior, MassBackend, pcg};
 use derham::cochain::Cochain;
 use exterior::ExteriorGrade;
 use nalgebra::DVector;
@@ -211,16 +211,10 @@ impl<'d, D: MetricDriver> MaxwellEvolver<'d, D> {
     /// point, giving a better-conserved observable than the cross-time energy.
     ///
     /// The step itself is identical to `step()`.
-    pub fn step_with_energy(
-        &mut self,
-        state: &mut MaxwellState,
-        source: Option<&Cochain>,
-    ) -> f64 {
+    pub fn step_with_energy(&mut self, state: &mut MaxwellState, source: Option<&Cochain>) -> f64 {
         self.faraday_step(state);
         let outcome = self.ampere_update(state, source, true);
-        let half = outcome
-            .half_masses
-            .expect("half masses were requested");
+        let half = outcome.half_masses.expect("half masses were requested");
         // After the update state.e is E^{n+1}, and averaging it against the
         // captured E^n places the electric field at the same stagger point as B.
         let e_half = 0.5 * (state.e.coeffs() + &outcome.e_before);

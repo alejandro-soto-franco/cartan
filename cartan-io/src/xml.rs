@@ -5,7 +5,9 @@ pub fn encode_f64_le(data: &[f64]) -> String {
     let nbytes = (data.len() * 8) as u64;
     let mut buf = Vec::with_capacity(8 + data.len() * 8);
     buf.extend_from_slice(&nbytes.to_le_bytes());
-    for &x in data { buf.extend_from_slice(&x.to_le_bytes()); }
+    for &x in data {
+        buf.extend_from_slice(&x.to_le_bytes());
+    }
     base64::engine::general_purpose::STANDARD.encode(&buf)
 }
 
@@ -13,7 +15,9 @@ pub fn encode_i64_le(data: &[i64]) -> String {
     let nbytes = (data.len() * 8) as u64;
     let mut buf = Vec::with_capacity(8 + data.len() * 8);
     buf.extend_from_slice(&nbytes.to_le_bytes());
-    for &x in data { buf.extend_from_slice(&x.to_le_bytes()); }
+    for &x in data {
+        buf.extend_from_slice(&x.to_le_bytes());
+    }
     base64::engine::general_purpose::STANDARD.encode(&buf)
 }
 
