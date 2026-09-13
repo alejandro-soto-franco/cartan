@@ -71,6 +71,30 @@ derham = { version = "=0.2.0" }
 gramian = { version = "=0.2.0" }
 nalgebra-sparse = { version = "0.12" }
 
+# The Maxwell stability tests take tens of thousands of evolver steps, each a
+# conjugate gradient solve through the matrix-free mass. Unoptimised, they ran
+# past an hour on a CI runner, so the solve path compiles optimised in test and
+# dev builds too. Generic nalgebra code is monomorphised into these crates,
+# which is why they are listed rather than nalgebra alone.
+[profile.dev.package.cartan-maxwell]
+opt-level = 3
+[profile.dev.package.cartan-matfree]
+opt-level = 3
+[profile.dev.package.formoniq]
+opt-level = 3
+[profile.dev.package.simplicial]
+opt-level = 3
+[profile.dev.package.exterior]
+opt-level = 3
+[profile.dev.package.derham]
+opt-level = 3
+[profile.dev.package.gramian]
+opt-level = 3
+[profile.dev.package.nalgebra]
+opt-level = 3
+[profile.dev.package.nalgebra-sparse]
+opt-level = 3
+
 [profile.release]
 opt-level = 3
 lto = "thin"     # fat LTO was causing OOM on 30 GB machine; thin cuts linker peak ~5-10x
