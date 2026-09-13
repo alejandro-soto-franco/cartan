@@ -94,7 +94,7 @@ fn a_linear_field_advects_exactly_under_uniform_flow() {
     for (v, q) in p.iter().enumerate() {
         let x = [q[0] - dt * vel[0], q[1] - dt * vel[1], q[2] - dt * vel[2]];
         // Only interior departure points are inside the domain.
-        if x.iter().any(|&q| q < 1e-9 || q > 1.0 - 1e-9) {
+        if x.iter().any(|&q| !(1e-9..=1.0 - 1e-9).contains(&q)) {
             continue;
         }
         checked += 1;

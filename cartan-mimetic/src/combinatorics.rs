@@ -21,7 +21,13 @@ pub fn n_choose_k(n: usize, k: usize) -> usize {
 pub fn k_faces(n_vertices: usize, k: usize) -> Vec<Vec<usize>> {
     let mut out = Vec::new();
     let mut current = Vec::with_capacity(k + 1);
-    fn walk(start: usize, n: usize, left: usize, current: &mut Vec<usize>, out: &mut Vec<Vec<usize>>) {
+    fn walk(
+        start: usize,
+        n: usize,
+        left: usize,
+        current: &mut Vec<usize>,
+        out: &mut Vec<Vec<usize>>,
+    ) {
         if left == 0 {
             out.push(current.clone());
             return;
@@ -32,7 +38,7 @@ pub fn k_faces(n_vertices: usize, k: usize) -> Vec<Vec<usize>> {
             current.pop();
         }
     }
-    if k + 1 <= n_vertices {
+    if k < n_vertices {
         walk(0, n_vertices, k + 1, &mut current, &mut out);
     }
     out
@@ -46,7 +52,13 @@ pub fn form_indices(n: usize, k: usize) -> Vec<Vec<usize>> {
     }
     let mut out = Vec::new();
     let mut current = Vec::with_capacity(k);
-    fn walk(start: usize, n: usize, left: usize, current: &mut Vec<usize>, out: &mut Vec<Vec<usize>>) {
+    fn walk(
+        start: usize,
+        n: usize,
+        left: usize,
+        current: &mut Vec<usize>,
+        out: &mut Vec<Vec<usize>>,
+    ) {
         if left == 0 {
             out.push(current.clone());
             return;
