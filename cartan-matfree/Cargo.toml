@@ -16,7 +16,6 @@ homepage = "https://cartan.sotofranco.dev"
 formoniq   = { workspace = true }
 simplicial = { workspace = true }
 exterior   = { workspace = true }
-gramian    = { workspace = true }
 nalgebra   = { workspace = true }
 
 [dev-dependencies]

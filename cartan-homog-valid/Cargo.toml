@@ -20,15 +20,11 @@ stochastic = ["cartan-homog/stochastic"]
 cartan-homog     = { path = "../cartan-homog",     version = "0.10" }
 cartan-manifolds = { path = "../cartan-manifolds", version = "0.10" }
 cartan-core      = { path = "../cartan-core",      version = "0.10" }
-cartan-dec       = { path = "../cartan-dec",       version = "0.10" }
-cartan-remesh    = { path = "../cartan-remesh",    version = "0.10" }
 nalgebra    = { workspace = true }
 ndarray     = { version = "0.16" }
 ndarray-npy = { version = "0.9" }
 serde       = { workspace = true, features = ["derive", "std"], default-features = false }
 serde_json  = { workspace = true, features = ["std"] }
-serde_yaml  = { version = "0.9" }
-toml        = { version = "0.8" }
 
 [dev-dependencies]
 approx = { workspace = true }
