@@ -15,7 +15,9 @@ use pyo3::exceptions::{PyNotImplementedError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
 
-use cartan_core::{GeodesicInterpolation, Manifold, ParallelTransport, Retraction, VectorTransport};
+use cartan_core::{
+    GeodesicInterpolation, Manifold, ParallelTransport, Retraction, VectorTransport,
+};
 use cartan_manifolds::{SEPoint, SETangent, SpecialEuclidean};
 
 use crate::convert::{arr_to_smatrix, arr_to_svector, smatrix_to_pyarray, svector_to_pyarray};
@@ -177,8 +179,7 @@ impl PySe {
                 let mf = make_se::<$N>(self.weight);
                 let pp = extract_se_point::<$N>(p)?;
                 let qq = extract_se_point::<$N>(q)?;
-                let result =
-                    Manifold::log(&mf, &pp, &qq).map_err(cartan_err_to_py)?;
+                let result = Manifold::log(&mf, &pp, &qq).map_err(cartan_err_to_py)?;
                 Ok(se_tangent_to_py::<$N>(py, &result))
             }};
         }
@@ -247,11 +248,7 @@ impl PySe {
     }
 
     /// Project an ambient point onto the manifold.
-    fn project_point<'py>(
-        &self,
-        py: Python<'py>,
-        p: &Bound<'py, PyAny>,
-    ) -> PyResult<PyObject> {
+    fn project_point<'py>(&self, py: Python<'py>, p: &Bound<'py, PyAny>) -> PyResult<PyObject> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -291,11 +288,7 @@ impl PySe {
     }
 
     /// The zero tangent vector at p.
-    fn zero_tangent<'py>(
-        &self,
-        py: Python<'py>,
-        p: &Bound<'py, PyAny>,
-    ) -> PyResult<PyObject> {
+    fn zero_tangent<'py>(&self, py: Python<'py>, p: &Bound<'py, PyAny>) -> PyResult<PyObject> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -328,11 +321,7 @@ impl PySe {
     }
 
     /// Validate that a tangent vector lies in T_p M.
-    fn check_tangent(
-        &self,
-        p: &Bound<'_, PyAny>,
-        v: &Bound<'_, PyAny>,
-    ) -> PyResult<()> {
+    fn check_tangent(&self, p: &Bound<'_, PyAny>, v: &Bound<'_, PyAny>) -> PyResult<()> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -350,11 +339,7 @@ impl PySe {
 
     /// Random point on the manifold.
     #[pyo3(signature = (seed=None))]
-    fn random_point<'py>(
-        &self,
-        py: Python<'py>,
-        seed: Option<u64>,
-    ) -> PyResult<PyObject> {
+    fn random_point<'py>(&self, py: Python<'py>, seed: Option<u64>) -> PyResult<PyObject> {
         use rand::SeedableRng;
         macro_rules! do_it {
             ($N:literal) => {{
@@ -457,8 +442,8 @@ impl PySe {
                 let mf = make_se::<$N>(self.weight);
                 let pp = extract_se_point::<$N>(p)?;
                 let qq = extract_se_point::<$N>(q)?;
-                let result = Retraction::inverse_retract(&mf, &pp, &qq)
-                    .map_err(cartan_err_to_py)?;
+                let result =
+                    Retraction::inverse_retract(&mf, &pp, &qq).map_err(cartan_err_to_py)?;
                 Ok(se_tangent_to_py::<$N>(py, &result))
             }};
         }
@@ -483,8 +468,8 @@ impl PySe {
                 let pp = extract_se_point::<$N>(p)?;
                 let qq = extract_se_point::<$N>(q)?;
                 let vv = extract_se_tangent::<$N>(v)?;
-                let result = ParallelTransport::transport(&mf, &pp, &qq, &vv)
-                    .map_err(cartan_err_to_py)?;
+                let result =
+                    ParallelTransport::transport(&mf, &pp, &qq, &vv).map_err(cartan_err_to_py)?;
                 Ok(se_tangent_to_py::<$N>(py, &result))
             }};
         }
@@ -573,8 +558,8 @@ impl PySe {
                 let mf = make_se::<$N>(self.weight);
                 let pp = extract_se_point::<$N>(p)?;
                 let qq = extract_se_point::<$N>(q)?;
-                let result = GeodesicInterpolation::geodesic(&mf, &pp, &qq, t)
-                    .map_err(cartan_err_to_py)?;
+                let result =
+                    GeodesicInterpolation::geodesic(&mf, &pp, &qq, t).map_err(cartan_err_to_py)?;
                 Ok(se_point_to_py::<$N>(py, &result))
             }};
         }

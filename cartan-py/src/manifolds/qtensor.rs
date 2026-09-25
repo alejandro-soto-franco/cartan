@@ -9,11 +9,11 @@
 //! Being a flat manifold, all curvatures are zero, parallel transport is the
 //! identity, and geodesics are straight lines (exp = addition, log = subtraction).
 
-use pyo3::prelude::*;
 use numpy::{self, PyReadonlyArrayDyn};
+use pyo3::prelude::*;
 
 use cartan_core::{
-    Manifold, Retraction, ParallelTransport, Curvature, GeodesicInterpolation, Real,
+    Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Real, Retraction,
 };
 use cartan_manifolds::qtensor::QTensor3;
 
@@ -159,10 +159,7 @@ impl PyQTensor3 {
     }
 
     /// Validate that a matrix is a physical Q-tensor (symmetric, traceless, eigenvalues in [-1/3, 2/3]).
-    fn check_point(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<()> {
+    fn check_point(&self, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<()> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         Manifold::check_point(&mf, &pp).map_err(cartan_err_to_py)
@@ -182,11 +179,7 @@ impl PyQTensor3 {
 
     /// Sample a random Q-tensor (weakly ordered, Frobenius norm ~ 0.05).
     #[pyo3(signature = (seed=None))]
-    fn random_point<'py>(
-        &self,
-        py: Python<'py>,
-        seed: Option<u64>,
-    ) -> PyResult<PyObject> {
+    fn random_point<'py>(&self, py: Python<'py>, seed: Option<u64>) -> PyResult<PyObject> {
         let mf = QTensor3;
         use rand::SeedableRng;
         let result = match seed {
@@ -194,9 +187,7 @@ impl PyQTensor3 {
                 let mut rng = rand::rngs::StdRng::seed_from_u64(s);
                 Manifold::random_point(&mf, &mut rng)
             }
-            None => {
-                Manifold::random_point(&mf, &mut rand::rng())
-            }
+            None => Manifold::random_point(&mf, &mut rand::rng()),
         };
         Ok(smatrix_to_pyarray(py, &result).into_any().unbind())
     }
@@ -217,18 +208,13 @@ impl PyQTensor3 {
                 let mut rng = rand::rngs::StdRng::seed_from_u64(s);
                 Manifold::random_tangent(&mf, &pp, &mut rng)
             }
-            None => {
-                Manifold::random_tangent(&mf, &pp, &mut rand::rng())
-            }
+            None => Manifold::random_tangent(&mf, &pp, &mut rand::rng()),
         };
         Ok(smatrix_to_pyarray(py, &result).into_any().unbind())
     }
 
     /// Injectivity radius: infinity (flat manifold, no cut locus).
-    fn injectivity_radius(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn injectivity_radius(&self, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         Ok(Manifold::injectivity_radius(&mf, &pp))
@@ -307,10 +293,7 @@ impl PyQTensor3 {
     }
 
     /// Scalar curvature: 0.0 (flat manifold).
-    fn scalar_curvature(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn scalar_curvature(&self, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         Ok(Curvature::scalar_curvature(&mf, &pp))
@@ -327,8 +310,8 @@ impl PyQTensor3 {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let qq = arr_to_smatrix::<3, 3>(q, "q")?;
-        let result = GeodesicInterpolation::geodesic(&mf, &pp, &qq, t as Real)
-            .map_err(cartan_err_to_py)?;
+        let result =
+            GeodesicInterpolation::geodesic(&mf, &pp, &qq, t as Real).map_err(cartan_err_to_py)?;
         Ok(smatrix_to_pyarray(py, &result).into_any().unbind())
     }
 
@@ -339,7 +322,8 @@ impl PyQTensor3 {
         points: Vec<PyReadonlyArrayDyn<'py, f64>>,
     ) -> PyResult<PyObject> {
         let mf = QTensor3;
-        let pts: Vec<_> = points.into_iter()
+        let pts: Vec<_> = points
+            .into_iter()
             .enumerate()
             .map(|(i, arr)| arr_to_smatrix::<3, 3>(arr, &format!("points[{i}]")))
             .collect::<PyResult<_>>()?;
@@ -348,8 +332,7 @@ impl PyQTensor3 {
         for i in 0..n {
             let mut row = vec![0.0f64; n];
             for j in (i + 1)..n {
-                let d = Manifold::dist(&mf, &pts[i], &pts[j])
-                    .map_err(cartan_err_to_py)?;
+                let d = Manifold::dist(&mf, &pts[i], &pts[j]).map_err(cartan_err_to_py)?;
                 row[j] = d;
             }
             rows.push(row);

@@ -17,16 +17,16 @@
 //!
 //! SE and Grassmann are not yet supported (complex point types / two-param dispatch).
 
-use pyo3::prelude::*;
-use pyo3::exceptions::{PyTypeError, PyValueError};
 use numpy::PyReadonlyArrayDyn;
+use pyo3::exceptions::{PyTypeError, PyValueError};
+use pyo3::prelude::*;
 
-use crate::manifolds::euclidean::PyEuclidean;
-use crate::manifolds::sphere::PySphere;
-use crate::manifolds::spd::PySpd;
-use crate::manifolds::so::PySo;
 use crate::manifolds::corr::PyCorr;
+use crate::manifolds::euclidean::PyEuclidean;
 use crate::manifolds::qtensor::PyQTensor3;
+use crate::manifolds::so::PySo;
+use crate::manifolds::spd::PySpd;
+use crate::manifolds::sphere::PySphere;
 
 // ---------------------------------------------------------------------------
 // Python-visible result type
@@ -553,8 +553,13 @@ pub fn minimize_rgd(
     if let Ok(m) = manifold.downcast::<PyEuclidean>() {
         let dim = m.borrow().n;
         return dispatch_rgd_vector!(
-            py, cost, grad, x0, &config,
-            Euclidean, dim,
+            py,
+            cost,
+            grad,
+            x0,
+            &config,
+            Euclidean,
+            dim,
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
     }
@@ -563,8 +568,13 @@ pub fn minimize_rgd(
     if let Ok(m) = manifold.downcast::<PySphere>() {
         let dim = m.borrow().ambient_n;
         return dispatch_rgd_vector!(
-            py, cost, grad, x0, &config,
-            Sphere, dim,
+            py,
+            cost,
+            grad,
+            x0,
+            &config,
+            Sphere,
+            dim,
             [2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
     }
@@ -572,19 +582,20 @@ pub fn minimize_rgd(
     // --- SPD ---
     if let Ok(m) = manifold.downcast::<PySpd>() {
         let dim = m.borrow().n;
-        return dispatch_rgd_matrix!(
-            py, cost, grad, x0, &config,
-            Spd, dim,
-            [2, 3, 4, 5, 6, 7, 8]
-        );
+        return dispatch_rgd_matrix!(py, cost, grad, x0, &config, Spd, dim, [2, 3, 4, 5, 6, 7, 8]);
     }
 
     // --- SO ---
     if let Ok(m) = manifold.downcast::<PySo>() {
         let dim = m.borrow().n;
         return dispatch_rgd_matrix!(
-            py, cost, grad, x0, &config,
-            SpecialOrthogonal, dim,
+            py,
+            cost,
+            grad,
+            x0,
+            &config,
+            SpecialOrthogonal,
+            dim,
             [2, 3, 4]
         );
     }
@@ -593,8 +604,13 @@ pub fn minimize_rgd(
     if let Ok(m) = manifold.downcast::<PyCorr>() {
         let dim = m.borrow().n;
         return dispatch_rgd_matrix!(
-            py, cost, grad, x0, &config,
-            Corr, dim,
+            py,
+            cost,
+            grad,
+            x0,
+            &config,
+            Corr,
+            dim,
             [2, 3, 4, 5, 6, 7, 8]
         );
     }
@@ -614,15 +630,14 @@ pub fn minimize_rgd(
                 .expect("cost function must return a float")
         };
 
-        let grad_fn =
-            |p: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
-                let p_py = crate::convert::smatrix_to_pyarray(py, p);
-                let result = grad.call1((p_py,)).expect("grad function failed");
-                let arr: PyReadonlyArrayDyn<f64> =
-                    result.extract().expect("grad must return a numpy array");
-                crate::convert::arr_to_smatrix::<3, 3>(arr, "grad_result")
-                    .expect("grad output shape mismatch")
-            };
+        let grad_fn = |p: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
+            let p_py = crate::convert::smatrix_to_pyarray(py, p);
+            let result = grad.call1((p_py,)).expect("grad function failed");
+            let arr: PyReadonlyArrayDyn<f64> =
+                result.extract().expect("grad must return a numpy array");
+            crate::convert::arr_to_smatrix::<3, 3>(arr, "grad_result")
+                .expect("grad output shape mismatch")
+        };
 
         let res = cartan_optim::minimize_rgd(&mf, cost_fn, grad_fn, x0_pt, &config);
         return Ok(PyOptResult {
@@ -710,10 +725,12 @@ pub fn minimize_rcg(
     let cg_variant = match variant {
         "polak_ribiere" => cartan_optim::CgVariant::PolakRibiere,
         "fletcher_reeves" => cartan_optim::CgVariant::FletcherReeves,
-        other => return Err(PyValueError::new_err(format!(
-            "minimize_rcg: unknown variant {:?}. Use \"polak_ribiere\" or \"fletcher_reeves\".",
-            other
-        ))),
+        other => {
+            return Err(PyValueError::new_err(format!(
+                "minimize_rcg: unknown variant {:?}. Use \"polak_ribiere\" or \"fletcher_reeves\".",
+                other
+            )));
+        }
     };
 
     let config = cartan_optim::RCGConfig {
@@ -731,8 +748,13 @@ pub fn minimize_rcg(
     if let Ok(m) = manifold.downcast::<PyEuclidean>() {
         let dim = m.borrow().n;
         return dispatch_rcg_vector!(
-            py, cost, grad, x0, &config,
-            Euclidean, dim,
+            py,
+            cost,
+            grad,
+            x0,
+            &config,
+            Euclidean,
+            dim,
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
     }
@@ -741,8 +763,13 @@ pub fn minimize_rcg(
     if let Ok(m) = manifold.downcast::<PySphere>() {
         let dim = m.borrow().ambient_n;
         return dispatch_rcg_vector!(
-            py, cost, grad, x0, &config,
-            Sphere, dim,
+            py,
+            cost,
+            grad,
+            x0,
+            &config,
+            Sphere,
+            dim,
             [2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
     }
@@ -750,19 +777,20 @@ pub fn minimize_rcg(
     // --- SPD ---
     if let Ok(m) = manifold.downcast::<PySpd>() {
         let dim = m.borrow().n;
-        return dispatch_rcg_matrix!(
-            py, cost, grad, x0, &config,
-            Spd, dim,
-            [2, 3, 4, 5, 6, 7, 8]
-        );
+        return dispatch_rcg_matrix!(py, cost, grad, x0, &config, Spd, dim, [2, 3, 4, 5, 6, 7, 8]);
     }
 
     // --- SO ---
     if let Ok(m) = manifold.downcast::<PySo>() {
         let dim = m.borrow().n;
         return dispatch_rcg_matrix!(
-            py, cost, grad, x0, &config,
-            SpecialOrthogonal, dim,
+            py,
+            cost,
+            grad,
+            x0,
+            &config,
+            SpecialOrthogonal,
+            dim,
             [2, 3, 4]
         );
     }
@@ -771,8 +799,13 @@ pub fn minimize_rcg(
     if let Ok(m) = manifold.downcast::<PyCorr>() {
         let dim = m.borrow().n;
         return dispatch_rcg_matrix!(
-            py, cost, grad, x0, &config,
-            Corr, dim,
+            py,
+            cost,
+            grad,
+            x0,
+            &config,
+            Corr,
+            dim,
             [2, 3, 4, 5, 6, 7, 8]
         );
     }
@@ -792,15 +825,14 @@ pub fn minimize_rcg(
                 .expect("cost function must return a float")
         };
 
-        let grad_fn =
-            |p: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
-                let p_py = crate::convert::smatrix_to_pyarray(py, p);
-                let result = grad.call1((p_py,)).expect("grad function failed");
-                let arr: PyReadonlyArrayDyn<f64> =
-                    result.extract().expect("grad must return a numpy array");
-                crate::convert::arr_to_smatrix::<3, 3>(arr, "grad_result")
-                    .expect("grad output shape mismatch")
-            };
+        let grad_fn = |p: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
+            let p_py = crate::convert::smatrix_to_pyarray(py, p);
+            let result = grad.call1((p_py,)).expect("grad function failed");
+            let arr: PyReadonlyArrayDyn<f64> =
+                result.extract().expect("grad must return a numpy array");
+            crate::convert::arr_to_smatrix::<3, 3>(arr, "grad_result")
+                .expect("grad output shape mismatch")
+        };
 
         let res = cartan_optim::minimize_rcg(&mf, cost_fn, grad_fn, x0_pt, &config);
         return Ok(PyOptResult {
@@ -900,8 +932,14 @@ pub fn minimize_rtr(
     if let Ok(m) = manifold.downcast::<PyEuclidean>() {
         let dim = m.borrow().n;
         return dispatch_rtr_vector!(
-            py, cost, grad, hess, x0, &config,
-            Euclidean, dim,
+            py,
+            cost,
+            grad,
+            hess,
+            x0,
+            &config,
+            Euclidean,
+            dim,
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
     }
@@ -910,8 +948,14 @@ pub fn minimize_rtr(
     if let Ok(m) = manifold.downcast::<PySphere>() {
         let dim = m.borrow().ambient_n;
         return dispatch_rtr_vector!(
-            py, cost, grad, hess, x0, &config,
-            Sphere, dim,
+            py,
+            cost,
+            grad,
+            hess,
+            x0,
+            &config,
+            Sphere,
+            dim,
             [2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
     }
@@ -920,8 +964,14 @@ pub fn minimize_rtr(
     if let Ok(m) = manifold.downcast::<PySpd>() {
         let dim = m.borrow().n;
         return dispatch_rtr_matrix!(
-            py, cost, grad, hess, x0, &config,
-            Spd, dim,
+            py,
+            cost,
+            grad,
+            hess,
+            x0,
+            &config,
+            Spd,
+            dim,
             [2, 3, 4, 5, 6, 7, 8]
         );
     }
@@ -930,8 +980,14 @@ pub fn minimize_rtr(
     if let Ok(m) = manifold.downcast::<PySo>() {
         let dim = m.borrow().n;
         return dispatch_rtr_matrix!(
-            py, cost, grad, hess, x0, &config,
-            SpecialOrthogonal, dim,
+            py,
+            cost,
+            grad,
+            hess,
+            x0,
+            &config,
+            SpecialOrthogonal,
+            dim,
             [2, 3, 4]
         );
     }
@@ -940,8 +996,14 @@ pub fn minimize_rtr(
     if let Ok(m) = manifold.downcast::<PyCorr>() {
         let dim = m.borrow().n;
         return dispatch_rtr_matrix!(
-            py, cost, grad, hess, x0, &config,
-            Corr, dim,
+            py,
+            cost,
+            grad,
+            hess,
+            x0,
+            &config,
+            Corr,
+            dim,
             [2, 3, 4, 5, 6, 7, 8]
         );
     }
@@ -961,26 +1023,26 @@ pub fn minimize_rtr(
                 .expect("cost function must return a float")
         };
 
-        let grad_fn =
-            |p: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
-                let p_py = crate::convert::smatrix_to_pyarray(py, p);
-                let result = grad.call1((p_py,)).expect("grad function failed");
-                let arr: PyReadonlyArrayDyn<f64> =
-                    result.extract().expect("grad must return a numpy array");
-                crate::convert::arr_to_smatrix::<3, 3>(arr, "grad_result")
-                    .expect("grad output shape mismatch")
-            };
+        let grad_fn = |p: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
+            let p_py = crate::convert::smatrix_to_pyarray(py, p);
+            let result = grad.call1((p_py,)).expect("grad function failed");
+            let arr: PyReadonlyArrayDyn<f64> =
+                result.extract().expect("grad must return a numpy array");
+            crate::convert::arr_to_smatrix::<3, 3>(arr, "grad_result")
+                .expect("grad output shape mismatch")
+        };
 
-        let hess_fn =
-            |p: &nalgebra::SMatrix<f64, 3, 3>, v: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
-                let p_py = crate::convert::smatrix_to_pyarray(py, p);
-                let v_py = crate::convert::smatrix_to_pyarray(py, v);
-                let result = hess.call1((p_py, v_py)).expect("hess function failed");
-                let arr: PyReadonlyArrayDyn<f64> =
-                    result.extract().expect("hess must return a numpy array");
-                crate::convert::arr_to_smatrix::<3, 3>(arr, "hess_result")
-                    .expect("hess output shape mismatch")
-            };
+        let hess_fn = |p: &nalgebra::SMatrix<f64, 3, 3>,
+                       v: &nalgebra::SMatrix<f64, 3, 3>|
+         -> nalgebra::SMatrix<f64, 3, 3> {
+            let p_py = crate::convert::smatrix_to_pyarray(py, p);
+            let v_py = crate::convert::smatrix_to_pyarray(py, v);
+            let result = hess.call1((p_py, v_py)).expect("hess function failed");
+            let arr: PyReadonlyArrayDyn<f64> =
+                result.extract().expect("hess must return a numpy array");
+            crate::convert::arr_to_smatrix::<3, 3>(arr, "hess_result")
+                .expect("hess output shape mismatch")
+        };
 
         let res = cartan_optim::minimize_rtr(&mf, cost_fn, grad_fn, hess_fn, x0_pt, &config);
         return Ok(PyOptResult {
@@ -1051,8 +1113,12 @@ pub fn frechet_mean(
     if let Ok(m) = manifold.downcast::<PyEuclidean>() {
         let dim = m.borrow().n;
         return dispatch_frechet_vector!(
-            py, points, init, &config,
-            Euclidean, dim,
+            py,
+            points,
+            init,
+            &config,
+            Euclidean,
+            dim,
             [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
     }
@@ -1061,8 +1127,12 @@ pub fn frechet_mean(
     if let Ok(m) = manifold.downcast::<PySphere>() {
         let dim = m.borrow().ambient_n;
         return dispatch_frechet_vector!(
-            py, points, init, &config,
-            Sphere, dim,
+            py,
+            points,
+            init,
+            &config,
+            Sphere,
+            dim,
             [2, 3, 4, 5, 6, 7, 8, 9, 10]
         );
     }
@@ -1071,8 +1141,12 @@ pub fn frechet_mean(
     if let Ok(m) = manifold.downcast::<PySpd>() {
         let dim = m.borrow().n;
         return dispatch_frechet_matrix!(
-            py, points, init, &config,
-            Spd, dim,
+            py,
+            points,
+            init,
+            &config,
+            Spd,
+            dim,
             [2, 3, 4, 5, 6, 7, 8]
         );
     }
@@ -1081,8 +1155,12 @@ pub fn frechet_mean(
     if let Ok(m) = manifold.downcast::<PySo>() {
         let dim = m.borrow().n;
         return dispatch_frechet_matrix!(
-            py, points, init, &config,
-            SpecialOrthogonal, dim,
+            py,
+            points,
+            init,
+            &config,
+            SpecialOrthogonal,
+            dim,
             [2, 3, 4]
         );
     }
@@ -1091,8 +1169,12 @@ pub fn frechet_mean(
     if let Ok(m) = manifold.downcast::<PyCorr>() {
         let dim = m.borrow().n;
         return dispatch_frechet_matrix!(
-            py, points, init, &config,
-            Corr, dim,
+            py,
+            points,
+            init,
+            &config,
+            Corr,
+            dim,
             [2, 3, 4, 5, 6, 7, 8]
         );
     }

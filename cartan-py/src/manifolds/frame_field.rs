@@ -7,9 +7,9 @@
 //! It supports D2 gauge fixing to make the frame field as smooth as possible
 //! along a 1D chain.
 
-use pyo3::prelude::*;
-use pyo3::exceptions::PyIndexError;
 use numpy::PyReadonlyArrayDyn;
+use pyo3::exceptions::PyIndexError;
+use pyo3::prelude::*;
 
 use cartan_manifolds::frame_field::FrameField3D;
 

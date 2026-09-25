@@ -22,18 +22,18 @@
 //! via `.iter().copied().collect()` which traverses column-major order.
 //! On reconstruction we use `SMatrix::from_column_slice` to recover the same matrix.
 
-use pyo3::prelude::*;
-use pyo3::exceptions::{PyTypeError, PyValueError};
 use numpy::PyReadonlyArrayDyn;
+use pyo3::exceptions::{PyTypeError, PyValueError};
+use pyo3::prelude::*;
 
 use cartan_core::Real;
 
-use crate::manifolds::euclidean::PyEuclidean;
-use crate::manifolds::sphere::PySphere;
-use crate::manifolds::spd::PySpd;
-use crate::manifolds::so::PySo;
 use crate::manifolds::corr::PyCorr;
+use crate::manifolds::euclidean::PyEuclidean;
 use crate::manifolds::qtensor::PyQTensor3;
+use crate::manifolds::so::PySo;
+use crate::manifolds::spd::PySpd;
+use crate::manifolds::sphere::PySphere;
 
 // ---------------------------------------------------------------------------
 // ManifoldTag: carries type identity at runtime
@@ -104,11 +104,7 @@ fn extract_vec_n(arr: PyReadonlyArrayDyn<'_, f64>, n: usize, name: &str) -> PyRe
 
 /// For matrix manifolds: extract an N x N numpy array and flatten to Vec<f64>
 /// in nalgebra column-major order so that `SMatrix::from_column_slice` reconstructs correctly.
-fn extract_mat_n(
-    arr: PyReadonlyArrayDyn<'_, f64>,
-    n: usize,
-    name: &str,
-) -> PyResult<Vec<f64>> {
+fn extract_mat_n(arr: PyReadonlyArrayDyn<'_, f64>, n: usize, name: &str) -> PyResult<Vec<f64>> {
     // Validate element count.
     let slice = arr
         .as_slice()
@@ -116,7 +112,10 @@ fn extract_mat_n(
     if slice.len() != n * n {
         return Err(PyValueError::new_err(format!(
             "{name}: expected {}x{} matrix ({} elements), got {}",
-            n, n, n * n, slice.len()
+            n,
+            n,
+            n * n,
+            slice.len()
         )));
     }
     // Numpy is row-major; convert to nalgebra column-major for storage.
@@ -243,25 +242,49 @@ impl PyGeodesic {
     fn eval<'py>(&self, py: Python<'py>, t: f64) -> PyResult<PyObject> {
         match &self.manifold_tag {
             ManifoldTag::EuclideanVec(n) => {
-                dispatch_geo_vector!(self, py, Euclidean, *n, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                dispatch_geo_vector!(
+                    self,
+                    py,
+                    Euclidean,
+                    *n,
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
                     |py, _mf, geo: &cartan_geo::Geodesic<'_, cartan_manifolds::Euclidean<_>>| {
                         let pt = geo.eval(t as Real);
-                        Ok(crate::convert::svector_to_pyarray(py, &pt).into_any().unbind())
-                    })
+                        Ok(crate::convert::svector_to_pyarray(py, &pt)
+                            .into_any()
+                            .unbind())
+                    }
+                )
             }
             ManifoldTag::SphereVec(n) => {
-                dispatch_geo_vector!(self, py, Sphere, *n, [2, 3, 4, 5, 6, 7, 8, 9, 10],
+                dispatch_geo_vector!(
+                    self,
+                    py,
+                    Sphere,
+                    *n,
+                    [2, 3, 4, 5, 6, 7, 8, 9, 10],
                     |py, _mf, geo: &cartan_geo::Geodesic<'_, cartan_manifolds::Sphere<_>>| {
                         let pt = geo.eval(t as Real);
-                        Ok(crate::convert::svector_to_pyarray(py, &pt).into_any().unbind())
-                    })
+                        Ok(crate::convert::svector_to_pyarray(py, &pt)
+                            .into_any()
+                            .unbind())
+                    }
+                )
             }
             ManifoldTag::SpdMat(n) => {
-                dispatch_geo_matrix!(self, py, Spd, *n, [2, 3, 4, 5, 6, 7, 8],
+                dispatch_geo_matrix!(
+                    self,
+                    py,
+                    Spd,
+                    *n,
+                    [2, 3, 4, 5, 6, 7, 8],
                     |py, _mf, geo: &cartan_geo::Geodesic<'_, cartan_manifolds::Spd<_>>| {
                         let pt = geo.eval(t as Real);
-                        Ok(crate::convert::smatrix_to_pyarray(py, &pt).into_any().unbind())
-                    })
+                        Ok(crate::convert::smatrix_to_pyarray(py, &pt)
+                            .into_any()
+                            .unbind())
+                    }
+                )
             }
             ManifoldTag::SoMat(n) => {
                 dispatch_geo_matrix!(self, py, SpecialOrthogonal, *n, [2, 3, 4],
@@ -271,11 +294,19 @@ impl PyGeodesic {
                     })
             }
             ManifoldTag::CorrMat(n) => {
-                dispatch_geo_matrix!(self, py, Corr, *n, [2, 3, 4, 5, 6, 7, 8],
+                dispatch_geo_matrix!(
+                    self,
+                    py,
+                    Corr,
+                    *n,
+                    [2, 3, 4, 5, 6, 7, 8],
                     |py, _mf, geo: &cartan_geo::Geodesic<'_, cartan_manifolds::Corr<_>>| {
                         let pt = geo.eval(t as Real);
-                        Ok(crate::convert::smatrix_to_pyarray(py, &pt).into_any().unbind())
-                    })
+                        Ok(crate::convert::smatrix_to_pyarray(py, &pt)
+                            .into_any()
+                            .unbind())
+                    }
+                )
             }
             ManifoldTag::QTensor3Mat => {
                 let mf = cartan_manifolds::qtensor::QTensor3;
@@ -283,7 +314,9 @@ impl PyGeodesic {
                 let vel = nalgebra::SMatrix::<f64, 3, 3>::from_column_slice(&self.velocity_data);
                 let geo = cartan_geo::Geodesic::new(&mf, base, vel);
                 let pt = geo.eval(t as Real);
-                Ok(crate::convert::smatrix_to_pyarray(py, &pt).into_any().unbind())
+                Ok(crate::convert::smatrix_to_pyarray(py, &pt)
+                    .into_any()
+                    .unbind())
             }
         }
     }
@@ -306,9 +339,7 @@ impl PyGeodesic {
             return Err(PyValueError::new_err("sample: n must be >= 1"));
         }
         let step = if n == 1 { 0.0 } else { 1.0 / (n - 1) as f64 };
-        (0..n)
-            .map(|i| self.eval(py, i as f64 * step))
-            .collect()
+        (0..n).map(|i| self.eval(py, i as f64 * step)).collect()
     }
 
     fn __repr__(&self) -> String {
@@ -357,7 +388,9 @@ fn geo_length_impl(g: &PyGeodesic) -> PyResult<f64> {
         };
     }
     match &g.manifold_tag {
-        ManifoldTag::EuclideanVec(n) => length_vector!(Euclidean, *n, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+        ManifoldTag::EuclideanVec(n) => {
+            length_vector!(Euclidean, *n, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+        }
         ManifoldTag::SphereVec(n) => length_vector!(Sphere, *n, [2, 3, 4, 5, 6, 7, 8, 9, 10]),
         ManifoldTag::SpdMat(n) => length_matrix!(Spd, *n, [2, 3, 4, 5, 6, 7, 8]),
         ManifoldTag::SoMat(n) => length_matrix!(SpecialOrthogonal, *n, [2, 3, 4]),
@@ -462,8 +495,7 @@ fn compute_log_data(tag: &ManifoldTag, p_data: &[f64], q_data: &[f64]) -> PyResu
             let mf = QTensor3;
             let p = nalgebra::SMatrix::<f64, 3, 3>::from_column_slice(p_data);
             let q = nalgebra::SMatrix::<f64, 3, 3>::from_column_slice(q_data);
-            let v = Manifold::log(&mf, &p, &q)
-                .map_err(crate::error::cartan_err_to_py)?;
+            let v = Manifold::log(&mf, &p, &q).map_err(crate::error::cartan_err_to_py)?;
             Ok(v.iter().copied().collect())
         }
     }
@@ -545,32 +577,55 @@ impl PyCurvatureQuery {
                     })
             }
             ManifoldTag::SphereVec(n) => {
-                dispatch_curv_vector!(self, py_dummy, Sphere, *n,
+                dispatch_curv_vector!(
+                    self,
+                    py_dummy,
+                    Sphere,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8, 9, 10],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Sphere<_>>| {
                         Ok::<f64, PyErr>(cq.scalar())
-                    })
+                    }
+                )
             }
             ManifoldTag::SpdMat(n) => {
-                dispatch_curv_matrix!(self, py_dummy, Spd, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    Spd,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Spd<_>>| {
                         Ok::<f64, PyErr>(cq.scalar())
-                    })
+                    }
+                )
             }
             ManifoldTag::SoMat(n) => {
-                dispatch_curv_matrix!(self, py_dummy, SpecialOrthogonal, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    SpecialOrthogonal,
+                    *n,
                     [2, 3, 4],
-                    |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::SpecialOrthogonal<_>>| {
-                        Ok::<f64, PyErr>(cq.scalar())
-                    })
+                    |_py,
+                     _mf,
+                     cq: &cartan_geo::CurvatureQuery<
+                        '_,
+                        cartan_manifolds::SpecialOrthogonal<_>,
+                    >| { Ok::<f64, PyErr>(cq.scalar()) }
+                )
             }
             ManifoldTag::CorrMat(n) => {
-                dispatch_curv_matrix!(self, py_dummy, Corr, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    Corr,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Corr<_>>| {
                         Ok::<f64, PyErr>(cq.scalar())
-                    })
+                    }
+                )
             }
             ManifoldTag::QTensor3Mat => {
                 let mf = cartan_manifolds::qtensor::QTensor3;
@@ -603,46 +658,71 @@ impl PyCurvatureQuery {
             ManifoldTag::SphereVec(n) => {
                 let u_d = extract_vec_n(u, *n, "u")?;
                 let v_d = extract_vec_n(v, *n, "v")?;
-                dispatch_curv_vector!(self, py_dummy, Sphere, *n,
+                dispatch_curv_vector!(
+                    self,
+                    py_dummy,
+                    Sphere,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8, 9, 10],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Sphere<_>>| {
                         let uu = nalgebra::SVector::<f64, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SVector::<f64, _>::from_column_slice(&v_d);
                         Ok::<f64, PyErr>(cq.sectional(&uu, &vv))
-                    })
+                    }
+                )
             }
             ManifoldTag::SpdMat(n) => {
                 let u_d = extract_mat_n(u, *n, "u")?;
                 let v_d = extract_mat_n(v, *n, "v")?;
-                dispatch_curv_matrix!(self, py_dummy, Spd, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    Spd,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Spd<_>>| {
                         let uu = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         Ok::<f64, PyErr>(cq.sectional(&uu, &vv))
-                    })
+                    }
+                )
             }
             ManifoldTag::SoMat(n) => {
                 let u_d = extract_mat_n(u, *n, "u")?;
                 let v_d = extract_mat_n(v, *n, "v")?;
-                dispatch_curv_matrix!(self, py_dummy, SpecialOrthogonal, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    SpecialOrthogonal,
+                    *n,
                     [2, 3, 4],
-                    |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::SpecialOrthogonal<_>>| {
+                    |_py,
+                     _mf,
+                     cq: &cartan_geo::CurvatureQuery<
+                        '_,
+                        cartan_manifolds::SpecialOrthogonal<_>,
+                    >| {
                         let uu = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         Ok::<f64, PyErr>(cq.sectional(&uu, &vv))
-                    })
+                    }
+                )
             }
             ManifoldTag::CorrMat(n) => {
                 let u_d = extract_mat_n(u, *n, "u")?;
                 let v_d = extract_mat_n(v, *n, "v")?;
-                dispatch_curv_matrix!(self, py_dummy, Corr, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    Corr,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Corr<_>>| {
                         let uu = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         Ok::<f64, PyErr>(cq.sectional(&uu, &vv))
-                    })
+                    }
+                )
             }
             ManifoldTag::QTensor3Mat => {
                 let u_d = extract_mat_n(u, 3, "u")?;
@@ -679,46 +759,71 @@ impl PyCurvatureQuery {
             ManifoldTag::SphereVec(n) => {
                 let u_d = extract_vec_n(u, *n, "u")?;
                 let v_d = extract_vec_n(v, *n, "v")?;
-                dispatch_curv_vector!(self, py_dummy, Sphere, *n,
+                dispatch_curv_vector!(
+                    self,
+                    py_dummy,
+                    Sphere,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8, 9, 10],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Sphere<_>>| {
                         let uu = nalgebra::SVector::<f64, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SVector::<f64, _>::from_column_slice(&v_d);
                         Ok::<f64, PyErr>(cq.ricci(&uu, &vv))
-                    })
+                    }
+                )
             }
             ManifoldTag::SpdMat(n) => {
                 let u_d = extract_mat_n(u, *n, "u")?;
                 let v_d = extract_mat_n(v, *n, "v")?;
-                dispatch_curv_matrix!(self, py_dummy, Spd, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    Spd,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Spd<_>>| {
                         let uu = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         Ok::<f64, PyErr>(cq.ricci(&uu, &vv))
-                    })
+                    }
+                )
             }
             ManifoldTag::SoMat(n) => {
                 let u_d = extract_mat_n(u, *n, "u")?;
                 let v_d = extract_mat_n(v, *n, "v")?;
-                dispatch_curv_matrix!(self, py_dummy, SpecialOrthogonal, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    SpecialOrthogonal,
+                    *n,
                     [2, 3, 4],
-                    |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::SpecialOrthogonal<_>>| {
+                    |_py,
+                     _mf,
+                     cq: &cartan_geo::CurvatureQuery<
+                        '_,
+                        cartan_manifolds::SpecialOrthogonal<_>,
+                    >| {
                         let uu = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         Ok::<f64, PyErr>(cq.ricci(&uu, &vv))
-                    })
+                    }
+                )
             }
             ManifoldTag::CorrMat(n) => {
                 let u_d = extract_mat_n(u, *n, "u")?;
                 let v_d = extract_mat_n(v, *n, "v")?;
-                dispatch_curv_matrix!(self, py_dummy, Corr, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    Corr,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Corr<_>>| {
                         let uu = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         Ok::<f64, PyErr>(cq.ricci(&uu, &vv))
-                    })
+                    }
+                )
             }
             ManifoldTag::QTensor3Mat => {
                 let u_d = extract_mat_n(u, 3, "u")?;
@@ -763,57 +868,98 @@ impl PyCurvatureQuery {
                 let u_d = extract_vec_n(u, *n, "u")?;
                 let v_d = extract_vec_n(v, *n, "v")?;
                 let w_d = extract_vec_n(w, *n, "w")?;
-                dispatch_curv_vector!(self, py_dummy, Sphere, *n,
+                dispatch_curv_vector!(
+                    self,
+                    py_dummy,
+                    Sphere,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8, 9, 10],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Sphere<_>>| {
                         let uu = nalgebra::SVector::<f64, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SVector::<f64, _>::from_column_slice(&v_d);
                         let ww = nalgebra::SVector::<f64, _>::from_column_slice(&w_d);
                         let res = cq.riemann(&uu, &vv, &ww);
-                        Ok::<PyObject, PyErr>(crate::convert::svector_to_pyarray(py, &res).into_any().unbind())
-                    })
+                        Ok::<PyObject, PyErr>(
+                            crate::convert::svector_to_pyarray(py, &res)
+                                .into_any()
+                                .unbind(),
+                        )
+                    }
+                )
             }
             ManifoldTag::SpdMat(n) => {
                 let u_d = extract_mat_n(u, *n, "u")?;
                 let v_d = extract_mat_n(v, *n, "v")?;
                 let w_d = extract_mat_n(w, *n, "w")?;
-                dispatch_curv_matrix!(self, py_dummy, Spd, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    Spd,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Spd<_>>| {
                         let uu = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         let ww = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&w_d);
                         let res = cq.riemann(&uu, &vv, &ww);
-                        Ok::<PyObject, PyErr>(crate::convert::smatrix_to_pyarray(py, &res).into_any().unbind())
-                    })
+                        Ok::<PyObject, PyErr>(
+                            crate::convert::smatrix_to_pyarray(py, &res)
+                                .into_any()
+                                .unbind(),
+                        )
+                    }
+                )
             }
             ManifoldTag::SoMat(n) => {
                 let u_d = extract_mat_n(u, *n, "u")?;
                 let v_d = extract_mat_n(v, *n, "v")?;
                 let w_d = extract_mat_n(w, *n, "w")?;
-                dispatch_curv_matrix!(self, py_dummy, SpecialOrthogonal, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    SpecialOrthogonal,
+                    *n,
                     [2, 3, 4],
-                    |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::SpecialOrthogonal<_>>| {
+                    |_py,
+                     _mf,
+                     cq: &cartan_geo::CurvatureQuery<
+                        '_,
+                        cartan_manifolds::SpecialOrthogonal<_>,
+                    >| {
                         let uu = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         let ww = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&w_d);
                         let res = cq.riemann(&uu, &vv, &ww);
-                        Ok::<PyObject, PyErr>(crate::convert::smatrix_to_pyarray(py, &res).into_any().unbind())
-                    })
+                        Ok::<PyObject, PyErr>(
+                            crate::convert::smatrix_to_pyarray(py, &res)
+                                .into_any()
+                                .unbind(),
+                        )
+                    }
+                )
             }
             ManifoldTag::CorrMat(n) => {
                 let u_d = extract_mat_n(u, *n, "u")?;
                 let v_d = extract_mat_n(v, *n, "v")?;
                 let w_d = extract_mat_n(w, *n, "w")?;
-                dispatch_curv_matrix!(self, py_dummy, Corr, *n,
+                dispatch_curv_matrix!(
+                    self,
+                    py_dummy,
+                    Corr,
+                    *n,
                     [2, 3, 4, 5, 6, 7, 8],
                     |_py, _mf, cq: &cartan_geo::CurvatureQuery<'_, cartan_manifolds::Corr<_>>| {
                         let uu = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&u_d);
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         let ww = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&w_d);
                         let res = cq.riemann(&uu, &vv, &ww);
-                        Ok::<PyObject, PyErr>(crate::convert::smatrix_to_pyarray(py, &res).into_any().unbind())
-                    })
+                        Ok::<PyObject, PyErr>(
+                            crate::convert::smatrix_to_pyarray(py, &res)
+                                .into_any()
+                                .unbind(),
+                        )
+                    }
+                )
             }
             ManifoldTag::QTensor3Mat => {
                 let u_d = extract_mat_n(u, 3, "u")?;
@@ -826,7 +972,9 @@ impl PyCurvatureQuery {
                 let vv = nalgebra::SMatrix::<f64, 3, 3>::from_column_slice(&v_d);
                 let ww = nalgebra::SMatrix::<f64, 3, 3>::from_column_slice(&w_d);
                 let res = cq.riemann(&uu, &vv, &ww);
-                Ok(crate::convert::smatrix_to_pyarray(py, &res).into_any().unbind())
+                Ok(crate::convert::smatrix_to_pyarray(py, &res)
+                    .into_any()
+                    .unbind())
             }
         }
     }
@@ -926,7 +1074,11 @@ pub struct PyJacobiResult {
 #[pymethods]
 impl PyJacobiResult {
     fn __repr__(&self) -> String {
-        format!("JacobiResult(n_steps={}, t_max={:.3})", self.params.len() - 1, self.params.last().copied().unwrap_or(0.0))
+        format!(
+            "JacobiResult(n_steps={}, t_max={:.3})",
+            self.params.len() - 1,
+            self.params.last().copied().unwrap_or(0.0)
+        )
     }
 }
 
@@ -963,43 +1115,85 @@ pub fn integrate_jacobi<'py>(
     n_steps: usize,
 ) -> PyResult<PyJacobiResult> {
     if n_steps == 0 {
-        return Err(PyValueError::new_err("integrate_jacobi: n_steps must be >= 1"));
+        return Err(PyValueError::new_err(
+            "integrate_jacobi: n_steps must be >= 1",
+        ));
     }
     match &geodesic.manifold_tag {
         ManifoldTag::EuclideanVec(n) => {
             let n = *n;
             let j0_d = extract_vec_n(j0, n, "j0")?;
             let j0_dot_d = extract_vec_n(j0_dot, n, "j0_dot")?;
-            dispatch_jacobi_vector!(py, geodesic, j0_d, j0_dot_d, n_steps, Euclidean, n,
-                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            dispatch_jacobi_vector!(
+                py,
+                geodesic,
+                j0_d,
+                j0_dot_d,
+                n_steps,
+                Euclidean,
+                n,
+                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            )
         }
         ManifoldTag::SphereVec(n) => {
             let n = *n;
             let j0_d = extract_vec_n(j0, n, "j0")?;
             let j0_dot_d = extract_vec_n(j0_dot, n, "j0_dot")?;
-            dispatch_jacobi_vector!(py, geodesic, j0_d, j0_dot_d, n_steps, Sphere, n,
-                [2, 3, 4, 5, 6, 7, 8, 9, 10])
+            dispatch_jacobi_vector!(
+                py,
+                geodesic,
+                j0_d,
+                j0_dot_d,
+                n_steps,
+                Sphere,
+                n,
+                [2, 3, 4, 5, 6, 7, 8, 9, 10]
+            )
         }
         ManifoldTag::SpdMat(n) => {
             let n = *n;
             let j0_d = extract_mat_n(j0, n, "j0")?;
             let j0_dot_d = extract_mat_n(j0_dot, n, "j0_dot")?;
-            dispatch_jacobi_matrix!(py, geodesic, j0_d, j0_dot_d, n_steps, Spd, n,
-                [2, 3, 4, 5, 6, 7, 8])
+            dispatch_jacobi_matrix!(
+                py,
+                geodesic,
+                j0_d,
+                j0_dot_d,
+                n_steps,
+                Spd,
+                n,
+                [2, 3, 4, 5, 6, 7, 8]
+            )
         }
         ManifoldTag::SoMat(n) => {
             let n = *n;
             let j0_d = extract_mat_n(j0, n, "j0")?;
             let j0_dot_d = extract_mat_n(j0_dot, n, "j0_dot")?;
-            dispatch_jacobi_matrix!(py, geodesic, j0_d, j0_dot_d, n_steps, SpecialOrthogonal, n,
-                [2, 3, 4])
+            dispatch_jacobi_matrix!(
+                py,
+                geodesic,
+                j0_d,
+                j0_dot_d,
+                n_steps,
+                SpecialOrthogonal,
+                n,
+                [2, 3, 4]
+            )
         }
         ManifoldTag::CorrMat(n) => {
             let n = *n;
             let j0_d = extract_mat_n(j0, n, "j0")?;
             let j0_dot_d = extract_mat_n(j0_dot, n, "j0_dot")?;
-            dispatch_jacobi_matrix!(py, geodesic, j0_d, j0_dot_d, n_steps, Corr, n,
-                [2, 3, 4, 5, 6, 7, 8])
+            dispatch_jacobi_matrix!(
+                py,
+                geodesic,
+                j0_d,
+                j0_dot_d,
+                n_steps,
+                Corr,
+                n,
+                [2, 3, 4, 5, 6, 7, 8]
+            )
         }
         ManifoldTag::QTensor3Mat => {
             let j0_d = extract_mat_n(j0, 3, "j0")?;
@@ -1011,13 +1205,29 @@ pub fn integrate_jacobi<'py>(
             let j0_v = nalgebra::SMatrix::<f64, 3, 3>::from_column_slice(&j0_d);
             let j0_dot_v = nalgebra::SMatrix::<f64, 3, 3>::from_column_slice(&j0_dot_d);
             let res = cartan_geo::integrate_jacobi(&geo, j0_v, j0_dot_v, n_steps);
-            let field: Vec<PyObject> = res.field.iter()
-                .map(|m| crate::convert::smatrix_to_pyarray(py, m).into_any().unbind())
+            let field: Vec<PyObject> = res
+                .field
+                .iter()
+                .map(|m| {
+                    crate::convert::smatrix_to_pyarray(py, m)
+                        .into_any()
+                        .unbind()
+                })
                 .collect();
-            let velocity: Vec<PyObject> = res.velocity.iter()
-                .map(|m| crate::convert::smatrix_to_pyarray(py, m).into_any().unbind())
+            let velocity: Vec<PyObject> = res
+                .velocity
+                .iter()
+                .map(|m| {
+                    crate::convert::smatrix_to_pyarray(py, m)
+                        .into_any()
+                        .unbind()
+                })
                 .collect();
-            Ok(PyJacobiResult { params: res.params, field, velocity })
+            Ok(PyJacobiResult {
+                params: res.params,
+                field,
+                velocity,
+            })
         }
     }
 }

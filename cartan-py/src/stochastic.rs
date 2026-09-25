@@ -16,11 +16,13 @@
 //! (ambient 2..=10). Supported SPD sizes: 2..=5.
 
 use cartan_core::Real;
-use cartan_manifolds::{Sphere, Spd};
+use cartan_manifolds::{Spd, Sphere};
 use cartan_stochastic::{random_frame_at, stochastic_development, wishart_step as ws_step};
 use nalgebra::{SMatrix, SVector};
 use numpy::ndarray::{Array2, Array3};
-use numpy::{IntoPyArray, PyArray2, PyArray3, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
+use numpy::{
+    IntoPyArray, PyArray2, PyArray3, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods,
+};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rand::SeedableRng;
@@ -69,9 +71,8 @@ fn stochastic_bm_on_sphere<'py>(
     for row in &path {
         flat.extend_from_slice(row);
     }
-    let arr = Array2::from_shape_vec((rows, cols), flat).map_err(|e| {
-        PyValueError::new_err(format!("reshape failed: {e}"))
-    })?;
+    let arr = Array2::from_shape_vec((rows, cols), flat)
+        .map_err(|e| PyValueError::new_err(format!("reshape failed: {e}")))?;
     Ok(arr.into_pyarray(py))
 }
 
@@ -95,7 +96,11 @@ fn sphere_bm_impl<const N: usize>(
         .map_err(|e| PyValueError::new_err(format!("frame construction failed: {e:?}")))?;
     let result = stochastic_development(&m, &p0_vec, frame, n_steps, dt, &mut rng, 1e-10)
         .map_err(|e| PyValueError::new_err(format!("development failed: {e:?}")))?;
-    Ok(result.path.into_iter().map(|v| v.iter().copied().collect()).collect())
+    Ok(result
+        .path
+        .into_iter()
+        .map(|v| v.iter().copied().collect())
+        .collect())
 }
 
 /// Brownian motion on `SPD(n)` with the affine-invariant metric.
@@ -137,10 +142,8 @@ fn stochastic_bm_on_spd<'py>(
     for mat in &path {
         flat.extend_from_slice(mat);
     }
-    let arr =
-        Array3::from_shape_vec((rows, n, n), flat).map_err(|e| {
-            PyValueError::new_err(format!("reshape failed: {e}"))
-        })?;
+    let arr = Array3::from_shape_vec((rows, n, n), flat)
+        .map_err(|e| PyValueError::new_err(format!("reshape failed: {e}")))?;
     Ok(arr.into_pyarray(py))
 }
 
@@ -187,7 +190,9 @@ fn wishart_step<'py>(
 ) -> PyResult<Bound<'py, PyArray2<Real>>> {
     let sh = x.shape();
     if sh.len() != 2 || sh[0] != sh[1] {
-        return Err(PyValueError::new_err(format!("x must be square, got {sh:?}")));
+        return Err(PyValueError::new_err(format!(
+            "x must be square, got {sh:?}"
+        )));
     }
     let n = sh[0];
     let x_slice = x.as_slice()?;
@@ -211,9 +216,8 @@ fn wishart_step<'py>(
         };
     }
     let flat: Vec<Real> = dispatch_ws!(2, 3, 4, 5)?;
-    let arr = Array2::from_shape_vec((n, n), flat).map_err(|e| {
-        PyValueError::new_err(format!("reshape failed: {e}"))
-    })?;
+    let arr = Array2::from_shape_vec((n, n), flat)
+        .map_err(|e| PyValueError::new_err(format!("reshape failed: {e}")))?;
     Ok(arr.into_pyarray(py))
 }
 
