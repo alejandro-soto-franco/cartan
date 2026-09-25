@@ -4,7 +4,9 @@ All notable changes to cartan are documented here.
 
 ---
 
-## [Unreleased]
+## [cartan-py 0.7.0] - 2026-09-25
+
+Python bindings only; the Rust crates stay at 0.10.0.
 
 ### Added
 
