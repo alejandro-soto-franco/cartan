@@ -11,7 +11,6 @@
 //! with 2 <= N <= 8, 1 <= K < N (28 combinations). Each method uses an inner
 //! macro to avoid repeating the body.
 
-use numpy::PyReadonlyArrayDyn;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
@@ -19,7 +18,7 @@ use cartan_core::{
     Curvature, GeodesicInterpolation, Manifold, ParallelTransport, Retraction, VectorTransport,
 };
 
-use crate::convert::{arr_to_smatrix, smatrix_to_pyarray};
+use crate::convert::{Arr, arr_to_smatrix, smatrix_to_pyarray};
 use crate::error::cartan_err_to_py;
 
 // ---------------------------------------------------------------------------
@@ -74,7 +73,7 @@ macro_rules! dispatch_nk {
 /// Points are n x k matrices with orthonormal columns.
 /// Tangent vectors are n x k matrices orthogonal to the base point.
 /// Supported sizes: 2 <= n <= 8, 1 <= k < n.
-#[pyclass(name = "Grassmann")]
+#[pyclass(name = "Grassmann", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyGrassmann {
     pub(crate) n: usize,
@@ -123,12 +122,7 @@ impl PyGrassmann {
 #[pymethods]
 impl PyGrassmann {
     /// Exponential map: Exp_p(v).
-    fn exp<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        v: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn exp<'py>(&self, py: Python<'py>, p: Arr<'py>, v: Arr<'py>) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -142,12 +136,7 @@ impl PyGrassmann {
     }
 
     /// Logarithmic map: Log_p(q).
-    fn log<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        q: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn log<'py>(&self, py: Python<'py>, p: Arr<'py>, q: Arr<'py>) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -161,11 +150,7 @@ impl PyGrassmann {
     }
 
     /// Geodesic distance d(p, q).
-    fn dist(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        q: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn dist(&self, p: Arr<'_>, q: Arr<'_>) -> PyResult<f64> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -178,12 +163,7 @@ impl PyGrassmann {
     }
 
     /// Riemannian inner product <u, v>_p.
-    fn inner(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        u: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn inner(&self, p: Arr<'_>, u: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -197,11 +177,7 @@ impl PyGrassmann {
     }
 
     /// Induced norm ||v||_p.
-    fn norm(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn norm(&self, p: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -214,11 +190,7 @@ impl PyGrassmann {
     }
 
     /// Project an ambient point onto the manifold.
-    fn project_point<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn project_point<'py>(&self, py: Python<'py>, p: Arr<'py>) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -234,9 +206,9 @@ impl PyGrassmann {
     fn project_tangent<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        v: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+        p: Arr<'py>,
+        v: Arr<'py>,
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -250,11 +222,7 @@ impl PyGrassmann {
     }
 
     /// The zero tangent vector at p.
-    fn zero_tangent<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn zero_tangent<'py>(&self, py: Python<'py>, p: Arr<'py>) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -267,7 +235,7 @@ impl PyGrassmann {
     }
 
     /// Validate that a point lies on the manifold.
-    fn check_point(&self, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<()> {
+    fn check_point(&self, p: Arr<'_>) -> PyResult<()> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -279,11 +247,7 @@ impl PyGrassmann {
     }
 
     /// Validate that a tangent vector lies in T_p M.
-    fn check_tangent(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<()> {
+    fn check_tangent(&self, p: Arr<'_>, v: Arr<'_>) -> PyResult<()> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -297,7 +261,7 @@ impl PyGrassmann {
 
     /// Random point on the manifold.
     #[pyo3(signature = (seed=None))]
-    fn random_point<'py>(&self, py: Python<'py>, seed: Option<u64>) -> PyResult<PyObject> {
+    fn random_point<'py>(&self, py: Python<'py>, seed: Option<u64>) -> PyResult<Py<PyAny>> {
         use rand::SeedableRng;
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
@@ -320,9 +284,9 @@ impl PyGrassmann {
     fn random_tangent<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
+        p: Arr<'py>,
         seed: Option<u64>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         use rand::SeedableRng;
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
@@ -342,7 +306,7 @@ impl PyGrassmann {
     }
 
     /// Injectivity radius at p.
-    fn injectivity_radius(&self, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
+    fn injectivity_radius(&self, p: Arr<'_>) -> PyResult<f64> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -354,12 +318,7 @@ impl PyGrassmann {
     }
 
     /// Retraction: cheap approximation to exp.
-    fn retract<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        v: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn retract<'py>(&self, py: Python<'py>, p: Arr<'py>, v: Arr<'py>) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -376,9 +335,9 @@ impl PyGrassmann {
     fn inverse_retract<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        q: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+        p: Arr<'py>,
+        q: Arr<'py>,
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -396,10 +355,10 @@ impl PyGrassmann {
     fn parallel_transport<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        q: PyReadonlyArrayDyn<'py, f64>,
-        v: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+        p: Arr<'py>,
+        q: Arr<'py>,
+        v: Arr<'py>,
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -418,10 +377,10 @@ impl PyGrassmann {
     fn vector_transport<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        direction: PyReadonlyArrayDyn<'py, f64>,
-        v: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+        p: Arr<'py>,
+        direction: Arr<'py>,
+        v: Arr<'py>,
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -437,12 +396,7 @@ impl PyGrassmann {
     }
 
     /// Sectional curvature of the 2-plane spanned by u and v at p.
-    fn sectional_curvature(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        u: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn sectional_curvature(&self, p: Arr<'_>, u: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -456,12 +410,7 @@ impl PyGrassmann {
     }
 
     /// Ricci curvature Ric(u, v) at p.
-    fn ricci_curvature(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        u: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn ricci_curvature(&self, p: Arr<'_>, u: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -475,7 +424,7 @@ impl PyGrassmann {
     }
 
     /// Scalar curvature at p.
-    fn scalar_curvature(&self, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
+    fn scalar_curvature(&self, p: Arr<'_>) -> PyResult<f64> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;
@@ -490,10 +439,10 @@ impl PyGrassmann {
     fn geodesic<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        q: PyReadonlyArrayDyn<'py, f64>,
+        p: Arr<'py>,
+        q: Arr<'py>,
         t: f64,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal, $K:literal) => {{
                 let mf = cartan_manifolds::Grassmann::<$N, $K>;

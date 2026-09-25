@@ -9,7 +9,6 @@
 //! Being a flat manifold, all curvatures are zero, parallel transport is the
 //! identity, and geodesics are straight lines (exp = addition, log = subtraction).
 
-use numpy::{self, PyReadonlyArrayDyn};
 use pyo3::prelude::*;
 
 use cartan_core::{
@@ -17,7 +16,7 @@ use cartan_core::{
 };
 use cartan_manifolds::qtensor::QTensor3;
 
-use crate::convert::{arr_to_smatrix, smatrix_to_pyarray};
+use crate::convert::{Arr, arr_to_smatrix, smatrix_to_pyarray};
 use crate::error::cartan_err_to_py;
 
 /// Python wrapper for the Q-tensor manifold: 3x3 symmetric traceless matrices.
@@ -27,7 +26,7 @@ use crate::error::cartan_err_to_py;
 /// symmetry, tracelessness, and eigenvalue bounds [-1/3, 2/3].
 ///
 /// This manifold models the Q-tensor order parameter of nematic liquid crystals.
-#[pyclass(name = "QTensor3")]
+#[pyclass(name = "QTensor3", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyQTensor3;
 
@@ -53,12 +52,7 @@ impl PyQTensor3 {
     }
 
     /// Exponential map: Exp_p(v) = p + v (straight-line in flat Q-space).
-    fn exp<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        v: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn exp<'py>(&self, py: Python<'py>, p: Arr<'py>, v: Arr<'py>) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let vv = arr_to_smatrix::<3, 3>(v, "v")?;
@@ -67,12 +61,7 @@ impl PyQTensor3 {
     }
 
     /// Logarithmic map: Log_p(q) = q - p.
-    fn log<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        q: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn log<'py>(&self, py: Python<'py>, p: Arr<'py>, q: Arr<'py>) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let qq = arr_to_smatrix::<3, 3>(q, "q")?;
@@ -81,11 +70,7 @@ impl PyQTensor3 {
     }
 
     /// Geodesic distance d(p, q) = ||q - p||_F.
-    fn dist(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        q: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn dist(&self, p: Arr<'_>, q: Arr<'_>) -> PyResult<f64> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let qq = arr_to_smatrix::<3, 3>(q, "q")?;
@@ -93,12 +78,7 @@ impl PyQTensor3 {
     }
 
     /// Frobenius inner product <u, v>_p = tr(u v) (independent of base point).
-    fn inner(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        u: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn inner(&self, p: Arr<'_>, u: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let uu = arr_to_smatrix::<3, 3>(u, "u")?;
@@ -107,11 +87,7 @@ impl PyQTensor3 {
     }
 
     /// Frobenius norm ||v||_p = sqrt(tr(v^2)).
-    fn norm(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn norm(&self, p: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let vv = arr_to_smatrix::<3, 3>(v, "v")?;
@@ -121,11 +97,7 @@ impl PyQTensor3 {
     /// Project an arbitrary 3x3 matrix onto the physical Q-manifold.
     ///
     /// Symmetrizes, removes trace, then clamps eigenvalues to [-1/3, 2/3].
-    fn project_point<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn project_point<'py>(&self, py: Python<'py>, p: Arr<'py>) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let result = Manifold::project_point(&mf, &pp);
@@ -136,9 +108,9 @@ impl PyQTensor3 {
     fn project_tangent<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        v: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+        p: Arr<'py>,
+        v: Arr<'py>,
+    ) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let vv = arr_to_smatrix::<3, 3>(v, "v")?;
@@ -147,11 +119,7 @@ impl PyQTensor3 {
     }
 
     /// Zero tangent vector at p: the 3x3 zero matrix.
-    fn zero_tangent<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn zero_tangent<'py>(&self, py: Python<'py>, p: Arr<'py>) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let result = Manifold::zero_tangent(&mf, &pp);
@@ -159,18 +127,14 @@ impl PyQTensor3 {
     }
 
     /// Validate that a matrix is a physical Q-tensor (symmetric, traceless, eigenvalues in [-1/3, 2/3]).
-    fn check_point(&self, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<()> {
+    fn check_point(&self, p: Arr<'_>) -> PyResult<()> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         Manifold::check_point(&mf, &pp).map_err(cartan_err_to_py)
     }
 
     /// Validate that a matrix is a valid tangent vector (symmetric, traceless).
-    fn check_tangent(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<()> {
+    fn check_tangent(&self, p: Arr<'_>, v: Arr<'_>) -> PyResult<()> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let vv = arr_to_smatrix::<3, 3>(v, "v")?;
@@ -179,7 +143,7 @@ impl PyQTensor3 {
 
     /// Sample a random Q-tensor (weakly ordered, Frobenius norm ~ 0.05).
     #[pyo3(signature = (seed=None))]
-    fn random_point<'py>(&self, py: Python<'py>, seed: Option<u64>) -> PyResult<PyObject> {
+    fn random_point<'py>(&self, py: Python<'py>, seed: Option<u64>) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         use rand::SeedableRng;
         let result = match seed {
@@ -197,9 +161,9 @@ impl PyQTensor3 {
     fn random_tangent<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
+        p: Arr<'py>,
         seed: Option<u64>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         use rand::SeedableRng;
@@ -214,19 +178,14 @@ impl PyQTensor3 {
     }
 
     /// Injectivity radius: infinity (flat manifold, no cut locus).
-    fn injectivity_radius(&self, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
+    fn injectivity_radius(&self, p: Arr<'_>) -> PyResult<f64> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         Ok(Manifold::injectivity_radius(&mf, &pp))
     }
 
     /// Retraction: p + v (same as exp for flat Q-space).
-    fn retract<'py>(
-        &self,
-        py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        v: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+    fn retract<'py>(&self, py: Python<'py>, p: Arr<'py>, v: Arr<'py>) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let vv = arr_to_smatrix::<3, 3>(v, "v")?;
@@ -238,9 +197,9 @@ impl PyQTensor3 {
     fn inverse_retract<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        q: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+        p: Arr<'py>,
+        q: Arr<'py>,
+    ) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let qq = arr_to_smatrix::<3, 3>(q, "q")?;
@@ -252,10 +211,10 @@ impl PyQTensor3 {
     fn parallel_transport<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        q: PyReadonlyArrayDyn<'py, f64>,
-        v: PyReadonlyArrayDyn<'py, f64>,
-    ) -> PyResult<PyObject> {
+        p: Arr<'py>,
+        q: Arr<'py>,
+        v: Arr<'py>,
+    ) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let qq = arr_to_smatrix::<3, 3>(q, "q")?;
@@ -265,12 +224,7 @@ impl PyQTensor3 {
     }
 
     /// Sectional curvature: 0.0 (flat manifold).
-    fn sectional_curvature(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        u: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn sectional_curvature(&self, p: Arr<'_>, u: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let uu = arr_to_smatrix::<3, 3>(u, "u")?;
@@ -279,12 +233,7 @@ impl PyQTensor3 {
     }
 
     /// Ricci curvature: 0.0 (flat manifold).
-    fn ricci_curvature(
-        &self,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        u: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn ricci_curvature(&self, p: Arr<'_>, u: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let uu = arr_to_smatrix::<3, 3>(u, "u")?;
@@ -293,7 +242,7 @@ impl PyQTensor3 {
     }
 
     /// Scalar curvature: 0.0 (flat manifold).
-    fn scalar_curvature(&self, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
+    fn scalar_curvature(&self, p: Arr<'_>) -> PyResult<f64> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         Ok(Curvature::scalar_curvature(&mf, &pp))
@@ -303,10 +252,10 @@ impl PyQTensor3 {
     fn geodesic<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        q: PyReadonlyArrayDyn<'py, f64>,
+        p: Arr<'py>,
+        q: Arr<'py>,
         t: f64,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         let qq = arr_to_smatrix::<3, 3>(q, "q")?;
@@ -316,11 +265,7 @@ impl PyQTensor3 {
     }
 
     /// Pairwise distance matrix D[i,j] = dist(points[i], points[j]).
-    fn dist_matrix<'py>(
-        &self,
-        py: Python<'py>,
-        points: Vec<PyReadonlyArrayDyn<'py, f64>>,
-    ) -> PyResult<PyObject> {
+    fn dist_matrix<'py>(&self, py: Python<'py>, points: Vec<Arr<'py>>) -> PyResult<Py<PyAny>> {
         let mf = QTensor3;
         let pts: Vec<_> = points
             .into_iter()
@@ -350,9 +295,9 @@ impl PyQTensor3 {
     fn exp_batch<'py>(
         &self,
         py: Python<'py>,
-        p: PyReadonlyArrayDyn<'py, f64>,
-        vs: Vec<PyReadonlyArrayDyn<'py, f64>>,
-    ) -> PyResult<Vec<PyObject>> {
+        p: Arr<'py>,
+        vs: Vec<Arr<'py>>,
+    ) -> PyResult<Vec<Py<PyAny>>> {
         let mf = QTensor3;
         let pp = arr_to_smatrix::<3, 3>(p, "p")?;
         vs.into_iter()

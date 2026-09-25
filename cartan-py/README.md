@@ -27,8 +27,10 @@ maturin develop --release   # install into the current virtualenv
 maturin build --release     # produce a wheel
 ```
 
-The PyPI distribution uses `abi3-py39`, so a single wheel works for
-Python 3.9 and newer.
+The PyPI distribution uses `abi3-py310`, so a single wheel works for
+Python 3.10 and newer. Free-threaded CPython 3.14t has no stable ABI and gets
+a `cp314t` wheel of its own; the module declares itself free-thread safe, so
+importing it leaves the GIL off.
 
 ## Surface (selected)
 

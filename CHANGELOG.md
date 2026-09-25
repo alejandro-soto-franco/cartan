@@ -4,6 +4,28 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **`cartan-py` supports free-threaded CPython 3.14t.** PyO3 is bumped to
+  0.28 and the module declares `gil_used = false`. Every array argument
+  outside `cartan-dec` now reads through a plain `Bound<PyArrayDyn<f64>>`
+  copied straight into the manifold's nalgebra types, instead of rust-numpy's
+  `PyReadonlyArray`, which registers each borrow in one process-wide
+  `Mutex`-guarded table. Under 8 threads on free-threaded 3.14t this gives a
+  sevenfold speed-up on small calls (`SPD(3).dist`, `SPD(3).log`) that
+  previously ran slower than on one thread, and single-threaded calls are
+  about 18 per cent faster since the table is no longer touched at all.
+  `cartan-dec` keeps `PyReadonlyArray`: its arguments are mesh-sized, so one
+  lock per call is negligible.
+
+### Changed (breaking)
+
+- **`cartan-py` requires Python 3.10 or later.** PyO3 0.28's lowest `abi3`
+  floor is 3.10. The release builds `cp310-abi3` wheels for GIL-enabled
+  interpreters and a version-specific `cp314t` wheel for the free-threaded one.
+
 ## [0.10.0]
 
 Two new crates, a matrix-free Hodge mass for evolving metrics, and the

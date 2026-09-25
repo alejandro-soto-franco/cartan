@@ -7,38 +7,69 @@
 //! messages on mismatch.
 
 use nalgebra::{DMatrix, DVector, SMatrix, SVector};
-use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArrayDyn};
+use numpy::{IntoPyArray, PyArray1, PyArray2, PyArrayDyn, PyArrayMethods, PyReadonlyArrayDyn, PyUntypedArrayMethods};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use cartan_core::Real;
 
-/// Extract a flat f64 slice from a numpy array, validating contiguity and length.
+/// A numpy argument taken without rust-numpy's borrow tracking.
+///
+/// A `PyReadonlyArray` registers its borrow in one process-wide table behind a
+/// `Mutex`, which every thread contends on under free-threaded CPython. The
+/// manifold methods copy their inputs into fixed-size nalgebra values before
+/// any work, so they take this type and copy instead. `src/dec/` keeps
+/// `PyReadonlyArray` throughout: its arguments are mesh-sized, so one lock per
+/// call is negligible next to the cost of the mesh operator itself.
+pub type Arr<'py> = Bound<'py, PyArrayDyn<f64>>;
+
+/// A numpy array whose contents can be copied out as a flat `f64` buffer.
+pub trait FlatF64 {
+    /// The elements in memory order, or `None` when the array is not contiguous.
+    fn flat_copy(&self) -> Option<Vec<f64>>;
+}
+
+impl FlatF64 for PyReadonlyArrayDyn<'_, f64> {
+    fn flat_copy(&self) -> Option<Vec<f64>> {
+        self.as_slice().ok().map(<[f64]>::to_vec)
+    }
+}
+
+impl FlatF64 for Arr<'_> {
+    fn flat_copy(&self) -> Option<Vec<f64>> {
+        if !self.is_contiguous() {
+            return None;
+        }
+        // SAFETY: the slice lives only for the copy below and no Rust code holds
+        // a mutable view of this array. Python code mutating it concurrently
+        // could tear the copy, as it could for any C extension reading numpy
+        // memory.
+        unsafe { self.as_slice() }.ok().map(<[f64]>::to_vec)
+    }
+}
+
+/// Extract a flat f64 copy of a numpy array, validating contiguity and length.
 ///
 /// Returns a `Vec<f64>` of exactly `expected_len` elements, or a `PyValueError`
 /// if the array is non-contiguous or has the wrong total number of elements.
-pub fn arr_to_vec(
-    arr: PyReadonlyArrayDyn<'_, f64>,
-    expected_len: usize,
-    name: &str,
-) -> PyResult<Vec<f64>> {
+pub fn arr_to_vec(arr: impl FlatF64, expected_len: usize, name: &str) -> PyResult<Vec<f64>> {
     let slice = arr
-        .as_slice()
-        .map_err(|_| PyValueError::new_err(format!("{name}: array must be contiguous")))?;
+        .flat_copy()
+        .ok_or_else(|| PyValueError::new_err(format!("{name}: array must be contiguous")))?;
     if slice.len() != expected_len {
         return Err(PyValueError::new_err(format!(
             "{name}: expected {expected_len} elements, got {}",
             slice.len()
         )));
     }
-    Ok(slice.to_vec())
+    Ok(slice)
 }
 
 /// Convert a numpy array to `SVector<Real, N>`.
 ///
 /// Flattens the array and checks that it has exactly N elements.
 pub fn arr_to_svector<const N: usize>(
-    arr: PyReadonlyArrayDyn<'_, f64>,
+    arr: impl FlatF64,
     name: &str,
 ) -> PyResult<SVector<Real, N>> {
     let data = arr_to_vec(arr, N, name)?;
@@ -50,7 +81,7 @@ pub fn arr_to_svector<const N: usize>(
 /// Numpy stores data in row-major order; `SMatrix::from_row_slice` handles
 /// the conversion to nalgebra's column-major internal layout.
 pub fn arr_to_smatrix<const R: usize, const C: usize>(
-    arr: PyReadonlyArrayDyn<'_, f64>,
+    arr: impl FlatF64,
     name: &str,
 ) -> PyResult<SMatrix<Real, R, C>> {
     let data = arr_to_vec(arr, R * C, name)?;

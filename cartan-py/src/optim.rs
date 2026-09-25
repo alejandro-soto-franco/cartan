@@ -17,10 +17,10 @@
 //!
 //! SE and Grassmann are not yet supported (complex point types / two-param dispatch).
 
-use numpy::PyReadonlyArrayDyn;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 
+use crate::convert::Arr;
 use crate::manifolds::corr::PyCorr;
 use crate::manifolds::euclidean::PyEuclidean;
 use crate::manifolds::qtensor::PyQTensor3;
@@ -40,7 +40,7 @@ use crate::manifolds::sphere::PySphere;
 pub struct PyOptResult {
     /// Final iterate on the manifold (numpy array).
     #[pyo3(get)]
-    pub point: PyObject,
+    pub point: Py<PyAny>,
     /// Cost function value at the final iterate.
     #[pyo3(get)]
     pub value: f64,
@@ -79,7 +79,7 @@ macro_rules! dispatch_rgd_vector {
         match $dim {
             $($N => {
                 let mf = cartan_manifolds::$mtype::<$N>;
-                let x0_arr: PyReadonlyArrayDyn<f64> = $x0.extract()?;
+                let x0_arr: Arr<'_> = $x0.extract()?;
                 let x0_pt = $crate::convert::arr_to_svector::<$N>(x0_arr, "x0")?;
 
                 // Capture py, cost, grad by shared reference. The GIL is held
@@ -96,7 +96,7 @@ macro_rules! dispatch_rgd_vector {
                 let grad_fn = |p: &nalgebra::SVector<f64, $N>| -> nalgebra::SVector<f64, $N> {
                     let p_py = $crate::convert::svector_to_pyarray($py, p);
                     let result = $grad.call1((p_py,)).expect("grad function failed");
-                    let arr: PyReadonlyArrayDyn<f64> =
+                    let arr: Arr<'_> =
                         result.extract().expect("grad must return a numpy array");
                     $crate::convert::arr_to_svector::<$N>(arr, "grad_result")
                         .expect("grad output shape mismatch")
@@ -128,7 +128,7 @@ macro_rules! dispatch_rgd_matrix {
         match $dim {
             $($N => {
                 let mf = cartan_manifolds::$mtype::<$N>;
-                let x0_arr: PyReadonlyArrayDyn<f64> = $x0.extract()?;
+                let x0_arr: Arr<'_> = $x0.extract()?;
                 let x0_pt = $crate::convert::arr_to_smatrix::<$N, $N>(x0_arr, "x0")?;
 
                 let cost_fn = |p: &nalgebra::SMatrix<f64, $N, $N>| -> f64 {
@@ -143,7 +143,7 @@ macro_rules! dispatch_rgd_matrix {
                     |p: &nalgebra::SMatrix<f64, $N, $N>| -> nalgebra::SMatrix<f64, $N, $N> {
                         let p_py = $crate::convert::smatrix_to_pyarray($py, p);
                         let result = $grad.call1((p_py,)).expect("grad function failed");
-                        let arr: PyReadonlyArrayDyn<f64> =
+                        let arr: Arr<'_> =
                             result.extract().expect("grad must return a numpy array");
                         $crate::convert::arr_to_smatrix::<$N, $N>(arr, "grad_result")
                             .expect("grad output shape mismatch")
@@ -179,7 +179,7 @@ macro_rules! dispatch_rcg_vector {
         match $dim {
             $($N => {
                 let mf = cartan_manifolds::$mtype::<$N>;
-                let x0_arr: PyReadonlyArrayDyn<f64> = $x0.extract()?;
+                let x0_arr: Arr<'_> = $x0.extract()?;
                 let x0_pt = $crate::convert::arr_to_svector::<$N>(x0_arr, "x0")?;
 
                 let cost_fn = |p: &nalgebra::SVector<f64, $N>| -> f64 {
@@ -193,7 +193,7 @@ macro_rules! dispatch_rcg_vector {
                 let grad_fn = |p: &nalgebra::SVector<f64, $N>| -> nalgebra::SVector<f64, $N> {
                     let p_py = $crate::convert::svector_to_pyarray($py, p);
                     let result = $grad.call1((p_py,)).expect("grad function failed");
-                    let arr: PyReadonlyArrayDyn<f64> =
+                    let arr: Arr<'_> =
                         result.extract().expect("grad must return a numpy array");
                     $crate::convert::arr_to_svector::<$N>(arr, "grad_result")
                         .expect("grad output shape mismatch")
@@ -225,7 +225,7 @@ macro_rules! dispatch_rcg_matrix {
         match $dim {
             $($N => {
                 let mf = cartan_manifolds::$mtype::<$N>;
-                let x0_arr: PyReadonlyArrayDyn<f64> = $x0.extract()?;
+                let x0_arr: Arr<'_> = $x0.extract()?;
                 let x0_pt = $crate::convert::arr_to_smatrix::<$N, $N>(x0_arr, "x0")?;
 
                 let cost_fn = |p: &nalgebra::SMatrix<f64, $N, $N>| -> f64 {
@@ -240,7 +240,7 @@ macro_rules! dispatch_rcg_matrix {
                     |p: &nalgebra::SMatrix<f64, $N, $N>| -> nalgebra::SMatrix<f64, $N, $N> {
                         let p_py = $crate::convert::smatrix_to_pyarray($py, p);
                         let result = $grad.call1((p_py,)).expect("grad function failed");
-                        let arr: PyReadonlyArrayDyn<f64> =
+                        let arr: Arr<'_> =
                             result.extract().expect("grad must return a numpy array");
                         $crate::convert::arr_to_smatrix::<$N, $N>(arr, "grad_result")
                             .expect("grad output shape mismatch")
@@ -276,7 +276,7 @@ macro_rules! dispatch_rtr_vector {
         match $dim {
             $($N => {
                 let mf = cartan_manifolds::$mtype::<$N>;
-                let x0_arr: PyReadonlyArrayDyn<f64> = $x0.extract()?;
+                let x0_arr: Arr<'_> = $x0.extract()?;
                 let x0_pt = $crate::convert::arr_to_svector::<$N>(x0_arr, "x0")?;
 
                 let cost_fn = |p: &nalgebra::SVector<f64, $N>| -> f64 {
@@ -290,7 +290,7 @@ macro_rules! dispatch_rtr_vector {
                 let grad_fn = |p: &nalgebra::SVector<f64, $N>| -> nalgebra::SVector<f64, $N> {
                     let p_py = $crate::convert::svector_to_pyarray($py, p);
                     let result = $grad.call1((p_py,)).expect("grad function failed");
-                    let arr: PyReadonlyArrayDyn<f64> =
+                    let arr: Arr<'_> =
                         result.extract().expect("grad must return a numpy array");
                     $crate::convert::arr_to_svector::<$N>(arr, "grad_result")
                         .expect("grad output shape mismatch")
@@ -300,7 +300,7 @@ macro_rules! dispatch_rtr_vector {
                     let p_py = $crate::convert::svector_to_pyarray($py, p);
                     let v_py = $crate::convert::svector_to_pyarray($py, v);
                     let result = $hess.call1((p_py, v_py)).expect("hess function failed");
-                    let arr: PyReadonlyArrayDyn<f64> =
+                    let arr: Arr<'_> =
                         result.extract().expect("hess must return a numpy array");
                     $crate::convert::arr_to_svector::<$N>(arr, "hess_result")
                         .expect("hess output shape mismatch")
@@ -332,7 +332,7 @@ macro_rules! dispatch_rtr_matrix {
         match $dim {
             $($N => {
                 let mf = cartan_manifolds::$mtype::<$N>;
-                let x0_arr: PyReadonlyArrayDyn<f64> = $x0.extract()?;
+                let x0_arr: Arr<'_> = $x0.extract()?;
                 let x0_pt = $crate::convert::arr_to_smatrix::<$N, $N>(x0_arr, "x0")?;
 
                 let cost_fn = |p: &nalgebra::SMatrix<f64, $N, $N>| -> f64 {
@@ -347,7 +347,7 @@ macro_rules! dispatch_rtr_matrix {
                     |p: &nalgebra::SMatrix<f64, $N, $N>| -> nalgebra::SMatrix<f64, $N, $N> {
                         let p_py = $crate::convert::smatrix_to_pyarray($py, p);
                         let result = $grad.call1((p_py,)).expect("grad function failed");
-                        let arr: PyReadonlyArrayDyn<f64> =
+                        let arr: Arr<'_> =
                             result.extract().expect("grad must return a numpy array");
                         $crate::convert::arr_to_smatrix::<$N, $N>(arr, "grad_result")
                             .expect("grad output shape mismatch")
@@ -358,7 +358,7 @@ macro_rules! dispatch_rtr_matrix {
                         let p_py = $crate::convert::smatrix_to_pyarray($py, p);
                         let v_py = $crate::convert::smatrix_to_pyarray($py, v);
                         let result = $hess.call1((p_py, v_py)).expect("hess function failed");
-                        let arr: PyReadonlyArrayDyn<f64> =
+                        let arr: Arr<'_> =
                             result.extract().expect("hess must return a numpy array");
                         $crate::convert::arr_to_smatrix::<$N, $N>(arr, "hess_result")
                             .expect("hess output shape mismatch")
@@ -399,7 +399,7 @@ macro_rules! dispatch_frechet_vector {
                 let mut pts: Vec<nalgebra::SVector<f64, $N>> = Vec::new();
                 for item in $points.try_iter()? {
                     let item = item?;
-                    let arr: PyReadonlyArrayDyn<f64> = item.extract()?;
+                    let arr: Arr<'_> = item.extract()?;
                     let pt = $crate::convert::arr_to_svector::<$N>(arr, "point")?;
                     pts.push(pt);
                 }
@@ -407,7 +407,7 @@ macro_rules! dispatch_frechet_vector {
                 // Convert optional init point
                 let init_pt: Option<nalgebra::SVector<f64, $N>> = match $init {
                     Some(init_obj) => {
-                        let arr: PyReadonlyArrayDyn<f64> = init_obj.extract()?;
+                        let arr: Arr<'_> = init_obj.extract()?;
                         Some($crate::convert::arr_to_svector::<$N>(arr, "init")?)
                     }
                     None => None,
@@ -444,7 +444,7 @@ macro_rules! dispatch_frechet_matrix {
                 let mut pts: Vec<nalgebra::SMatrix<f64, $N, $N>> = Vec::new();
                 for item in $points.try_iter()? {
                     let item = item?;
-                    let arr: PyReadonlyArrayDyn<f64> = item.extract()?;
+                    let arr: Arr<'_> = item.extract()?;
                     let pt = $crate::convert::arr_to_smatrix::<$N, $N>(arr, "point")?;
                     pts.push(pt);
                 }
@@ -452,7 +452,7 @@ macro_rules! dispatch_frechet_matrix {
                 // Convert optional init point
                 let init_pt: Option<nalgebra::SMatrix<f64, $N, $N>> = match $init {
                     Some(init_obj) => {
-                        let arr: PyReadonlyArrayDyn<f64> = init_obj.extract()?;
+                        let arr: Arr<'_> = init_obj.extract()?;
                         Some($crate::convert::arr_to_smatrix::<$N, $N>(arr, "init")?)
                     }
                     None => None,
@@ -550,7 +550,7 @@ pub fn minimize_rgd(
     };
 
     // --- Euclidean ---
-    if let Ok(m) = manifold.downcast::<PyEuclidean>() {
+    if let Ok(m) = manifold.cast::<PyEuclidean>() {
         let dim = m.borrow().n;
         return dispatch_rgd_vector!(
             py,
@@ -565,7 +565,7 @@ pub fn minimize_rgd(
     }
 
     // --- Sphere (field is ambient_n, i.e. the const generic) ---
-    if let Ok(m) = manifold.downcast::<PySphere>() {
+    if let Ok(m) = manifold.cast::<PySphere>() {
         let dim = m.borrow().ambient_n;
         return dispatch_rgd_vector!(
             py,
@@ -580,13 +580,13 @@ pub fn minimize_rgd(
     }
 
     // --- SPD ---
-    if let Ok(m) = manifold.downcast::<PySpd>() {
+    if let Ok(m) = manifold.cast::<PySpd>() {
         let dim = m.borrow().n;
         return dispatch_rgd_matrix!(py, cost, grad, x0, &config, Spd, dim, [2, 3, 4, 5, 6, 7, 8]);
     }
 
     // --- SO ---
-    if let Ok(m) = manifold.downcast::<PySo>() {
+    if let Ok(m) = manifold.cast::<PySo>() {
         let dim = m.borrow().n;
         return dispatch_rgd_matrix!(
             py,
@@ -601,7 +601,7 @@ pub fn minimize_rgd(
     }
 
     // --- Corr ---
-    if let Ok(m) = manifold.downcast::<PyCorr>() {
+    if let Ok(m) = manifold.cast::<PyCorr>() {
         let dim = m.borrow().n;
         return dispatch_rgd_matrix!(
             py,
@@ -616,11 +616,11 @@ pub fn minimize_rgd(
     }
 
     // --- QTensor3 (fixed 3x3, no dispatch needed) ---
-    if manifold.downcast::<PyQTensor3>().is_ok() {
+    if manifold.cast::<PyQTensor3>().is_ok() {
         use cartan_manifolds::qtensor::QTensor3;
 
         let mf = QTensor3;
-        let x0_arr: PyReadonlyArrayDyn<f64> = x0.extract()?;
+        let x0_arr: Arr<'_> = x0.extract()?;
         let x0_pt = crate::convert::arr_to_smatrix::<3, 3>(x0_arr, "x0")?;
 
         let cost_fn = |p: &nalgebra::SMatrix<f64, 3, 3>| -> f64 {
@@ -633,8 +633,7 @@ pub fn minimize_rgd(
         let grad_fn = |p: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
             let p_py = crate::convert::smatrix_to_pyarray(py, p);
             let result = grad.call1((p_py,)).expect("grad function failed");
-            let arr: PyReadonlyArrayDyn<f64> =
-                result.extract().expect("grad must return a numpy array");
+            let arr: Arr<'_> = result.extract().expect("grad must return a numpy array");
             crate::convert::arr_to_smatrix::<3, 3>(arr, "grad_result")
                 .expect("grad output shape mismatch")
         };
@@ -745,7 +744,7 @@ pub fn minimize_rcg(
     };
 
     // --- Euclidean ---
-    if let Ok(m) = manifold.downcast::<PyEuclidean>() {
+    if let Ok(m) = manifold.cast::<PyEuclidean>() {
         let dim = m.borrow().n;
         return dispatch_rcg_vector!(
             py,
@@ -760,7 +759,7 @@ pub fn minimize_rcg(
     }
 
     // --- Sphere ---
-    if let Ok(m) = manifold.downcast::<PySphere>() {
+    if let Ok(m) = manifold.cast::<PySphere>() {
         let dim = m.borrow().ambient_n;
         return dispatch_rcg_vector!(
             py,
@@ -775,13 +774,13 @@ pub fn minimize_rcg(
     }
 
     // --- SPD ---
-    if let Ok(m) = manifold.downcast::<PySpd>() {
+    if let Ok(m) = manifold.cast::<PySpd>() {
         let dim = m.borrow().n;
         return dispatch_rcg_matrix!(py, cost, grad, x0, &config, Spd, dim, [2, 3, 4, 5, 6, 7, 8]);
     }
 
     // --- SO ---
-    if let Ok(m) = manifold.downcast::<PySo>() {
+    if let Ok(m) = manifold.cast::<PySo>() {
         let dim = m.borrow().n;
         return dispatch_rcg_matrix!(
             py,
@@ -796,7 +795,7 @@ pub fn minimize_rcg(
     }
 
     // --- Corr ---
-    if let Ok(m) = manifold.downcast::<PyCorr>() {
+    if let Ok(m) = manifold.cast::<PyCorr>() {
         let dim = m.borrow().n;
         return dispatch_rcg_matrix!(
             py,
@@ -811,11 +810,11 @@ pub fn minimize_rcg(
     }
 
     // --- QTensor3 ---
-    if manifold.downcast::<PyQTensor3>().is_ok() {
+    if manifold.cast::<PyQTensor3>().is_ok() {
         use cartan_manifolds::qtensor::QTensor3;
 
         let mf = QTensor3;
-        let x0_arr: PyReadonlyArrayDyn<f64> = x0.extract()?;
+        let x0_arr: Arr<'_> = x0.extract()?;
         let x0_pt = crate::convert::arr_to_smatrix::<3, 3>(x0_arr, "x0")?;
 
         let cost_fn = |p: &nalgebra::SMatrix<f64, 3, 3>| -> f64 {
@@ -828,8 +827,7 @@ pub fn minimize_rcg(
         let grad_fn = |p: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
             let p_py = crate::convert::smatrix_to_pyarray(py, p);
             let result = grad.call1((p_py,)).expect("grad function failed");
-            let arr: PyReadonlyArrayDyn<f64> =
-                result.extract().expect("grad must return a numpy array");
+            let arr: Arr<'_> = result.extract().expect("grad must return a numpy array");
             crate::convert::arr_to_smatrix::<3, 3>(arr, "grad_result")
                 .expect("grad output shape mismatch")
         };
@@ -929,7 +927,7 @@ pub fn minimize_rtr(
     };
 
     // --- Euclidean ---
-    if let Ok(m) = manifold.downcast::<PyEuclidean>() {
+    if let Ok(m) = manifold.cast::<PyEuclidean>() {
         let dim = m.borrow().n;
         return dispatch_rtr_vector!(
             py,
@@ -945,7 +943,7 @@ pub fn minimize_rtr(
     }
 
     // --- Sphere ---
-    if let Ok(m) = manifold.downcast::<PySphere>() {
+    if let Ok(m) = manifold.cast::<PySphere>() {
         let dim = m.borrow().ambient_n;
         return dispatch_rtr_vector!(
             py,
@@ -961,7 +959,7 @@ pub fn minimize_rtr(
     }
 
     // --- SPD ---
-    if let Ok(m) = manifold.downcast::<PySpd>() {
+    if let Ok(m) = manifold.cast::<PySpd>() {
         let dim = m.borrow().n;
         return dispatch_rtr_matrix!(
             py,
@@ -977,7 +975,7 @@ pub fn minimize_rtr(
     }
 
     // --- SO ---
-    if let Ok(m) = manifold.downcast::<PySo>() {
+    if let Ok(m) = manifold.cast::<PySo>() {
         let dim = m.borrow().n;
         return dispatch_rtr_matrix!(
             py,
@@ -993,7 +991,7 @@ pub fn minimize_rtr(
     }
 
     // --- Corr ---
-    if let Ok(m) = manifold.downcast::<PyCorr>() {
+    if let Ok(m) = manifold.cast::<PyCorr>() {
         let dim = m.borrow().n;
         return dispatch_rtr_matrix!(
             py,
@@ -1009,11 +1007,11 @@ pub fn minimize_rtr(
     }
 
     // --- QTensor3 ---
-    if manifold.downcast::<PyQTensor3>().is_ok() {
+    if manifold.cast::<PyQTensor3>().is_ok() {
         use cartan_manifolds::qtensor::QTensor3;
 
         let mf = QTensor3;
-        let x0_arr: PyReadonlyArrayDyn<f64> = x0.extract()?;
+        let x0_arr: Arr<'_> = x0.extract()?;
         let x0_pt = crate::convert::arr_to_smatrix::<3, 3>(x0_arr, "x0")?;
 
         let cost_fn = |p: &nalgebra::SMatrix<f64, 3, 3>| -> f64 {
@@ -1026,8 +1024,7 @@ pub fn minimize_rtr(
         let grad_fn = |p: &nalgebra::SMatrix<f64, 3, 3>| -> nalgebra::SMatrix<f64, 3, 3> {
             let p_py = crate::convert::smatrix_to_pyarray(py, p);
             let result = grad.call1((p_py,)).expect("grad function failed");
-            let arr: PyReadonlyArrayDyn<f64> =
-                result.extract().expect("grad must return a numpy array");
+            let arr: Arr<'_> = result.extract().expect("grad must return a numpy array");
             crate::convert::arr_to_smatrix::<3, 3>(arr, "grad_result")
                 .expect("grad output shape mismatch")
         };
@@ -1038,8 +1035,7 @@ pub fn minimize_rtr(
             let p_py = crate::convert::smatrix_to_pyarray(py, p);
             let v_py = crate::convert::smatrix_to_pyarray(py, v);
             let result = hess.call1((p_py, v_py)).expect("hess function failed");
-            let arr: PyReadonlyArrayDyn<f64> =
-                result.extract().expect("hess must return a numpy array");
+            let arr: Arr<'_> = result.extract().expect("hess must return a numpy array");
             crate::convert::arr_to_smatrix::<3, 3>(arr, "hess_result")
                 .expect("hess output shape mismatch")
         };
@@ -1110,7 +1106,7 @@ pub fn frechet_mean(
     };
 
     // --- Euclidean ---
-    if let Ok(m) = manifold.downcast::<PyEuclidean>() {
+    if let Ok(m) = manifold.cast::<PyEuclidean>() {
         let dim = m.borrow().n;
         return dispatch_frechet_vector!(
             py,
@@ -1124,7 +1120,7 @@ pub fn frechet_mean(
     }
 
     // --- Sphere ---
-    if let Ok(m) = manifold.downcast::<PySphere>() {
+    if let Ok(m) = manifold.cast::<PySphere>() {
         let dim = m.borrow().ambient_n;
         return dispatch_frechet_vector!(
             py,
@@ -1138,7 +1134,7 @@ pub fn frechet_mean(
     }
 
     // --- SPD ---
-    if let Ok(m) = manifold.downcast::<PySpd>() {
+    if let Ok(m) = manifold.cast::<PySpd>() {
         let dim = m.borrow().n;
         return dispatch_frechet_matrix!(
             py,
@@ -1152,7 +1148,7 @@ pub fn frechet_mean(
     }
 
     // --- SO ---
-    if let Ok(m) = manifold.downcast::<PySo>() {
+    if let Ok(m) = manifold.cast::<PySo>() {
         let dim = m.borrow().n;
         return dispatch_frechet_matrix!(
             py,
@@ -1166,7 +1162,7 @@ pub fn frechet_mean(
     }
 
     // --- Corr ---
-    if let Ok(m) = manifold.downcast::<PyCorr>() {
+    if let Ok(m) = manifold.cast::<PyCorr>() {
         let dim = m.borrow().n;
         return dispatch_frechet_matrix!(
             py,
@@ -1180,7 +1176,7 @@ pub fn frechet_mean(
     }
 
     // --- QTensor3 ---
-    if manifold.downcast::<PyQTensor3>().is_ok() {
+    if manifold.cast::<PyQTensor3>().is_ok() {
         use cartan_manifolds::qtensor::QTensor3;
 
         let mf = QTensor3;
@@ -1188,14 +1184,14 @@ pub fn frechet_mean(
         let mut pts: Vec<nalgebra::SMatrix<f64, 3, 3>> = Vec::new();
         for item in points.try_iter()? {
             let item = item?;
-            let arr: PyReadonlyArrayDyn<f64> = item.extract()?;
+            let arr: Arr<'_> = item.extract()?;
             let pt = crate::convert::arr_to_smatrix::<3, 3>(arr, "point")?;
             pts.push(pt);
         }
 
         let init_pt: Option<nalgebra::SMatrix<f64, 3, 3>> = match init {
             Some(init_obj) => {
-                let arr: PyReadonlyArrayDyn<f64> = init_obj.extract()?;
+                let arr: Arr<'_> = init_obj.extract()?;
                 Some(crate::convert::arr_to_smatrix::<3, 3>(arr, "init")?)
             }
             None => None,

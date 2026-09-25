@@ -9,7 +9,7 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 
-#[pyclass(name = "Euclidean")]
+#[pyclass(name = "Euclidean", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyEuclidean {
     pub(crate) n: usize,

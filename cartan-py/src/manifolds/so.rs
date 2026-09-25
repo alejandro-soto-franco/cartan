@@ -10,7 +10,7 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 
-#[pyclass(name = "SO")]
+#[pyclass(name = "SO", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PySo {
     pub(crate) n: usize,

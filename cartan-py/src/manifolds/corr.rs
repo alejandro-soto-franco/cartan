@@ -9,7 +9,7 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 
-#[pyclass(name = "Corr")]
+#[pyclass(name = "Corr", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyCorr {
     pub(crate) n: usize,

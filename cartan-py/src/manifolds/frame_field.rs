@@ -7,13 +7,12 @@
 //! It supports D2 gauge fixing to make the frame field as smooth as possible
 //! along a 1D chain.
 
-use numpy::PyReadonlyArrayDyn;
 use pyo3::exceptions::PyIndexError;
 use pyo3::prelude::*;
 
 use cartan_manifolds::frame_field::FrameField3D;
 
-use crate::convert::{arr_to_smatrix, smatrix_to_pyarray};
+use crate::convert::{Arr, arr_to_smatrix, smatrix_to_pyarray};
 
 /// Python wrapper for a frame field: an orthonormal frame F in SO(3) at each grid vertex.
 ///
@@ -40,7 +39,7 @@ impl PyFrameField3D {
     /// Each Q-tensor is eigendecomposed to extract the orthonormal director frame.
     /// No gauge fixing is applied; call gauge_fix_chain() afterward if needed.
     #[new]
-    fn new(q_values: Vec<PyReadonlyArrayDyn<'_, f64>>) -> PyResult<Self> {
+    fn new(q_values: Vec<Arr<'_>>) -> PyResult<Self> {
         let mut mats = Vec::with_capacity(q_values.len());
         for (i, arr) in q_values.into_iter().enumerate() {
             let name = format!("q_values[{i}]");
@@ -59,7 +58,7 @@ impl PyFrameField3D {
     /// Return the orthonormal frame at vertex i as a (3, 3) numpy array.
     ///
     /// Raises IndexError if i >= len().
-    fn frame_at<'py>(&self, py: Python<'py>, i: usize) -> PyResult<PyObject> {
+    fn frame_at<'py>(&self, py: Python<'py>, i: usize) -> PyResult<Py<PyAny>> {
         if i >= self.inner.len() {
             return Err(PyIndexError::new_err(format!(
                 "FrameField3D: index {i} out of range for field of length {}",

@@ -22,10 +22,10 @@
 //! via `.iter().copied().collect()` which traverses column-major order.
 //! On reconstruction we use `SMatrix::from_column_slice` to recover the same matrix.
 
-use numpy::PyReadonlyArrayDyn;
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 
+use crate::convert::{Arr, FlatF64};
 use cartan_core::Real;
 
 use crate::manifolds::corr::PyCorr;
@@ -61,22 +61,22 @@ enum ManifoldTag {
 
 /// Identify the manifold type from a Python object by downcasting.
 fn identify_manifold(manifold: &Bound<'_, PyAny>) -> PyResult<ManifoldTag> {
-    if let Ok(m) = manifold.downcast::<PyEuclidean>() {
+    if let Ok(m) = manifold.cast::<PyEuclidean>() {
         return Ok(ManifoldTag::EuclideanVec(m.borrow().n));
     }
-    if let Ok(m) = manifold.downcast::<PySphere>() {
+    if let Ok(m) = manifold.cast::<PySphere>() {
         return Ok(ManifoldTag::SphereVec(m.borrow().ambient_n));
     }
-    if let Ok(m) = manifold.downcast::<PySpd>() {
+    if let Ok(m) = manifold.cast::<PySpd>() {
         return Ok(ManifoldTag::SpdMat(m.borrow().n));
     }
-    if let Ok(m) = manifold.downcast::<PySo>() {
+    if let Ok(m) = manifold.cast::<PySo>() {
         return Ok(ManifoldTag::SoMat(m.borrow().n));
     }
-    if let Ok(m) = manifold.downcast::<PyCorr>() {
+    if let Ok(m) = manifold.cast::<PyCorr>() {
         return Ok(ManifoldTag::CorrMat(m.borrow().n));
     }
-    if manifold.downcast::<PyQTensor3>().is_ok() {
+    if manifold.cast::<PyQTensor3>().is_ok() {
         return Ok(ManifoldTag::QTensor3Mat);
     }
     Err(PyTypeError::new_err(
@@ -90,25 +90,23 @@ fn identify_manifold(manifold: &Bound<'_, PyAny>) -> PyResult<ManifoldTag> {
 
 /// Extract a raw Vec<f64> from a numpy array (contiguity check, no length check).
 #[allow(dead_code)]
-fn extract_raw(arr: PyReadonlyArrayDyn<'_, f64>) -> PyResult<Vec<f64>> {
-    let slice = arr
-        .as_slice()
-        .map_err(|_| PyValueError::new_err("array must be contiguous"))?;
-    Ok(slice.to_vec())
+fn extract_raw(arr: impl FlatF64) -> PyResult<Vec<f64>> {
+    arr.flat_copy()
+        .ok_or_else(|| PyValueError::new_err("array must be contiguous"))
 }
 
 /// For vector manifolds: extract Vec<f64> of exactly `n` elements from a 1-D array.
-fn extract_vec_n(arr: PyReadonlyArrayDyn<'_, f64>, n: usize, name: &str) -> PyResult<Vec<f64>> {
+fn extract_vec_n(arr: impl FlatF64, n: usize, name: &str) -> PyResult<Vec<f64>> {
     crate::convert::arr_to_vec(arr, n, name)
 }
 
 /// For matrix manifolds: extract an N x N numpy array and flatten to Vec<f64>
 /// in nalgebra column-major order so that `SMatrix::from_column_slice` reconstructs correctly.
-fn extract_mat_n(arr: PyReadonlyArrayDyn<'_, f64>, n: usize, name: &str) -> PyResult<Vec<f64>> {
+fn extract_mat_n(arr: impl FlatF64, n: usize, name: &str) -> PyResult<Vec<f64>> {
     // Validate element count.
     let slice = arr
-        .as_slice()
-        .map_err(|_| PyValueError::new_err(format!("{name}: array must be contiguous")))?;
+        .flat_copy()
+        .ok_or_else(|| PyValueError::new_err(format!("{name}: array must be contiguous")))?;
     if slice.len() != n * n {
         return Err(PyValueError::new_err(format!(
             "{name}: expected {}x{} matrix ({} elements), got {}",
@@ -125,7 +123,7 @@ fn extract_mat_n(arr: PyReadonlyArrayDyn<'_, f64>, n: usize, name: &str) -> PyRe
         ($($N:literal),+) => {
             match n {
                 $($N => {
-                    let m = nalgebra::SMatrix::<f64, $N, $N>::from_row_slice(slice);
+                    let m = nalgebra::SMatrix::<f64, $N, $N>::from_row_slice(&slice);
                     Ok(m.iter().copied().collect())
                 },)+
                 _ => Err(PyValueError::new_err(format!("{name}: unsupported matrix size {n}")))
@@ -148,7 +146,7 @@ fn extract_mat_n(arr: PyReadonlyArrayDyn<'_, f64>, n: usize, name: &str) -> PyRe
 ///
 /// The velocity is NOT normalized. Setting `v = manifold.log(p, q)` produces
 /// a geodesic with `geo.eval(0) == p` and `geo.eval(1) == q`.
-#[pyclass(name = "Geodesic")]
+#[pyclass(name = "Geodesic", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyGeodesic {
     manifold_tag: ManifoldTag,
@@ -165,7 +163,7 @@ pub struct PyGeodesic {
 /// Dispatch a geodesic operation for vector-point manifolds.
 ///
 /// Reconstructs `SVector<f64, N>` from stored data, builds `Geodesic`, and calls `$body`.
-/// `$body` is a closure `|py, geo: &Geodesic<mtype<N>>| -> PyResult<PyObject>`.
+/// `$body` is a closure `|py, geo: &Geodesic<mtype<N>>| -> PyResult<Py<PyAny>>`.
 macro_rules! dispatch_geo_vector {
     ($self:expr, $py:expr, $mtype:ident, $dim:expr, [$($N:literal),+], $body:expr) => {
         match $dim {
@@ -203,11 +201,7 @@ impl PyGeodesic {
     ///
     /// `gamma(t) = Exp_p(t * v)`. At `t=0` returns `p`, at `t=1` returns `Exp_p(v)`.
     #[new]
-    fn new(
-        manifold: &Bound<'_, PyAny>,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<Self> {
+    fn new(manifold: &Bound<'_, PyAny>, p: Arr<'_>, v: Arr<'_>) -> PyResult<Self> {
         let tag = identify_manifold(manifold)?;
         let (base_data, velocity_data) = extract_base_vel(&tag, p, v)?;
         Ok(Self {
@@ -222,11 +216,7 @@ impl PyGeodesic {
     /// Uses `Log_p(q)` as the velocity. Fails if `p` and `q` are antipodal
     /// (at the cut locus).
     #[staticmethod]
-    fn from_two_points(
-        manifold: &Bound<'_, PyAny>,
-        p: PyReadonlyArrayDyn<'_, f64>,
-        q: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<Self> {
+    fn from_two_points(manifold: &Bound<'_, PyAny>, p: Arr<'_>, q: Arr<'_>) -> PyResult<Self> {
         let tag = identify_manifold(manifold)?;
         let (p_data, q_data) = extract_base_vel(&tag, p, q)?;
         // Compute velocity = log(p, q) by re-dispatching on tag.
@@ -239,7 +229,7 @@ impl PyGeodesic {
     }
 
     /// Evaluate the geodesic at parameter `t`: `Exp_p(t * v)`.
-    fn eval<'py>(&self, py: Python<'py>, t: f64) -> PyResult<PyObject> {
+    fn eval<'py>(&self, py: Python<'py>, t: f64) -> PyResult<Py<PyAny>> {
         match &self.manifold_tag {
             ManifoldTag::EuclideanVec(n) => {
                 dispatch_geo_vector!(
@@ -327,14 +317,14 @@ impl PyGeodesic {
     }
 
     /// Midpoint of the geodesic: `gamma(0.5) = Exp_p(0.5 * v)`.
-    fn midpoint<'py>(&self, py: Python<'py>) -> PyResult<PyObject> {
+    fn midpoint<'py>(&self, py: Python<'py>) -> PyResult<Py<PyAny>> {
         self.eval(py, 0.5)
     }
 
     /// Sample `n` evenly-spaced points along the geodesic on [0, 1].
     ///
     /// Returns a Python list of numpy arrays. Panics if `n == 0`.
-    fn sample<'py>(&self, py: Python<'py>, n: usize) -> PyResult<Vec<PyObject>> {
+    fn sample<'py>(&self, py: Python<'py>, n: usize) -> PyResult<Vec<Py<PyAny>>> {
         if n == 0 {
             return Err(PyValueError::new_err("sample: n must be >= 1"));
         }
@@ -409,11 +399,7 @@ fn geo_length_impl(g: &PyGeodesic) -> PyResult<f64> {
 // Helper: extract base + velocity data for construction
 // ---------------------------------------------------------------------------
 
-fn extract_base_vel(
-    tag: &ManifoldTag,
-    p: PyReadonlyArrayDyn<'_, f64>,
-    v: PyReadonlyArrayDyn<'_, f64>,
-) -> PyResult<(Vec<f64>, Vec<f64>)> {
+fn extract_base_vel(tag: &ManifoldTag, p: Arr<'_>, v: Arr<'_>) -> PyResult<(Vec<f64>, Vec<f64>)> {
     match tag {
         ManifoldTag::EuclideanVec(n) => {
             let pd = extract_vec_n(p, *n, "p")?;
@@ -512,7 +498,7 @@ fn compute_log_data(tag: &ManifoldTag, p_data: &[f64], q_data: &[f64]) -> PyResu
 ///     curv.sectional(u, v)          # sectional curvature of plane spanned by u, v
 ///     curv.ricci(u, v)              # Ricci curvature Ric(u, v)
 ///     curv.riemann(u, v, w)         # Riemann tensor R(u, v)w
-#[pyclass(name = "CurvatureQuery")]
+#[pyclass(name = "CurvatureQuery", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyCurvatureQuery {
     manifold_tag: ManifoldTag,
@@ -556,7 +542,7 @@ macro_rules! dispatch_curv_matrix {
 impl PyCurvatureQuery {
     /// Construct a curvature query at point `p` on the given manifold.
     #[new]
-    fn new(manifold: &Bound<'_, PyAny>, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<Self> {
+    fn new(manifold: &Bound<'_, PyAny>, p: Arr<'_>) -> PyResult<Self> {
         let tag = identify_manifold(manifold)?;
         let point_data = extract_point_data(&tag, p)?;
         Ok(Self {
@@ -637,11 +623,7 @@ impl PyCurvatureQuery {
     }
 
     /// Sectional curvature K(u, v) of the 2-plane spanned by tangent vectors `u` and `v`.
-    fn sectional(
-        &self,
-        u: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn sectional(&self, u: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         let py_dummy = ();
         match &self.manifold_tag {
             ManifoldTag::EuclideanVec(n) => {
@@ -738,11 +720,7 @@ impl PyCurvatureQuery {
     }
 
     /// Ricci curvature Ric(u, v) at the stored point.
-    fn ricci(
-        &self,
-        u: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<f64> {
+    fn ricci(&self, u: Arr<'_>, v: Arr<'_>) -> PyResult<f64> {
         let py_dummy = ();
         match &self.manifold_tag {
             ManifoldTag::EuclideanVec(n) => {
@@ -844,10 +822,10 @@ impl PyCurvatureQuery {
     fn riemann<'py>(
         &self,
         py: Python<'py>,
-        u: PyReadonlyArrayDyn<'_, f64>,
-        v: PyReadonlyArrayDyn<'_, f64>,
-        w: PyReadonlyArrayDyn<'_, f64>,
-    ) -> PyResult<PyObject> {
+        u: Arr<'_>,
+        v: Arr<'_>,
+        w: Arr<'_>,
+    ) -> PyResult<Py<PyAny>> {
         let py_dummy = ();
         match &self.manifold_tag {
             ManifoldTag::EuclideanVec(n) => {
@@ -861,7 +839,7 @@ impl PyCurvatureQuery {
                         let vv = nalgebra::SVector::<f64, _>::from_column_slice(&v_d);
                         let ww = nalgebra::SVector::<f64, _>::from_column_slice(&w_d);
                         let res = cq.riemann(&uu, &vv, &ww);
-                        Ok::<PyObject, PyErr>(crate::convert::svector_to_pyarray(py, &res).into_any().unbind())
+                        Ok::<Py<PyAny>, PyErr>(crate::convert::svector_to_pyarray(py, &res).into_any().unbind())
                     })
             }
             ManifoldTag::SphereVec(n) => {
@@ -879,7 +857,7 @@ impl PyCurvatureQuery {
                         let vv = nalgebra::SVector::<f64, _>::from_column_slice(&v_d);
                         let ww = nalgebra::SVector::<f64, _>::from_column_slice(&w_d);
                         let res = cq.riemann(&uu, &vv, &ww);
-                        Ok::<PyObject, PyErr>(
+                        Ok::<Py<PyAny>, PyErr>(
                             crate::convert::svector_to_pyarray(py, &res)
                                 .into_any()
                                 .unbind(),
@@ -902,7 +880,7 @@ impl PyCurvatureQuery {
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         let ww = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&w_d);
                         let res = cq.riemann(&uu, &vv, &ww);
-                        Ok::<PyObject, PyErr>(
+                        Ok::<Py<PyAny>, PyErr>(
                             crate::convert::smatrix_to_pyarray(py, &res)
                                 .into_any()
                                 .unbind(),
@@ -930,7 +908,7 @@ impl PyCurvatureQuery {
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         let ww = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&w_d);
                         let res = cq.riemann(&uu, &vv, &ww);
-                        Ok::<PyObject, PyErr>(
+                        Ok::<Py<PyAny>, PyErr>(
                             crate::convert::smatrix_to_pyarray(py, &res)
                                 .into_any()
                                 .unbind(),
@@ -953,7 +931,7 @@ impl PyCurvatureQuery {
                         let vv = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&v_d);
                         let ww = nalgebra::SMatrix::<f64, _, _>::from_column_slice(&w_d);
                         let res = cq.riemann(&uu, &vv, &ww);
-                        Ok::<PyObject, PyErr>(
+                        Ok::<Py<PyAny>, PyErr>(
                             crate::convert::smatrix_to_pyarray(py, &res)
                                 .into_any()
                                 .unbind(),
@@ -984,7 +962,7 @@ impl PyCurvatureQuery {
     }
 }
 
-fn extract_point_data(tag: &ManifoldTag, p: PyReadonlyArrayDyn<'_, f64>) -> PyResult<Vec<f64>> {
+fn extract_point_data(tag: &ManifoldTag, p: Arr<'_>) -> PyResult<Vec<f64>> {
     match tag {
         ManifoldTag::EuclideanVec(n) => extract_vec_n(p, *n, "p"),
         ManifoldTag::SphereVec(n) => extract_vec_n(p, *n, "p"),
@@ -1010,10 +988,10 @@ macro_rules! dispatch_jacobi_vector {
                 let j0_v = nalgebra::SVector::<f64, $N>::from_column_slice(&$j0_d);
                 let j0_dot_v = nalgebra::SVector::<f64, $N>::from_column_slice(&$j0_dot_d);
                 let res = cartan_geo::integrate_jacobi(&geo, j0_v, j0_dot_v, $n_steps);
-                let field: Vec<PyObject> = res.field.iter()
+                let field: Vec<Py<PyAny>> = res.field.iter()
                     .map(|v| crate::convert::svector_to_pyarray($py, v).into_any().unbind())
                     .collect();
-                let velocity: Vec<PyObject> = res.velocity.iter()
+                let velocity: Vec<Py<PyAny>> = res.velocity.iter()
                     .map(|v| crate::convert::svector_to_pyarray($py, v).into_any().unbind())
                     .collect();
                 Ok(PyJacobiResult { params: res.params, field, velocity })
@@ -1034,10 +1012,10 @@ macro_rules! dispatch_jacobi_matrix {
                 let j0_v = nalgebra::SMatrix::<f64, $N, $N>::from_column_slice(&$j0_d);
                 let j0_dot_v = nalgebra::SMatrix::<f64, $N, $N>::from_column_slice(&$j0_dot_d);
                 let res = cartan_geo::integrate_jacobi(&geo, j0_v, j0_dot_v, $n_steps);
-                let field: Vec<PyObject> = res.field.iter()
+                let field: Vec<Py<PyAny>> = res.field.iter()
                     .map(|m| crate::convert::smatrix_to_pyarray($py, m).into_any().unbind())
                     .collect();
-                let velocity: Vec<PyObject> = res.velocity.iter()
+                let velocity: Vec<Py<PyAny>> = res.velocity.iter()
                     .map(|m| crate::convert::smatrix_to_pyarray($py, m).into_any().unbind())
                     .collect();
                 Ok(PyJacobiResult { params: res.params, field, velocity })
@@ -1065,10 +1043,10 @@ pub struct PyJacobiResult {
     pub params: Vec<f64>,
     /// Jacobi field values J(t_i) as numpy arrays.
     #[pyo3(get)]
-    pub field: Vec<PyObject>,
+    pub field: Vec<Py<PyAny>>,
     /// Jacobi field velocities J'(t_i) as numpy arrays.
     #[pyo3(get)]
-    pub velocity: Vec<PyObject>,
+    pub velocity: Vec<Py<PyAny>>,
 }
 
 #[pymethods]
@@ -1110,8 +1088,8 @@ impl PyJacobiResult {
 pub fn integrate_jacobi<'py>(
     py: Python<'py>,
     geodesic: &PyGeodesic,
-    j0: PyReadonlyArrayDyn<'_, f64>,
-    j0_dot: PyReadonlyArrayDyn<'_, f64>,
+    j0: Arr<'_>,
+    j0_dot: Arr<'_>,
     n_steps: usize,
 ) -> PyResult<PyJacobiResult> {
     if n_steps == 0 {
@@ -1205,7 +1183,7 @@ pub fn integrate_jacobi<'py>(
             let j0_v = nalgebra::SMatrix::<f64, 3, 3>::from_column_slice(&j0_d);
             let j0_dot_v = nalgebra::SMatrix::<f64, 3, 3>::from_column_slice(&j0_dot_d);
             let res = cartan_geo::integrate_jacobi(&geo, j0_v, j0_dot_v, n_steps);
-            let field: Vec<PyObject> = res
+            let field: Vec<Py<PyAny>> = res
                 .field
                 .iter()
                 .map(|m| {
@@ -1214,7 +1192,7 @@ pub fn integrate_jacobi<'py>(
                         .unbind()
                 })
                 .collect();
-            let velocity: Vec<PyObject> = res
+            let velocity: Vec<Py<PyAny>> = res
                 .velocity
                 .iter()
                 .map(|m| {

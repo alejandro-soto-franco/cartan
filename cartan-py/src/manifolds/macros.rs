@@ -34,9 +34,9 @@ macro_rules! impl_vector_manifold_methods {
             fn exp<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -55,9 +55,9 @@ macro_rules! impl_vector_manifold_methods {
             fn log<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                q: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                q: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -76,8 +76,8 @@ macro_rules! impl_vector_manifold_methods {
             /// Geodesic distance d(p, q).
             fn dist(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                q: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                q: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -96,9 +96,9 @@ macro_rules! impl_vector_manifold_methods {
             /// Riemannian inner product <u, v>_p.
             fn inner(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                u: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                u: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -117,8 +117,8 @@ macro_rules! impl_vector_manifold_methods {
             /// Induced norm ||v||_p.
             fn norm(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -137,8 +137,8 @@ macro_rules! impl_vector_manifold_methods {
             fn project_point<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -156,9 +156,9 @@ macro_rules! impl_vector_manifold_methods {
             fn project_tangent<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -177,8 +177,8 @@ macro_rules! impl_vector_manifold_methods {
             fn zero_tangent<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -195,7 +195,7 @@ macro_rules! impl_vector_manifold_methods {
             /// Validate that a point lies on the manifold.
             fn check_point(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<()> {
                 match self.$dim_field {
                     $($N => {
@@ -213,8 +213,8 @@ macro_rules! impl_vector_manifold_methods {
             /// Validate that a tangent vector lies in T_p M.
             fn check_tangent(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<()> {
                 match self.$dim_field {
                     $($N => {
@@ -236,7 +236,7 @@ macro_rules! impl_vector_manifold_methods {
                 &self,
                 py: pyo3::Python<'py>,
                 seed: Option<u64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 use rand::SeedableRng;
                 match self.$dim_field {
                     $($N => {
@@ -263,9 +263,9 @@ macro_rules! impl_vector_manifold_methods {
             fn random_tangent<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
+                p: $crate::convert::Arr<'py>,
                 seed: Option<u64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 use rand::SeedableRng;
                 match self.$dim_field {
                     $($N => {
@@ -291,7 +291,7 @@ macro_rules! impl_vector_manifold_methods {
             /// Injectivity radius at p.
             fn injectivity_radius(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -309,9 +309,9 @@ macro_rules! impl_vector_manifold_methods {
             fn retract<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -330,9 +330,9 @@ macro_rules! impl_vector_manifold_methods {
             fn inverse_retract<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                q: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                q: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -352,10 +352,10 @@ macro_rules! impl_vector_manifold_methods {
             fn parallel_transport<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                q: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                q: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -376,10 +376,10 @@ macro_rules! impl_vector_manifold_methods {
             fn vector_transport<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                direction: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                direction: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -399,9 +399,9 @@ macro_rules! impl_vector_manifold_methods {
             /// Sectional curvature of the 2-plane spanned by u and v at p.
             fn sectional_curvature(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                u: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                u: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -420,9 +420,9 @@ macro_rules! impl_vector_manifold_methods {
             /// Ricci curvature Ric(u, v) at p.
             fn ricci_curvature(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                u: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                u: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -441,7 +441,7 @@ macro_rules! impl_vector_manifold_methods {
             /// Scalar curvature at p.
             fn scalar_curvature(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -459,10 +459,10 @@ macro_rules! impl_vector_manifold_methods {
             fn geodesic<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                q: numpy::PyReadonlyArrayDyn<'py, f64>,
+                p: $crate::convert::Arr<'py>,
+                q: $crate::convert::Arr<'py>,
                 t: f64,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -482,8 +482,8 @@ macro_rules! impl_vector_manifold_methods {
             fn dist_matrix<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                points: Vec<numpy::PyReadonlyArrayDyn<'py, f64>>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                points: Vec<$crate::convert::Arr<'py>>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -521,9 +521,9 @@ macro_rules! impl_vector_manifold_methods {
             fn exp_batch<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                vs: Vec<numpy::PyReadonlyArrayDyn<'py, f64>>,
-            ) -> pyo3::PyResult<Vec<pyo3::PyObject>> {
+                p: $crate::convert::Arr<'py>,
+                vs: Vec<$crate::convert::Arr<'py>>,
+            ) -> pyo3::PyResult<Vec<pyo3::Py<pyo3::PyAny>>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -569,9 +569,9 @@ macro_rules! impl_matrix_manifold_methods {
             fn exp<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -590,9 +590,9 @@ macro_rules! impl_matrix_manifold_methods {
             fn log<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                q: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                q: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -611,8 +611,8 @@ macro_rules! impl_matrix_manifold_methods {
             /// Geodesic distance d(p, q).
             fn dist(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                q: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                q: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -631,9 +631,9 @@ macro_rules! impl_matrix_manifold_methods {
             /// Riemannian inner product <u, v>_p.
             fn inner(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                u: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                u: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -652,8 +652,8 @@ macro_rules! impl_matrix_manifold_methods {
             /// Induced norm ||v||_p.
             fn norm(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -672,8 +672,8 @@ macro_rules! impl_matrix_manifold_methods {
             fn project_point<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -691,9 +691,9 @@ macro_rules! impl_matrix_manifold_methods {
             fn project_tangent<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -712,8 +712,8 @@ macro_rules! impl_matrix_manifold_methods {
             fn zero_tangent<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -730,7 +730,7 @@ macro_rules! impl_matrix_manifold_methods {
             /// Validate that a point lies on the manifold.
             fn check_point(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<()> {
                 match self.$dim_field {
                     $($N => {
@@ -748,8 +748,8 @@ macro_rules! impl_matrix_manifold_methods {
             /// Validate that a tangent vector lies in T_p M.
             fn check_tangent(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<()> {
                 match self.$dim_field {
                     $($N => {
@@ -771,7 +771,7 @@ macro_rules! impl_matrix_manifold_methods {
                 &self,
                 py: pyo3::Python<'py>,
                 seed: Option<u64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 use rand::SeedableRng;
                 match self.$dim_field {
                     $($N => {
@@ -798,9 +798,9 @@ macro_rules! impl_matrix_manifold_methods {
             fn random_tangent<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
+                p: $crate::convert::Arr<'py>,
                 seed: Option<u64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 use rand::SeedableRng;
                 match self.$dim_field {
                     $($N => {
@@ -826,7 +826,7 @@ macro_rules! impl_matrix_manifold_methods {
             /// Injectivity radius at p.
             fn injectivity_radius(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -844,9 +844,9 @@ macro_rules! impl_matrix_manifold_methods {
             fn retract<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -865,9 +865,9 @@ macro_rules! impl_matrix_manifold_methods {
             fn inverse_retract<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                q: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                q: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -887,10 +887,10 @@ macro_rules! impl_matrix_manifold_methods {
             fn parallel_transport<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                q: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                q: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -911,10 +911,10 @@ macro_rules! impl_matrix_manifold_methods {
             fn vector_transport<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                direction: numpy::PyReadonlyArrayDyn<'py, f64>,
-                v: numpy::PyReadonlyArrayDyn<'py, f64>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                p: $crate::convert::Arr<'py>,
+                direction: $crate::convert::Arr<'py>,
+                v: $crate::convert::Arr<'py>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -934,9 +934,9 @@ macro_rules! impl_matrix_manifold_methods {
             /// Sectional curvature of the 2-plane spanned by u and v at p.
             fn sectional_curvature(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                u: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                u: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -955,9 +955,9 @@ macro_rules! impl_matrix_manifold_methods {
             /// Ricci curvature Ric(u, v) at p.
             fn ricci_curvature(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
-                u: numpy::PyReadonlyArrayDyn<'_, f64>,
-                v: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
+                u: $crate::convert::Arr<'_>,
+                v: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -976,7 +976,7 @@ macro_rules! impl_matrix_manifold_methods {
             /// Scalar curvature at p.
             fn scalar_curvature(
                 &self,
-                p: numpy::PyReadonlyArrayDyn<'_, f64>,
+                p: $crate::convert::Arr<'_>,
             ) -> pyo3::PyResult<f64> {
                 match self.$dim_field {
                     $($N => {
@@ -994,10 +994,10 @@ macro_rules! impl_matrix_manifold_methods {
             fn geodesic<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                q: numpy::PyReadonlyArrayDyn<'py, f64>,
+                p: $crate::convert::Arr<'py>,
+                q: $crate::convert::Arr<'py>,
                 t: f64,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -1017,8 +1017,8 @@ macro_rules! impl_matrix_manifold_methods {
             fn dist_matrix<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                points: Vec<numpy::PyReadonlyArrayDyn<'py, f64>>,
-            ) -> pyo3::PyResult<pyo3::PyObject> {
+                points: Vec<$crate::convert::Arr<'py>>,
+            ) -> pyo3::PyResult<pyo3::Py<pyo3::PyAny>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;
@@ -1055,9 +1055,9 @@ macro_rules! impl_matrix_manifold_methods {
             fn exp_batch<'py>(
                 &self,
                 py: pyo3::Python<'py>,
-                p: numpy::PyReadonlyArrayDyn<'py, f64>,
-                vs: Vec<numpy::PyReadonlyArrayDyn<'py, f64>>,
-            ) -> pyo3::PyResult<Vec<pyo3::PyObject>> {
+                p: $crate::convert::Arr<'py>,
+                vs: Vec<$crate::convert::Arr<'py>>,
+            ) -> pyo3::PyResult<Vec<pyo3::Py<pyo3::PyAny>>> {
                 match self.$dim_field {
                     $($N => {
                         let mf = cartan_manifolds::$mtype::<$N>;

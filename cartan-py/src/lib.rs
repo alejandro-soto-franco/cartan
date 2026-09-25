@@ -10,7 +10,7 @@ mod holonomy;
 mod stochastic;
 
 /// cartan: Riemannian geometry, manifold optimization, and geodesic computation.
-#[pymodule]
+#[pymodule(gil_used = false)]
 fn cartan(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     error::register(m)?;

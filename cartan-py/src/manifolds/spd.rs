@@ -10,7 +10,7 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 
-#[pyclass(name = "SPD")]
+#[pyclass(name = "SPD", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PySpd {
     pub(crate) n: usize,

@@ -20,9 +20,7 @@ use cartan_manifolds::{Spd, Sphere};
 use cartan_stochastic::{random_frame_at, stochastic_development, wishart_step as ws_step};
 use nalgebra::{SMatrix, SVector};
 use numpy::ndarray::{Array2, Array3};
-use numpy::{
-    IntoPyArray, PyArray2, PyArray3, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods,
-};
+use numpy::{IntoPyArray, PyArray1, PyArray2, PyArray3, PyArrayMethods, PyUntypedArrayMethods};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rand::SeedableRng;
@@ -38,13 +36,17 @@ use rand::rngs::StdRng;
 fn stochastic_bm_on_sphere<'py>(
     py: Python<'py>,
     intrinsic_dim: usize,
-    p0: PyReadonlyArray1<'py, Real>,
+    p0: Bound<'py, PyArray1<Real>>,
     n_steps: usize,
     dt: Real,
     seed: u64,
 ) -> PyResult<Bound<'py, PyArray2<Real>>> {
     let ambient = intrinsic_dim + 1;
-    let p0_slice = p0.as_slice()?;
+    // `to_vec` copies the array without registering a tracked borrow, and
+    // fails with the same `AsSliceError` as `PyReadonlyArray1::as_slice` did
+    // when the input is non-contiguous.
+    let p0_owned = p0.to_vec()?;
+    let p0_slice: &[Real] = &p0_owned;
     if p0_slice.len() != ambient {
         return Err(PyValueError::new_err(format!(
             "p0 must have length {ambient} (intrinsic_dim + 1), got {}",
@@ -111,7 +113,7 @@ fn sphere_bm_impl<const N: usize>(
 fn stochastic_bm_on_spd<'py>(
     py: Python<'py>,
     n: usize,
-    p0: PyReadonlyArray2<'py, Real>,
+    p0: Bound<'py, PyArray2<Real>>,
     n_steps: usize,
     dt: Real,
     seed: u64,
@@ -123,7 +125,9 @@ fn stochastic_bm_on_spd<'py>(
             shape
         )));
     }
-    let p0_slice = p0.as_slice()?;
+    // See `stochastic_bm_on_sphere` for why `to_vec` replaces `as_slice`.
+    let p0_owned = p0.to_vec()?;
+    let p0_slice: &[Real] = &p0_owned;
     macro_rules! dispatch_spd {
         ($($nn:literal),+) => {
             match n {
@@ -183,7 +187,7 @@ fn spd_bm_impl<const N: usize>(
 #[pyo3(signature = (x, shape_param, dt, seed=0xC0FFEE))]
 fn wishart_step<'py>(
     py: Python<'py>,
-    x: PyReadonlyArray2<'py, Real>,
+    x: Bound<'py, PyArray2<Real>>,
     shape_param: Real,
     dt: Real,
     seed: u64,
@@ -195,7 +199,9 @@ fn wishart_step<'py>(
         )));
     }
     let n = sh[0];
-    let x_slice = x.as_slice()?;
+    // See `stochastic_bm_on_sphere` for why `to_vec` replaces `as_slice`.
+    let x_owned = x.to_vec()?;
+    let x_slice: &[Real] = &x_owned;
     macro_rules! dispatch_ws {
         ($($nn:literal),+) => {
             match n {

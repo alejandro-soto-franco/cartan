@@ -10,7 +10,6 @@
 //! Unlike the vector and matrix manifolds, SE(N) uses tuple-based I/O,
 //! so this module is hand-written rather than macro-generated.
 
-use numpy::PyReadonlyArrayDyn;
 use pyo3::exceptions::{PyNotImplementedError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyTuple;
@@ -20,14 +19,14 @@ use cartan_core::{
 };
 use cartan_manifolds::{SEPoint, SETangent, SpecialEuclidean};
 
-use crate::convert::{arr_to_smatrix, arr_to_svector, smatrix_to_pyarray, svector_to_pyarray};
+use crate::convert::{Arr, arr_to_smatrix, arr_to_svector, smatrix_to_pyarray, svector_to_pyarray};
 use crate::error::cartan_err_to_py;
 
 // ---------------------------------------------------------------------------
 // Python class
 // ---------------------------------------------------------------------------
 
-#[pyclass(name = "SE")]
+#[pyclass(name = "SE", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PySe {
     pub(crate) n: usize,
@@ -40,14 +39,14 @@ pub struct PySe {
 
 /// Extract a (rotation, translation) tuple from Python into SEPoint<N>.
 fn extract_se_point<const N: usize>(obj: &Bound<'_, PyAny>) -> PyResult<SEPoint<N>> {
-    let tuple: &Bound<'_, PyTuple> = obj.downcast()?;
+    let tuple: &Bound<'_, PyTuple> = obj.cast()?;
     if tuple.len() != 2 {
         return Err(PyValueError::new_err(
             "SE point must be a (rotation, translation) tuple",
         ));
     }
-    let r_arr: PyReadonlyArrayDyn<f64> = tuple.get_item(0)?.extract()?;
-    let t_arr: PyReadonlyArrayDyn<f64> = tuple.get_item(1)?.extract()?;
+    let r_arr: Arr<'_> = tuple.get_item(0)?.extract()?;
+    let t_arr: Arr<'_> = tuple.get_item(1)?.extract()?;
     let rotation = arr_to_smatrix::<N, N>(r_arr, "rotation")?;
     let translation = arr_to_svector::<N>(t_arr, "translation")?;
     Ok(SEPoint {
@@ -58,14 +57,14 @@ fn extract_se_point<const N: usize>(obj: &Bound<'_, PyAny>) -> PyResult<SEPoint<
 
 /// Extract a (rotation, translation) tuple from Python into SETangent<N>.
 fn extract_se_tangent<const N: usize>(obj: &Bound<'_, PyAny>) -> PyResult<SETangent<N>> {
-    let tuple: &Bound<'_, PyTuple> = obj.downcast()?;
+    let tuple: &Bound<'_, PyTuple> = obj.cast()?;
     if tuple.len() != 2 {
         return Err(PyValueError::new_err(
             "SE tangent must be a (rotation, translation) tuple",
         ));
     }
-    let r_arr: PyReadonlyArrayDyn<f64> = tuple.get_item(0)?.extract()?;
-    let t_arr: PyReadonlyArrayDyn<f64> = tuple.get_item(1)?.extract()?;
+    let r_arr: Arr<'_> = tuple.get_item(0)?.extract()?;
+    let t_arr: Arr<'_> = tuple.get_item(1)?.extract()?;
     let rotation = arr_to_smatrix::<N, N>(r_arr, "rotation")?;
     let translation = arr_to_svector::<N>(t_arr, "translation")?;
     Ok(SETangent {
@@ -75,7 +74,7 @@ fn extract_se_tangent<const N: usize>(obj: &Bound<'_, PyAny>) -> PyResult<SETang
 }
 
 /// Convert SEPoint<N> to a Python (R, t) tuple.
-fn se_point_to_py<const N: usize>(py: Python<'_>, p: &SEPoint<N>) -> PyObject {
+fn se_point_to_py<const N: usize>(py: Python<'_>, p: &SEPoint<N>) -> Py<PyAny> {
     let r = smatrix_to_pyarray(py, &p.rotation);
     let t = svector_to_pyarray(py, &p.translation);
     PyTuple::new(py, [r.into_any().unbind(), t.into_any().unbind()])
@@ -85,7 +84,7 @@ fn se_point_to_py<const N: usize>(py: Python<'_>, p: &SEPoint<N>) -> PyObject {
 }
 
 /// Convert SETangent<N> to a Python (omega, v) tuple.
-fn se_tangent_to_py<const N: usize>(py: Python<'_>, v: &SETangent<N>) -> PyObject {
+fn se_tangent_to_py<const N: usize>(py: Python<'_>, v: &SETangent<N>) -> Py<PyAny> {
     let r = smatrix_to_pyarray(py, &v.rotation);
     let t = svector_to_pyarray(py, &v.translation);
     PyTuple::new(py, [r.into_any().unbind(), t.into_any().unbind()])
@@ -150,7 +149,7 @@ impl PySe {
         py: Python<'py>,
         p: &Bound<'py, PyAny>,
         v: &Bound<'py, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -173,7 +172,7 @@ impl PySe {
         py: Python<'py>,
         p: &Bound<'py, PyAny>,
         q: &Bound<'py, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -248,7 +247,7 @@ impl PySe {
     }
 
     /// Project an ambient point onto the manifold.
-    fn project_point<'py>(&self, py: Python<'py>, p: &Bound<'py, PyAny>) -> PyResult<PyObject> {
+    fn project_point<'py>(&self, py: Python<'py>, p: &Bound<'py, PyAny>) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -270,7 +269,7 @@ impl PySe {
         py: Python<'py>,
         p: &Bound<'py, PyAny>,
         v: &Bound<'py, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -288,7 +287,7 @@ impl PySe {
     }
 
     /// The zero tangent vector at p.
-    fn zero_tangent<'py>(&self, py: Python<'py>, p: &Bound<'py, PyAny>) -> PyResult<PyObject> {
+    fn zero_tangent<'py>(&self, py: Python<'py>, p: &Bound<'py, PyAny>) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -339,7 +338,7 @@ impl PySe {
 
     /// Random point on the manifold.
     #[pyo3(signature = (seed=None))]
-    fn random_point<'py>(&self, py: Python<'py>, seed: Option<u64>) -> PyResult<PyObject> {
+    fn random_point<'py>(&self, py: Python<'py>, seed: Option<u64>) -> PyResult<Py<PyAny>> {
         use rand::SeedableRng;
         macro_rules! do_it {
             ($N:literal) => {{
@@ -368,7 +367,7 @@ impl PySe {
         py: Python<'py>,
         p: &Bound<'py, PyAny>,
         seed: Option<u64>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         use rand::SeedableRng;
         macro_rules! do_it {
             ($N:literal) => {{
@@ -413,7 +412,7 @@ impl PySe {
         py: Python<'py>,
         p: &Bound<'py, PyAny>,
         v: &Bound<'py, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -436,7 +435,7 @@ impl PySe {
         py: Python<'py>,
         p: &Bound<'py, PyAny>,
         q: &Bound<'py, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -461,7 +460,7 @@ impl PySe {
         p: &Bound<'py, PyAny>,
         q: &Bound<'py, PyAny>,
         v: &Bound<'py, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -487,7 +486,7 @@ impl PySe {
         p: &Bound<'py, PyAny>,
         direction: &Bound<'py, PyAny>,
         v: &Bound<'py, PyAny>,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);
@@ -552,7 +551,7 @@ impl PySe {
         p: &Bound<'py, PyAny>,
         q: &Bound<'py, PyAny>,
         t: f64,
-    ) -> PyResult<PyObject> {
+    ) -> PyResult<Py<PyAny>> {
         macro_rules! do_it {
             ($N:literal) => {{
                 let mf = make_se::<$N>(self.weight);

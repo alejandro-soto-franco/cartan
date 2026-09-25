@@ -6,13 +6,12 @@
 //! (numpy arrays of shape (3, 3) and dtype float64).
 
 use nalgebra::SMatrix;
-use numpy::PyReadonlyArrayDyn;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
 use cartan_core::Real;
 
-use crate::convert::{arr_to_smatrix, smatrix_to_pyarray};
+use crate::convert::{Arr, arr_to_smatrix, smatrix_to_pyarray};
 
 // ---------------------------------------------------------------------------
 // Edge transition
@@ -33,11 +32,7 @@ use crate::convert::{arr_to_smatrix, smatrix_to_pyarray};
 ///     The transition matrix T = r_src^T * (r_dst * g), where g in D2 minimises
 ///     the distance from r_src to r_dst * g.
 #[pyfunction]
-fn edge_transition<'py>(
-    py: Python<'py>,
-    r_src: PyReadonlyArrayDyn<'py, f64>,
-    r_dst: PyReadonlyArrayDyn<'py, f64>,
-) -> PyResult<PyObject> {
+fn edge_transition<'py>(py: Python<'py>, r_src: Arr<'py>, r_dst: Arr<'py>) -> PyResult<Py<PyAny>> {
     let src = arr_to_smatrix::<3, 3>(r_src, "r_src")?;
     let dst = arr_to_smatrix::<3, 3>(r_dst, "r_dst")?;
     let result = cartan_geo::edge_transition(&src, &dst);
@@ -67,10 +62,7 @@ fn edge_transition<'py>(
 /// ValueError
 ///     If fewer than 2 frames are provided.
 #[pyfunction]
-fn loop_holonomy<'py>(
-    py: Python<'py>,
-    frames: Vec<PyReadonlyArrayDyn<'py, f64>>,
-) -> PyResult<PyObject> {
+fn loop_holonomy<'py>(py: Python<'py>, frames: Vec<Arr<'py>>) -> PyResult<Py<PyAny>> {
     if frames.len() < 2 {
         return Err(PyValueError::new_err(
             "loop_holonomy requires at least 2 frames",
@@ -102,7 +94,7 @@ fn loop_holonomy<'py>(
 ///     The Frobenius norm of (H - I). Zero for the identity; approximately 2*sqrt(2)
 ///     for a pi-rotation (half-integer disclination).
 #[pyfunction]
-fn holonomy_deviation(hol: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
+fn holonomy_deviation(hol: Arr<'_>) -> PyResult<f64> {
     let h = arr_to_smatrix::<3, 3>(hol, "hol")?;
     Ok(cartan_geo::holonomy_deviation(&h))
 }
@@ -122,7 +114,7 @@ fn holonomy_deviation(hol: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
 /// float
 ///     Rotation angle in radians, in [0, pi].
 #[pyfunction]
-fn rotation_angle(hol: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
+fn rotation_angle(hol: Arr<'_>) -> PyResult<f64> {
     let h = arr_to_smatrix::<3, 3>(hol, "hol")?;
     Ok(cartan_geo::rotation_angle(&h))
 }
@@ -146,7 +138,7 @@ fn rotation_angle(hol: PyReadonlyArrayDyn<'_, f64>) -> PyResult<f64> {
 ///     True if the holonomy angle exceeds the threshold.
 #[pyfunction]
 #[pyo3(signature = (hol, threshold = 1.5707963267948966))]
-fn is_half_disclination(hol: PyReadonlyArrayDyn<'_, f64>, threshold: f64) -> PyResult<bool> {
+fn is_half_disclination(hol: Arr<'_>, threshold: f64) -> PyResult<bool> {
     let h = arr_to_smatrix::<3, 3>(hol, "hol")?;
     Ok(cartan_geo::is_half_disclination(&h, threshold))
 }
@@ -165,7 +157,7 @@ fn is_half_disclination(hol: PyReadonlyArrayDyn<'_, f64>, threshold: f64) -> PyR
 ///     Rotation angle of the plaquette holonomy in radians.
 /// holonomy : array of shape (3, 3)
 ///     The holonomy matrix of the plaquette loop.
-#[pyclass(name = "Disclination")]
+#[pyclass(name = "Disclination", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyDisclination {
     #[pyo3(get)]
@@ -180,7 +172,7 @@ pub struct PyDisclination {
 impl PyDisclination {
     /// The holonomy matrix of this disclination as a (3, 3) numpy array.
     #[getter]
-    fn holonomy<'py>(&self, py: Python<'py>) -> PyObject {
+    fn holonomy<'py>(&self, py: Python<'py>) -> Py<PyAny> {
         let h = SMatrix::<Real, 3, 3>::from_column_slice(&self.holonomy_data);
         smatrix_to_pyarray(py, &h).into_any().unbind()
     }
@@ -224,7 +216,7 @@ impl PyDisclination {
 #[pyfunction]
 #[pyo3(name = "scan_disclinations", signature = (frames, nx, ny, threshold = 1.5707963267948966))]
 fn scan_disclinations_py(
-    frames: Vec<PyReadonlyArrayDyn<'_, f64>>,
+    frames: Vec<Arr<'_>>,
     nx: usize,
     ny: usize,
     threshold: f64,

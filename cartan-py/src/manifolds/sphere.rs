@@ -10,7 +10,7 @@
 use pyo3::prelude::*;
 use pyo3::exceptions::PyValueError;
 
-#[pyclass(name = "Sphere")]
+#[pyclass(name = "Sphere", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PySphere {
     pub(crate) ambient_n: usize,
