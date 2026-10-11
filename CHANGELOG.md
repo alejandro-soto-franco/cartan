@@ -4,6 +4,32 @@ All notable changes to cartan are documented here.
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Lichnerowicz curvature term in the `cartan-dec` docs.** The
+  `apply_lichnerowicz_laplacian` documentation gave the space-form correction
+  on symmetric 2-tensors as `2K * Id`. On a surface of constant sectional
+  curvature K the Weitzenböck term is `2nK h - 2K tr(h) g` with n = 2, which
+  is 4K on the traceless part and 0 on the trace part.
+
+### Added
+
+- **`cartan_dec::space_form_lichnerowicz_correction(kappa)`** builds that
+  3x3 endomorphism on the `[Qxx, Qxy, Qyy]` components, with a unit test of
+  its eigenvalues.
+
+### Changed
+
+- **`weitzenbock_sphere_gap` example.** It now reads the sectional curvature
+  from `Sphere<3>` and uses a traceless test field. Its header states that the
+  operator gap equals the callback by construction, so the example checks the
+  plumbing and the unit test checks the geometry. It previously fed in 2K and
+  measured the same 2K back.
+
+---
+
 ## [cartan-py 0.7.0] - 2026-09-25
 
 Python bindings only; the Rust crates stay at 0.10.0.

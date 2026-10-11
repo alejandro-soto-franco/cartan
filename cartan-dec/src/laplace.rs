@@ -173,6 +173,21 @@ impl<M: Manifold, const K: usize, const B: usize> Operators<M, K, B> {
     }
 }
 
+/// Weitzenböck curvature endomorphism of the Lichnerowicz Laplacian on symmetric
+/// 2-tensors of a surface with constant sectional curvature `kappa`, as a 3x3
+/// matrix on the [Qxx, Qxy, Qyy] components in an orthonormal frame.
+///
+/// On an n-dimensional space form the term is `2nK h - 2K tr(h) g`. For n = 2 it
+/// acts as 4K on the traceless part and as 0 on the trace part, so
+/// `Δ_L Q = ∇*∇ Q + 4K Q` for traceless Q (for example a nematic Q-tensor).
+pub fn space_form_lichnerowicz_correction(kappa: f64) -> [[f64; 3]; 3] {
+    [
+        [2.0 * kappa, 0.0, -2.0 * kappa],
+        [0.0, 4.0 * kappa, 0.0],
+        [-2.0 * kappa, 0.0, 2.0 * kappa],
+    ]
+}
+
 /// Bochner and Lichnerowicz Laplacians are specialized to K=3 (2-manifolds).
 impl<M: Manifold> Operators<M, 3, 2> {
     /// Apply the Bochner (connection) Laplacian to a vector field.
@@ -222,8 +237,11 @@ impl<M: Manifold> Operators<M, 3, 2> {
     ///
     /// `curvature_correction`: optional per-vertex curvature endomorphism callback.
     /// Returns a 3x3 matrix acting on the [Qxx, Qxy, Qyy] components at vertex v.
-    /// For flat R²: `None`. For a space form with sectional curvature K=kappa:
-    /// `Some(&|_| [[2.*kappa,0.,0.],[0.,2.*kappa,0.],[0.,0.,2.*kappa]])`.
+    /// For flat R²: `None`. For a surface of constant sectional curvature K the
+    /// Weitzenböck term is `2nK h - 2K tr(h) g` with n = 2: it multiplies the
+    /// traceless part of Q by 4K and annihilates the trace part. Use
+    /// [`space_form_lichnerowicz_correction`] to build that matrix:
+    /// `Some(&|_| space_form_lichnerowicz_correction(kappa))`.
     pub fn apply_lichnerowicz_laplacian(
         &self,
         q: &DVector<f64>,
@@ -305,6 +323,29 @@ mod tests {
             diff < 1e-10,
             "Einstein tensor != scalar path: diff = {diff}"
         );
+    }
+
+    #[test]
+    fn test_space_form_lichnerowicz_correction_eigenvalues() {
+        let k = 0.7_f64;
+        let c = space_form_lichnerowicz_correction(k);
+        let apply = |q: [f64; 3]| {
+            [
+                c[0][0] * q[0] + c[0][1] * q[1] + c[0][2] * q[2],
+                c[1][0] * q[0] + c[1][1] * q[1] + c[1][2] * q[2],
+                c[2][0] * q[0] + c[2][1] * q[1] + c[2][2] * q[2],
+            ]
+        };
+        // Traceless tensors are eigenvectors with eigenvalue 4K.
+        for q in [[1.0, 0.0, -1.0], [0.0, 1.0, 0.0]] {
+            let r = apply(q);
+            for i in 0..3 {
+                assert!((r[i] - 4.0 * k * q[i]).abs() < 1e-14);
+            }
+        }
+        // The metric (trace part) is annihilated.
+        let r = apply([1.0, 0.0, 1.0]);
+        assert!(r.iter().all(|x| x.abs() < 1e-14));
     }
 
     #[test]

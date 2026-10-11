@@ -1,25 +1,28 @@
-//! Numerical check of the article's eq `sphere-weitzenbock`:
+//! Weitzenböck curvature terms of the Bochner and Lichnerowicz Laplacians on the
+//! unit 2-sphere, assembled with cartan-dec.
 //!
-//!   Delta_L = nabla* nabla + Ric         (Bochner / Lichnerowicz - Weitzenbock)
+//!   Bochner (vectors):        Delta u = nabla*nabla u + Ric(u),    Ric = K g
+//!   Lichnerowicz (Q-tensors): Delta_L Q = nabla*nabla Q + 2nK Q - 2K tr(Q) g
 //!
-//! on the unit 2-sphere, where the Ricci term equals +1/a^2 (here a = 1, so +1).
+//! On S^2 (n = 2, K = 1/a^2) the Ricci term is +1/a^2 and the Lichnerowicz term
+//! is 4K on traceless Q and 0 on the trace part.
 //!
-//! This is a NUMERICAL companion to the symbolic verify/weitzenbock.py check.
-//! We build an icosphere mesh with cartan-dec, assemble the Bochner (vector)
-//! and Lichnerowicz (symmetric-2-tensor) Laplacians, and measure the GAP between
-//! the curvature-corrected operator and the bare rough/connection Laplacian.
-//! By construction of `apply_bochner_laplacian`/`apply_lichnerowicz_laplacian`,
-//! that gap is exactly the Weitzenbock curvature endomorphism applied pointwise;
-//! we confirm the endomorphism the article prescribes (Ric = +1*g for the vector
-//! Laplacian; the K=1 space-form correction 2K*Id for the tensor Laplacian) and
-//! cross-check it against the manifold's own analytic `ricci_curvature` /
-//! `scalar_curvature` on `Sphere<3>`.
+//! What this example checks, and what it does not:
+//! - The curvature values come from the manifold itself: K and Ric are read off
+//!   `Sphere<3>` (`sectional_curvature`, `ricci_curvature`) and fed through the
+//!   space-form formulas, so the endomorphism is derived independently of the
+//!   numbers printed below.
+//! - The operator gap (curvature-corrected minus rough Laplacian) equals the
+//!   endomorphism pointwise by construction of the API. That part is a
+//!   consistency check of the callback plumbing, not a test of the geometry.
+//! - The geometric content (the 4K, the vanishing trace part) is tested
+//!   symbolically in `space_form_lichnerowicz_correction`'s unit test.
 //!
 //! Run with:  cargo run -p cartan-dec --example weitzenbock_sphere_gap --release
 
 use cartan_core::{Curvature, Manifold};
-use cartan_dec::Operators;
 use cartan_dec::mesh_gen::icosphere;
+use cartan_dec::{Operators, space_form_lichnerowicz_correction};
 use cartan_manifolds::sphere::Sphere;
 use nalgebra::{DVector, SVector};
 
@@ -100,24 +103,18 @@ fn main() {
         "  recovered Ricci eigenvalue <gap,u>/<u,u> = {recovered_kappa:.15}  (expect +1/a^2 = {kappa})"
     );
 
-    // === (B) TENSOR / LICHNEROWICZ Laplacian on a symmetric 2-tensor (the Q-tensor) ===
-    // For a K=1 space form the Weitzenbock curvature endomorphism on symmetric
-    // trace-handled 2-tensors reduces to the diagonal 2K = +2 correction the
-    // operator API documents: c = 2K * Id_{3x3}.
-    let kappa_t = 2.0 * (1.0 / (a * a)); // = +2 for the unit sphere
-    let lich_corr = |_v: usize| {
-        [
-            [kappa_t, 0.0, 0.0],
-            [0.0, kappa_t, 0.0],
-            [0.0, 0.0, kappa_t],
-        ]
-    };
+    // === (B) TENSOR / LICHNEROWICZ Laplacian on a traceless symmetric 2-tensor ===
+    // Curvature from the manifold: K = sectional curvature of the (e1, e2) plane.
+    let k_sec = sphere.sectional_curvature(&p, &e1, &e2);
+    let lich = space_form_lichnerowicz_correction(k_sec);
+    let lich_corr = |_v: usize| lich;
+    let kappa_t = 4.0 * k_sec; // eigenvalue on traceless Q (= 4/a^2 on the unit sphere)
     let mut q = DVector::<f64>::zeros(3 * nv);
     for v in 0..nv {
         let x = mesh.vertices[v];
         q[v] = (x[0] - x[1]).sin(); // Qxx
         q[nv + v] = (x[1] + 0.5 * x[2]).cos(); // Qxy
-        q[2 * nv + v] = (x[2] - x[0]).sin(); // Qyy
+        q[2 * nv + v] = -q[v]; // Qyy = -Qxx (traceless, like a nematic Q)
     }
     let lich_full = ops.apply_lichnerowicz_laplacian(&q, Some(&lich_corr));
     let lich_rough = ops.apply_lichnerowicz_laplacian(&q, None);
@@ -129,10 +126,10 @@ fn main() {
 
     println!("\n-- (B) Lichnerowicz (symmetric-2-tensor) Laplacian gap --");
     println!("Delta_L - nabla*nabla applied to a test Q-tensor field:");
-    println!("  ||gap - 2K q||_2                = {ten_abs_residual:.3e}");
+    println!("  ||gap - 4K q||_2                = {ten_abs_residual:.3e}");
     println!("  relative residual              = {ten_rel_residual:.3e}");
     println!(
-        "  recovered <gap,q>/<q,q>         = {recovered_kappa_t:.15}  (expect 2K = {kappa_t})"
+        "  recovered <gap,q>/<q,q>         = {recovered_kappa_t:.15}  (expect 4K = {kappa_t})"
     );
 
     // === verdict ===
@@ -152,7 +149,7 @@ fn main() {
         "Bochner gap recovered Ricci eigenvalue     = {recovered_kappa} residual {vec_abs_residual:.2e}"
     );
     println!(
-        "Lichnerowicz gap recovered eigenvalue (2K) = {recovered_kappa_t} residual {ten_abs_residual:.2e}"
+        "Lichnerowicz gap recovered eigenvalue (4K) = {recovered_kappa_t} residual {ten_abs_residual:.2e}"
     );
     println!("VERDICT: {}", if pass { "PASS" } else { "FAIL" });
 }

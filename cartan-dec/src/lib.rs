@@ -64,6 +64,6 @@ pub use divergence::{apply_divergence, apply_divergence_generic, apply_tensor_di
 pub use error::DecError;
 pub use exterior::ExteriorDerivative;
 pub use hodge::HodgeStar;
-pub use laplace::Operators;
+pub use laplace::{Operators, space_form_lichnerowicz_correction};
 pub use levi_civita::{edge_transport_from_angles, levi_civita_2d};
 pub use mesh::{FlatMesh, Mesh};
