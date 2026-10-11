@@ -8,7 +8,9 @@
 //!
 //!   lcr = dist(i,l) * dist(j,k) / (dist(k,i) * dist(l,j))
 //!
-//! For a Delaunay triangulation of a flat surface, all interior LCRs equal 1.0.
+//! On a flat equilateral triangulation every interior LCR equals 1.0. A general
+//! Delaunay triangulation has LCRs away from 1, so the energy below compares
+//! against a reference snapshot, not against 1.
 //! The LCR spring energy penalises deviation from a reference LCR snapshot,
 //! encouraging conformal mesh quality during remeshing.
 
