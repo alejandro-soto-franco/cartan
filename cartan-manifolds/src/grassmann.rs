@@ -13,8 +13,8 @@
 //! - Exponential: V = A Σ B^T (thin SVD) → (Q B cos Σ + A sin Σ) B^T
 //! - Logarithm: via principal angles (see gr_log_dyn)
 //! - Injectivity radius: π/2
-//! - Sectional curvature: 0 ≤ K_sec ≤ 1/4 (non-negative)
-//! - Ricci curvature: Ric(X,Y) = (N-2)/4 · tr(X^T Y) (Einstein manifold)
+//! - Sectional curvature: 0 ≤ K_sec ≤ 2, and exactly 1 when K = 1 (projective space)
+//! - Ricci curvature: Ric(X,Y) = (N-2) · tr(X^T Y) (Einstein manifold)
 //! - Scalar curvature: K(N-K)(N-2)/4
 //!
 //! ## Parallel transport
@@ -541,7 +541,7 @@ impl<const N: usize, const K: usize> Curvature for Grassmann<N, K> {
     /// Riemann curvature tensor on Gr(N, K).
     ///
     /// For horizontal X, Y, Z at Q:
-    ///   R(X,Y)Z = (1/4)[(XY^T − YX^T)Z − Z(X^TY − Y^TX)]
+    ///   R(X,Y)Z = (XY^T − YX^T)Z − Z(X^TY − Y^TX)
     ///
     /// Both terms are already horizontal when X, Y, Z are horizontal
     /// (Q^T annihilates each term), so no projection is needed.
@@ -550,7 +550,8 @@ impl<const N: usize, const K: usize> Curvature for Grassmann<N, K> {
     /// The curvature tensor for a symmetric space G/K with Cartan decomposition
     /// g = k ⊕ m is R(X,Y)Z = −\[\[X,Y\]_k, Z\]. For horizontal X,Y (viewed as
     /// elements of m ≅ skew(\[0, A; −A^T, 0\])), the bracket \[X,Y\]_k gives the
-    /// (1/4) coefficient.
+    /// formula above. With the metric tr(X^T Y) and the principal-angle distance,
+    /// Gr(N,1) is the projective space of curvature 1, which fixes the scale.
     ///
     /// Ref: Edelman, Arias, Smith (1998), Eq. (2.61).
     fn riemann_curvature(
@@ -569,35 +570,35 @@ impl<const N: usize, const K: usize> Curvature for Grassmann<N, K> {
         let xty = x.transpose() * y;
         let ytx = y.transpose() * x;
 
-        // R(X,Y)Z = (1/4)[(XY^T − YX^T)Z − Z(X^TY − Y^TX)]
-        ((xy_t - yx_t) * z - z * (xty - ytx)) * 0.25
+        // R(X,Y)Z = (XY^T − YX^T)Z − Z(X^TY − Y^TX)
+        (xy_t - yx_t) * z - z * (xty - ytx)
     }
 
     /// Ricci curvature of Gr(N, K).
     ///
-    /// Gr(N,K) is an Einstein manifold with Einstein constant (N−2)/4:
-    ///   Ric(X, Y) = (N−2)/4 · tr(X^T Y)
+    /// Gr(N,K) is an Einstein manifold with Einstein constant N−2:
+    ///   Ric(X, Y) = (N−2) · tr(X^T Y)
     ///
     /// Derivation: compute Ric(E_ab, E_ab) = Σ_{(c,d)≠(a,b)} <R(E_cd,E_ab)E_ab, E_cd>
     /// for a standard ONB E_ab (unit matrix with 1 at (K+a, b)). Using the
     /// Riemann tensor formula above and the Kronecker delta algebra:
-    ///   Ric(E_ab, E_ab) = (N−2)/4  (for all a, b)
+    ///   Ric(E_ab, E_ab) = N−2  (for all a, b)
     /// Since Gr(N,K) is O(N)-homogeneous, the Einstein constant is uniform.
     fn ricci_curvature(&self, _q: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
         let n = N as Real;
-        (n - 2.0) / 4.0 * (u.transpose() * v).trace()
+        (n - 2.0) * (u.transpose() * v).trace()
     }
 
     /// Scalar curvature of Gr(N, K).
     ///
-    /// s = dim · λ = K(N−K) · (N−2)/4
+    /// s = dim · λ = K(N−K) · (N−2)
     ///
-    /// where dim = K(N−K) is the intrinsic dimension and λ = (N−2)/4 is the
+    /// where dim = K(N−K) is the intrinsic dimension and λ = N−2 is the
     /// Einstein constant.
     fn scalar_curvature(&self, _q: &Self::Point) -> Real {
         let n = N as Real;
         let k = K as Real;
-        k * (n - k) * (n - 2.0) / 4.0
+        k * (n - k) * (n - 2.0)
     }
 }
 
@@ -874,12 +875,12 @@ mod tests {
 
     #[test]
     fn gr52_scalar_curvature_exact() {
-        // For Gr(5,2): s = K(N-K)(N-2)/4 = 2 * 3 * 3 / 4 = 4.5
+        // For Gr(5,2): s = K(N-K)(N-2) = 2 * 3 * 3 = 18
         let m = Grassmann::<5, 2>;
         let mut rng = rng();
         let q = m.random_point(&mut rng);
         let s = m.scalar_curvature(&q);
-        let expected = 2.0 * 3.0 * 3.0 / 4.0; // = 4.5
+        let expected = 2.0 * 3.0 * 3.0; // = 18
         assert_abs_diff_eq!(s, expected, epsilon = 1e-12);
     }
 
@@ -926,12 +927,26 @@ mod tests {
 
     #[test]
     fn gr41_scalar_curvature() {
-        // Gr(4,1): s = 1 * 3 * 2 / 4 = 1.5
+        // Gr(4,1) = RP^3 with curvature 1: s = 1 * 3 * 2 = 6
         let m = Grassmann::<4, 1>;
         let mut rng = rng();
         let q = m.random_point(&mut rng);
         let s = m.scalar_curvature(&q);
-        assert_abs_diff_eq!(s, 1.5, epsilon = 1e-12);
+        assert_abs_diff_eq!(s, 6.0, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn gr31_is_the_unit_projective_plane() {
+        // Lines in R^3 with the principal-angle distance: cos d = cos^2 t for two
+        // geodesics leaving e1 along orthogonal directions, as on the unit sphere.
+        let m = Grassmann::<3, 1>;
+        let q = SMatrix::<Real, 3, 1>::new(1.0, 0.0, 0.0);
+        let u = SMatrix::<Real, 3, 1>::new(0.0, 1.0, 0.0);
+        let v = SMatrix::<Real, 3, 1>::new(0.0, 0.0, 1.0);
+        let t = 0.3;
+        let d = m.dist(&m.exp(&q, &(u * t)), &m.exp(&q, &(v * t))).unwrap();
+        assert_abs_diff_eq!(d.cos(), t.cos() * t.cos(), epsilon = 1e-10);
+        assert_abs_diff_eq!(m.sectional_curvature(&q, &u, &v), 1.0, epsilon = 1e-12);
     }
 
     // ── Gr(6,3) tests ────────────────────────────────────────────────────────

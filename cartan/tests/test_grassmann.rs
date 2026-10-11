@@ -241,12 +241,12 @@ fn gr52_sectional_curvature_in_range() {
 
 #[test]
 fn gr52_scalar_curvature_exact() {
-    // Gr(N,K) scalar curvature = K(N-K)(N-2)/4.
-    // Gr(5,2): 2*3*(5-2)/4 = 6*3/4 = 4.5.
+    // Gr(N,K) scalar curvature = K(N-K)(N-2).
+    // Gr(5,2): 2*3*(5-2) = 18.
     let m = Grassmann::<5, 2>;
     let p = m.random_point(&mut rng());
     let s = m.scalar_curvature(&p);
-    let expected = 4.5;
+    let expected = 18.0;
     assert!(
         (s - expected).abs() < 1e-10,
         "Gr(5,2) scalar curvature = {s:.8e}, expected {expected}"
@@ -320,13 +320,13 @@ fn gr41_dim() {
 
 #[test]
 fn gr41_scalar_curvature() {
-    // Gr(4,1) = RP^3: scalar curvature = K(N-K)(N-2)/4 = 1*3*2/4 = 1.5.
+    // Gr(4,1) = RP^3 with curvature 1: scalar curvature = 1*3*2 = 6.
     let m = Grassmann::<4, 1>;
     let p = m.random_point(&mut rng());
     let s = m.scalar_curvature(&p);
     assert!(
-        (s - 1.5).abs() < 1e-10,
-        "Gr(4,1) scalar curvature = {s:.8e}, expected 1.5"
+        (s - 6.0).abs() < 1e-10,
+        "Gr(4,1) scalar curvature = {s:.8e}, expected 6"
     );
 }
 
@@ -373,13 +373,13 @@ fn gr63_dim() {
 
 #[test]
 fn gr63_scalar_curvature() {
-    // Gr(6,3): K(N-K)(N-2)/4 = 3*3*4/4 = 9.0.
+    // Gr(6,3): K(N-K)(N-2) = 3*3*4 = 36.
     let m = Grassmann::<6, 3>;
     let p = m.random_point(&mut rng());
     let s = m.scalar_curvature(&p);
     assert!(
-        (s - 9.0).abs() < 1e-10,
-        "Gr(6,3) scalar curvature = {s:.8e}, expected 9.0"
+        (s - 36.0).abs() < 1e-10,
+        "Gr(6,3) scalar curvature = {s:.8e}, expected 36"
     );
 }
 

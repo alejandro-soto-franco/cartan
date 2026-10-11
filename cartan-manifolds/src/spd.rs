@@ -626,31 +626,37 @@ impl<const N: usize> Curvature for Spd<N> {
         sym_symmetrize(&(sqrt_p * r_i * sqrt_p))
     }
 
-    /// Ricci curvature: Ric(U, V) = -(N+1)/4 * <U, V>_P.
+    /// Ricci curvature of the affine-invariant metric.
     ///
-    /// SPD(N) with the affine-invariant metric is an Einstein manifold
-    /// (Ricci tensor proportional to the metric):
+    /// SPD(N) = R x SL(N)/SO(N) is not Einstein: the scaling direction P is
+    /// flat. With A = P^{-1/2} U P^{-1/2} and B = P^{-1/2} V P^{-1/2},
     ///
     /// ```text
-    /// Ric(U, V) = -((N+1)/4) <U, V>_P
+    /// Ric(U, V) = 1/4 tr(A) tr(B) - N/4 tr(AB)
     /// ```
     ///
-    /// Ref: Bridson-Haefliger (1999), symmetric space structure of SPD(N).
+    /// which is the trace of `riemann_curvature` over an orthonormal basis and
+    /// vanishes on U = V = P.
     fn ricci_curvature(&self, p: &Self::Point, u: &Self::Tangent, v: &Self::Tangent) -> Real {
-        -(N as Real + 1.0) / 4.0 * self.inner(p, u, v)
+        let (_sqrt_p, sqrt_p_inv) = crate::util::sym::sym_sqrt_pair(p);
+        let a = sqrt_p_inv * u * sqrt_p_inv;
+        let b = sqrt_p_inv * v * sqrt_p_inv;
+        let n = N as Real;
+        0.25 * a.trace() * b.trace() - 0.25 * n * (a * b).trace()
     }
 
-    /// Scalar curvature: s = -(N+1)/4 * dim = -N(N+1)^2/8.
+    /// Scalar curvature: s = -N(N-1)(N+2)/8, constant on SPD(N).
     ///
-    /// Obtained by tracing the Ricci tensor over an orthonormal basis of
-    /// T_P SPD(N):
+    /// Tracing the Ricci tensor over an orthonormal basis of Sym(N): the unit
+    /// vector I/sqrt(N) contributes the 1/4 tr(A)^2 term once (value N/4) and
+    /// every basis vector contributes -N/4, so
     ///
     /// ```text
-    /// s = sum_i Ric(e_i, e_i) = -(N+1)/4 * N(N+1)/2 = -N(N+1)^2/8
+    /// s = N/4 - N/4 * N(N+1)/2 = -N(N-1)(N+2)/8
     /// ```
     fn scalar_curvature(&self, _p: &Self::Point) -> Real {
         let n = N as Real;
-        -n * (n + 1.0) * (n + 1.0) / 8.0
+        -n * (n - 1.0) * (n + 2.0) / 8.0
     }
 }
 
@@ -1030,6 +1036,41 @@ mod tests {
         let v = sample_symmetric_tangent_3();
         let ric = m.ricci_curvature(&p, &v, &v);
         assert!(ric <= 0.0, "Ricci(V,V) should be <= 0: {:.4e}", ric);
+    }
+
+    #[test]
+    fn test_ricci_is_trace_of_riemann() {
+        use cartan_core::Curvature;
+        let m = Spd::<3>;
+        let p = SMatrix::<Real, 3, 3>::identity();
+        let u = sample_symmetric_tangent_3();
+        let v = u.transpose() * 0.5 + SMatrix::<Real, 3, 3>::identity() * 0.3;
+        // Orthonormal basis of Sym(3) at the identity, <A,B> = tr(AB).
+        let mut basis = Vec::new();
+        for i in 0..3 {
+            let mut e = SMatrix::<Real, 3, 3>::zeros();
+            e[(i, i)] = 1.0;
+            basis.push(e);
+        }
+        for (i, j) in [(0, 1), (0, 2), (1, 2)] {
+            let mut e = SMatrix::<Real, 3, 3>::zeros();
+            e[(i, j)] = std::f64::consts::FRAC_1_SQRT_2;
+            e[(j, i)] = std::f64::consts::FRAC_1_SQRT_2;
+            basis.push(e);
+        }
+        let traced: Real = basis
+            .iter()
+            .map(|e| m.inner(&p, &m.riemann_curvature(&p, e, &u, &v), e))
+            .sum();
+        let ric = m.ricci_curvature(&p, &u, &v);
+        assert!(
+            (traced - ric).abs() < 1e-12,
+            "trace {traced} vs Ricci {ric}"
+        );
+        // Scalar curvature of SPD(3) is -3*2*5/8 = -15/4.
+        assert!((m.scalar_curvature(&p) + 3.75).abs() < 1e-12);
+        // The scaling direction is flat.
+        assert!(m.ricci_curvature(&p, &p, &p).abs() < 1e-12);
     }
 
     #[test]

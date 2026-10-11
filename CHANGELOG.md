@@ -8,6 +8,17 @@ All notable changes to cartan are documented here.
 
 ### Fixed
 
+- **`Spd<N>` Ricci and scalar curvature.** SPD(N) with the affine-invariant
+  metric is not Einstein: its scaling direction is flat. `ricci_curvature` now
+  returns 1/4 tr(A) tr(B) - N/4 tr(AB) with A, B the whitened tangents, which is
+  the trace of `riemann_curvature`. `scalar_curvature` is -N(N-1)(N+2)/8
+  (-15/4 for SPD(3)); it previously returned -N(N+1)^2/8.
+- **`Grassmann<N,K>` curvature scale.** With the metric tr(X^T Y) and the
+  principal-angle distance, Gr(N,1) is projective space of curvature 1. The
+  Riemann tensor carried an extra factor 1/4, so sectional, Ricci and scalar
+  curvature were four times too small. Ricci is now (N-2) tr(X^T Y) and the
+  scalar curvature K(N-K)(N-2). A test pins Gr(3,1) to the unit projective
+  plane.
 - **Lichnerowicz curvature term in the `cartan-dec` docs.** The
   `apply_lichnerowicz_laplacian` documentation gave the space-form correction
   on symmetric 2-tensors as `2K * Id`. On a surface of constant sectional
