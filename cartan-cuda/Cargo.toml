@@ -61,9 +61,9 @@ matfree-harness = ["dep:cartan-matfree", "dep:formoniq", "dep:simplicial"]
 #
 # To move the pin: update the revision here, run `cargo oxide build`, then
 # `cargo oxide run` and check the harness still exits zero.
-cuda-device = { git = "https://github.com/NVlabs/cuda-oxide.git", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
-cuda-host = { git = "https://github.com/NVlabs/cuda-oxide.git", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
-cuda-core = { git = "https://github.com/NVlabs/cuda-oxide.git", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
+cuda-device = { git = "https://github.com/NVIDIA/cuda-rust", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
+cuda-host = { git = "https://github.com/NVIDIA/cuda-rust", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
+cuda-core = { git = "https://github.com/NVIDIA/cuda-rust", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
 
 # The CPU implementation the GPU results are checked against. Host-side only;
 # nothing here crosses into device code, and nothing in the library reaches for

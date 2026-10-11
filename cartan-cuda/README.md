@@ -1,7 +1,7 @@
 # cartan-cuda
 
 Batched double-precision manifold operations on CUDA, via
-[cuda-oxide](https://github.com/NVlabs/cuda-oxide).
+[cuda-oxide](https://github.com/NVIDIA/cuda-rust/tree/main/cuda-oxide).
 
 Part of the [cartan](https://crates.io/crates/cartan) workspace, but **not
 published** and **not a workspace member**. See [Status](#status).
@@ -109,7 +109,7 @@ libNVVM, and `cargo-oxide`. Check with `cargo oxide doctor`.
 Point it at a specific backend rather than relying on the global cache:
 
 ```bash
-export CUDA_OXIDE_BACKEND=~/cuda-oxide/crates/rustc-codegen-cuda/target/debug/librustc_codegen_cuda.so
+export CUDA_OXIDE_BACKEND=~/cuda-rust/cuda-oxide/crates/rustc-codegen-cuda/target/debug/librustc_codegen_cuda.so
 ```
 
 This matters. `cargo-oxide` resolves the backend in the order: `CUDA_OXIDE_BACKEND`,

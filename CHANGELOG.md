@@ -235,7 +235,7 @@ eleven published crates carry no code change in this release; they move to
 ### Added
 
 - **`cartan-cuda`**: batched double-precision manifold operations on CUDA,
-  through [cuda-oxide](https://github.com/NVlabs/cuda-oxide). Kernels are
+  through [cuda-oxide](https://github.com/NVIDIA/cuda-rust/tree/main/cuda-oxide). Kernels are
   ordinary Rust compiled to PTX. Batched sphere `exp` and `log` agree with the
   CPU implementation to 3.22e-15, and the affine-invariant SPD(3) distance to
   9.58e-15 relative.
