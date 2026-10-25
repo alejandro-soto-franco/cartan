@@ -4,7 +4,8 @@
 //! operator tens of times, so uploading it per application would dominate the
 //! solve and measure the bus rather than the kernel.
 
-use cuda_core::{DeviceBuffer, LaunchConfig};
+use cuda_core::DeviceBuffer;
+use cuda_core::simt::LaunchConfig;
 
 use crate::device::Device;
 use crate::error::CudaError;

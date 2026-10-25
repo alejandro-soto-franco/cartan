@@ -103,7 +103,7 @@ component, which is the reason not to fold them together.
 cargo oxide run cartan-cuda
 ```
 
-Needs the pinned nightly in `rust-toolchain.toml`, a CUDA toolkit with
+Needs Rust 1.99.1 as pinned in `rust-toolchain.toml`, a CUDA toolkit with
 libNVVM, and `cargo-oxide`. Check with `cargo oxide doctor`.
 
 Point it at a specific backend rather than relying on the global cache:
@@ -133,7 +133,7 @@ opens the device.
 ## Host-side checks
 
 Compilation to PTX needs the backend, but the host half of the crate builds
-under the pinned nightly alone:
+under the pinned toolchain alone:
 
 ```bash
 cargo test          # shape checking and the error type
@@ -161,8 +161,8 @@ Not published, for three independent reasons:
 
 1. Six of the crates this one reaches remain unpublished, and cargo rejects git
    dependencies at publish time.
-2. It pins a nightly toolchain with `rustc-dev` and `llvm-tools`, because it is
-   a rustc backend. cartan is stable with an MSRV of 1.89.
+2. It pins Rust 1.99.1 with `rustc-dev` and `llvm-tools` and sets
+   `RUSTC_BOOTSTRAP=1` in `.cargo/config.toml`, because it is a rustc backend. cartan is stable with an MSRV of 1.89.
 3. It builds through `cargo oxide`, not `cargo build`.
 
 The first is the one that moves. `cuda-core` and `cuda-bindings` are on
@@ -181,9 +181,8 @@ never see it.
 
 The three cuda-oxide dependencies name an exact `rev`, and the pin has to live
 in `Cargo.toml`. `Cargo.lock` is gitignored across this repository, so a
-floating git dependency resolves to whatever `main` is at clone time, and NVlabs
-is folding cuda-oxide into a `cuda-rust` mono-repo that relocates every crate in
-it.
+floating git dependency resolves to whatever `main` is at clone time, and the
+NVIDIA/cuda-rust layout still moves.
 
 All three must come from one revision. Mixing revisions gives two crate
 instances and a type mismatch at the pliron `Context` boundary, even at

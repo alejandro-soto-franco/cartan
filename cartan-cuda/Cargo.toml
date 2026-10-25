@@ -9,11 +9,11 @@ readme = "README.md"
 
 # Not published. Eight of the ten cuda-oxide crates this one reaches are still
 # unpublished, and cargo rejects git dependencies at publish time, so it cannot
-# ship until they land. It also needs a pinned nightly and the `cargo oxide`
-# subcommand, neither of which the rest of cartan requires. See the README.
+# ship until they land. It also needs Rust 1.99.1 with `RUSTC_BOOTSTRAP=1` and the
+# `cargo oxide` subcommand, neither of which the rest of cartan requires. See the README.
 publish = false
 
-# Its own workspace: the pinned nightly and the codegen backend must not leak
+# Its own workspace: the pinned toolchain and the codegen backend must not leak
 # into cartan's stable build.
 [workspace]
 
@@ -51,9 +51,8 @@ matfree-harness = ["dep:cartan-matfree", "dep:formoniq", "dep:simplicial"]
 # Pinned to an exact revision, and the pin has to live here. `Cargo.lock` is
 # gitignored across this repository, so a floating git dependency resolves to
 # whatever `main` is at clone time. cuda-oxide publishes none of these crates to
-# crates.io, and NVlabs is folding the repository into a `cuda-rust` mono-repo
-# that relocates every one of them, so an unpinned branch reference is a build
-# that breaks with nothing in this repository having changed.
+# crates.io. The NVIDIA/cuda-rust layout still moves, and an unpinned branch
+# reference breaks the build with nothing in this repository having changed.
 #
 # All three must come from the same revision. Mixing revisions gives two crate
 # instances and a type mismatch at the pliron `Context` boundary, even at
@@ -61,9 +60,9 @@ matfree-harness = ["dep:cartan-matfree", "dep:formoniq", "dep:simplicial"]
 #
 # To move the pin: update the revision here, run `cargo oxide build`, then
 # `cargo oxide run` and check the harness still exits zero.
-cuda-device = { git = "https://github.com/NVIDIA/cuda-rust", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
-cuda-host = { git = "https://github.com/NVIDIA/cuda-rust", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
-cuda-core = { git = "https://github.com/NVIDIA/cuda-rust", rev = "bad4d05559c188cdcfb3469d1497c5b9c3c303fa" }
+cuda-device = { git = "https://github.com/NVIDIA/cuda-rust", rev = "9df9e7cef561e03a066230b3bb433b3d8285da81" }
+cuda-host = { git = "https://github.com/NVIDIA/cuda-rust", rev = "9df9e7cef561e03a066230b3bb433b3d8285da81" }
+cuda-core = { git = "https://github.com/NVIDIA/cuda-rust", rev = "9df9e7cef561e03a066230b3bb433b3d8285da81" }
 
 # The CPU implementation the GPU results are checked against. Host-side only;
 # nothing here crosses into device code, and nothing in the library reaches for
