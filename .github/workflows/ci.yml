@@ -117,11 +117,12 @@ jobs:
           workspaces: cartan-cuda
       # cuda-bindings runs bindgen over the driver header in its build script,
       # so cuda.h must exist before anything in this job compiles, and the
-      # runner image ships no CUDA at all. Only two packages are needed: the
+      # runner image ships no CUDA at all. Three packages are needed: the
       # driver dev package for `include/cuda.h` and `lib64/stubs/libcuda.so`,
-      # and the runtime dev package for the headers cuda-oxide includes
-      # alongside it. Together they are a few megabytes, against roughly three
-      # gigabytes for the full toolkit, none of which this job would use.
+      # the runtime dev package for the headers cuda-oxide includes alongside
+      # it, and the curand dev package for `curand.h`, which cuda-bindings
+      # also runs bindgen over. curand loads at run time, so only its header
+      # matters here. The full toolkit is roughly three gigabytes.
       #
       # The stub exists for exactly this case: it resolves `-lcuda` at link
       # time on a machine with no driver. That link records a DT_NEEDED on the
@@ -154,10 +155,11 @@ jobs:
           fi
           suffix=${driver_pkg#cuda-driver-dev-}
           sudo apt-get install -y --no-install-recommends \
-            "$driver_pkg" "cuda-cudart-dev-${suffix}"
+            "$driver_pkg" "cuda-cudart-dev-${suffix}" "libcurand-dev-${suffix}"
 
           root="/usr/local/cuda-${suffix/-/.}"
           test -f "$root/include/cuda.h"
+          test -f "$root/include/curand.h"
           test -f "$root/lib64/stubs/libcuda.so"
           # Link time reads `libcuda.so` from the toolkit; run time needs the
           # SONAME as a file name, which only exists here.
