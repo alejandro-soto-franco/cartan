@@ -101,8 +101,10 @@ pub(crate) fn gradient_potential(complex: &Complex, f: &[f64]) -> Vec<f64> {
 /// Outcome of a conjugate gradient solve.
 pub(crate) struct CgReport {
     pub(crate) iterations: usize,
-    /// `|b - A y| / |b|`, recomputed from `y` at the end.
+    /// `|b - A y| / |b|`, recomputed from the final `y`.
     pub(crate) relative_residual: f64,
+    /// Whether that residual is within the tolerance.
+    pub(crate) converged: bool,
 }
 
 fn dot(a: &[f64], b: &[f64]) -> f64 {
@@ -115,12 +117,26 @@ fn normal_apply(b2: &SignedCsr, b2t: &SignedCsr, y: &[f64], scratch: &mut [f64],
     b2t.apply(scratch, out);
 }
 
+/// Iterations without a new minimum of the recursive residual after which a
+/// pass is taken to have stagnated.
+const STAGNATION_WINDOW: usize = 50;
+
+/// Relative residual below which no pass iterates further. Steps taken at the
+/// rounding floor of a semidefinite system amplify rounding error along its
+/// kernel instead of reducing the residual.
+const RESIDUAL_FLOOR: f64 = 1e-16;
+
 /// Solves `B2^T B2 y = b` by conjugate gradient from `y = 0`. The system is
 /// positive semidefinite and consistent, since `b` lies in the range of `B2^T`,
 /// so the iteration converges to a solution and `B2 y` is the projection the
-/// caller wants. The recursive residual drifts from the true one, so on
-/// reaching the tolerance the true residual is recomputed and the iteration
-/// restarts from the current `y` if it is still above it, at most four times.
+/// caller wants.
+///
+/// The recursive residual drifts from the true one, so each pass ends by
+/// recomputing the true residual and, if it is still above the tolerance and
+/// still falling, restarts from the current `y`, at most five passes. A pass
+/// also ends when the recursive residual has not reached a new minimum for
+/// `STAGNATION_WINDOW` iterations, which happens once it sits at the rounding
+/// floor. The reported residual is always the true one of the returned `y`.
 pub(crate) fn curl_cg(
     complex: &Complex,
     b: &[f64],
@@ -136,27 +152,37 @@ pub(crate) fn curl_cg(
         return CgReport {
             iterations: 0,
             relative_residual: 0.0,
+            converged: true,
         };
     }
     let mut scratch = vec![0.0; complex.n_edges()];
     let mut ay = vec![0.0; t];
+    let true_residual = |y: &[f64], scratch: &mut [f64], ay: &mut [f64]| -> (Vec<f64>, f64) {
+        normal_apply(b2, b2t, y, scratch, ay);
+        let r: Vec<f64> = b.iter().zip(ay.iter()).map(|(bi, ai)| bi - ai).collect();
+        let n = dot(&r, &r).sqrt() / bnorm;
+        (r, n)
+    };
     let mut iterations = 0;
-    let mut best = f64::INFINITY;
-    for _restart in 0..5 {
-        normal_apply(b2, b2t, y, &mut scratch, &mut ay);
-        let mut r: Vec<f64> = b.iter().zip(&ay).map(|(bi, ai)| bi - ai).collect();
-        let true_res = dot(&r, &r).sqrt() / bnorm;
-        if true_res <= tol || true_res >= best {
-            best = best.min(true_res);
+    let mut previous = f64::INFINITY;
+    for _pass in 0..5 {
+        let (mut r, res) = true_residual(y, &mut scratch, &mut ay);
+        if res <= tol || res >= previous || iterations >= max_iter {
             break;
         }
-        best = true_res;
+        previous = res;
         let mut p = r.clone();
         let mut ap = vec![0.0; t];
         let mut rr = dot(&r, &r);
-        while iterations < max_iter && rr.sqrt() > tol * bnorm {
+        let (mut best_rr, mut since_best) = (rr, 0);
+        let stop = tol.max(RESIDUAL_FLOOR) * bnorm;
+        while iterations < max_iter && rr.sqrt() > stop && since_best < STAGNATION_WINDOW {
             normal_apply(b2, b2t, &p, &mut scratch, &mut ap);
-            let alpha = rr / dot(&p, &ap);
+            let pap = dot(&p, &ap);
+            if !(pap.is_finite() && pap > 0.0) {
+                break;
+            }
+            let alpha = rr / pap;
             for i in 0..t {
                 y[i] += alpha * p[i];
                 r[i] -= alpha * ap[i];
@@ -168,21 +194,18 @@ pub(crate) fn curl_cg(
             }
             rr = rr_new;
             iterations += 1;
-        }
-        if iterations >= max_iter {
-            normal_apply(b2, b2t, y, &mut scratch, &mut ay);
-            let res: f64 = b
-                .iter()
-                .zip(&ay)
-                .map(|(bi, ai)| (bi - ai).powi(2))
-                .sum::<f64>()
-                .sqrt();
-            best = best.min(res / bnorm);
-            break;
+            if rr < best_rr {
+                best_rr = rr;
+                since_best = 0;
+            } else {
+                since_best += 1;
+            }
         }
     }
+    let (_, relative_residual) = true_residual(y, &mut scratch, &mut ay);
     CgReport {
         iterations,
-        relative_residual: best,
+        relative_residual,
+        converged: relative_residual <= tol,
     }
 }

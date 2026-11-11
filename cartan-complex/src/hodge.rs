@@ -21,6 +21,9 @@ pub struct Decomposition {
     pub curl_iterations: usize,
     /// `|B2^T (r - B2 y)| / |B2^T r|` at the end, with `r = f - grad`.
     pub curl_residual: f64,
+    /// Whether `curl_residual` is within `HodgeOptions::curl_tol`. A solve
+    /// that stops on the iteration cap or on stagnation reports `false`.
+    pub converged: bool,
 }
 
 /// Controls for the curl solve.
@@ -59,7 +62,7 @@ pub fn decompose(
     let rest: Vec<f64> = f.iter().zip(&grad).map(|(a, b)| a - b).collect();
     let t = complex.n_triangles();
     let mut curl = vec![0.0; m];
-    let (mut curl_iterations, mut curl_residual) = (0, 0.0);
+    let (mut curl_iterations, mut curl_residual, mut converged) = (0, 0.0, true);
     if t > 0 {
         let mut b = vec![0.0; t];
         complex.b2t(&rest, &mut b);
@@ -68,6 +71,7 @@ pub fn decompose(
         complex.b2(&y, &mut curl);
         curl_iterations = rep.iterations;
         curl_residual = rep.relative_residual;
+        converged = rep.converged;
     }
     let harm = rest.iter().zip(&curl).map(|(a, b)| a - b).collect();
     Ok(Decomposition {
@@ -77,6 +81,7 @@ pub fn decompose(
         harm,
         curl_iterations,
         curl_residual,
+        converged,
     })
 }
 
@@ -111,6 +116,66 @@ mod tests {
     }
     fn run(c: &Complex, f: &[f64]) -> Decomposition {
         decompose(c, f, &HodgeOptions::default()).unwrap()
+    }
+
+    fn k6_third() -> (Complex, Vec<f64>) {
+        let base = Complex::new(6, complete(6)).unwrap();
+        let tri: Vec<[u32; 3]> = crate::triangles_of(&base).into_iter().step_by(3).collect();
+        let c = base.with_triangles(tri).unwrap();
+        let mut rng = ChaCha8Rng::seed_from_u64(7);
+        let f: Vec<f64> = (0..c.n_edges())
+            .map(|_| rng.random_range(-1.0..1.0))
+            .collect();
+        (c, f)
+    }
+
+    #[test]
+    fn default_solve_reports_convergence() {
+        let (c, f) = k6_third();
+        let d = run(&c, &f);
+        assert!(d.converged, "residual {}", d.curl_residual);
+        assert!(d.curl_residual <= HodgeOptions::default().curl_tol);
+    }
+
+    #[test]
+    fn iteration_cap_reports_nonconvergence_with_the_true_residual() {
+        let (c, f) = k6_third();
+        let opts = HodgeOptions {
+            curl_tol: 1e-14,
+            curl_max_iter: 1,
+        };
+        let d = decompose(&c, &f, &opts).unwrap();
+        assert!(!d.converged);
+        let rest: Vec<f64> = f.iter().zip(&d.grad).map(|(a, b)| a - b).collect();
+        let resid: Vec<f64> = rest.iter().zip(&d.curl).map(|(a, b)| a - b).collect();
+        let (mut num, mut den) = (vec![0.0; c.n_triangles()], vec![0.0; c.n_triangles()]);
+        c.b2t(&resid, &mut num);
+        c.b2t(&rest, &mut den);
+        let truth = norm(&num) / norm(&den);
+        assert!(
+            (d.curl_residual - truth).abs() <= 1e-12 * truth.max(1e-300),
+            "{} vs {}",
+            d.curl_residual,
+            truth
+        );
+    }
+
+    #[test]
+    fn unreachable_tolerance_stops_on_stagnation() {
+        let (c, f) = k6_third();
+        let opts = HodgeOptions {
+            curl_tol: 0.0,
+            curl_max_iter: 1_000_000,
+        };
+        let d = decompose(&c, &f, &opts).unwrap();
+        assert!(!d.converged);
+        assert!(
+            d.curl_iterations < 10_000,
+            "ran {} iterations",
+            d.curl_iterations
+        );
+        assert!(d.curl_residual < 1e-12, "residual {}", d.curl_residual);
+        assert!(d.curl.iter().all(|v| v.is_finite()));
     }
 
     #[test]
