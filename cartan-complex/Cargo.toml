@@ -13,5 +13,8 @@ homepage = "https://cartan.sotofranco.dev"
 
 [dependencies]
 thiserror = { workspace = true, features = ["std"] }
+rayon = { workspace = true }
 
 [dev-dependencies]
+rand = { workspace = true, features = ["std"] }
+rand_chacha = { workspace = true }

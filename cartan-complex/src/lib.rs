@@ -6,6 +6,8 @@
 
 pub mod complex;
 pub mod error;
+pub mod triangles;
 
 pub use complex::Complex;
 pub use error::ComplexError;
+pub use triangles::triangles_of;
