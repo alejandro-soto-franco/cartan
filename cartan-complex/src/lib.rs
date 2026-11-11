@@ -14,3 +14,7 @@ pub use complex::Complex;
 pub use error::ComplexError;
 pub use hodge::{Decomposition, HodgeOptions, decompose};
 pub use triangles::triangles_of;
+
+#[doc = include_str!("../README.md")]
+#[cfg(doctest)]
+pub struct ReadmeDoctests;

@@ -6,6 +6,7 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+readme = "README.md"
 keywords = ["hodge", "simplicial-complex", "graph", "exterior-calculus"]
 categories = ["science", "mathematics", "algorithms"]
 documentation = "https://docs.rs/cartan-complex"

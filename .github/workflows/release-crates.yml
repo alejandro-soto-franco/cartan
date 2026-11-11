@@ -35,7 +35,7 @@ jobs:
       # because maxwell has a dev-dependency on it, and cartan-matfree precedes
       # it too because maxwell's Ampere solve depends on it. cartan-matfree
       # leads: it depends on no other workspace crate, only on the published
-      # formoniq stack. cartan-mimetic depends on no workspace crate, and
+      # formoniq stack. cartan-mimetic and cartan-complex depend on no workspace crate, and
       # cartan-patic on cartan-core alone. The FEEC layer is not published from here; it comes from
       # the upstream formoniq crates, which cartan-io, cartan-matfree and
       # cartan-maxwell consume as ordinary registry dependencies.
@@ -51,6 +51,7 @@ jobs:
             cat <<'ORDER'
           cartan-matfree
           cartan-mimetic
+          cartan-complex
           cartan-core
           cartan-patic
           cartan-manifolds

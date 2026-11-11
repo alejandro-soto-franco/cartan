@@ -6,6 +6,15 @@ All notable changes to cartan are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **`cartan-complex`.** Abstract simplicial complexes up to dimension two, for
+  neighbour graphs with no manifold structure: incidence operators `B1` and
+  `B2`, triangle enumeration as sorted 3-cliques, and the Hodge decomposition of
+  an edge flow into gradient, curl and harmonic parts. The gradient is a
+  grounded sparse Cholesky solve and the curl a conjugate gradient projection
+  that reports its true residual and whether it converged.
+
 ### Fixed
 
 - **`Spd<N>` Ricci and scalar curvature.** SPD(N) with the affine-invariant
