@@ -1,0 +1,17 @@
+[package]
+name = "cartan-complex"
+description = "Abstract simplicial complexes with incidence operators and the Hodge decomposition of edge flows"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords = ["hodge", "simplicial-complex", "graph", "exterior-calculus"]
+categories = ["science", "mathematics", "algorithms"]
+documentation = "https://docs.rs/cartan-complex"
+homepage = "https://cartan.sotofranco.dev"
+
+[dependencies]
+thiserror = { workspace = true, features = ["std"] }
+
+[dev-dependencies]
