@@ -44,7 +44,7 @@ assert!((d - s2.norm(&p, &v)).abs() < 1e-10);
 ```
 
 Every example in the [guide](https://docs.rs/cartan/latest/cartan/guide/) is a
-doctest, so nothing there can drift from the API.
+doctest. None of them can drift from the API.
 
 ## Three regimes
 
@@ -61,7 +61,7 @@ adds.
 
 ## Features
 
-The default is `std` plus `dec`. Everything else is opt-in, so computing a
+The default is `std` plus `dec`. Everything else is opt-in. Computing a
 geodesic does not compile a sparse solver.
 
 | feature | brings in | requires |
@@ -78,8 +78,8 @@ geodesic does not compile a sparse solver.
 | `maxwell` | `cartan-maxwell` | `io`, `matfree` |
 | `full` | everything above | std |
 
-docs.rs is built with all features, and each feature-dependent item has a badge naming
-the flag it needs, so the whole surface stays visible regardless of your build.
+docs.rs is built with all features. Each feature-dependent item has a badge naming
+the flag it needs. The whole surface stays visible whatever features your build enables.
 
 ## Crates
 
@@ -101,8 +101,8 @@ the flag it needs, so the whole surface stays visible regardless of your build.
 | [`cartan-gpu`](https://docs.rs/cartan-gpu) | retired at 0.9.0; WGSL has no `f64`, see its README |
 | [`cartan-py`](https://pypi.org/project/cartan/) | Python bindings via PyO3, with numpy interop |
 
-The FEEC layer comes from the upstream [`formoniq`](https://crates.io/crates/formoniq)
-crates rather than being vendored.
+The FEEC layer depends on the upstream [`formoniq`](https://crates.io/crates/formoniq)
+crates from crates.io.
 
 ## Embedded and no_std
 
@@ -112,8 +112,8 @@ cartan = { version = "0.9", default-features = false, features = ["alloc"] }
 
 That gives the point-geometry stack, and with `homog` the mean-field
 homogenisation schemes as well. CI builds both configurations for
-`thumbv7em-none-eabihf` on every run, so the claim is tested against a target
-with no standard library rather than inferred from a host build.
+`thumbv7em-none-eabihf` on every run. The claim is tested against a target
+with no standard library.
 
 `cartan-core` also builds bare, with no allocator at all. Each crate's own
 documentation states its feature tiers.
