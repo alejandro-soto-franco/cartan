@@ -9,7 +9,7 @@ computation in Rust.
 
 ## What this crate does
 
-`cartan` is a re-export façade. Downstream users add `cartan = "0.10"` and
+`cartan` is a re-export façade. Downstream users add `cartan = "0.11"` and
 get the most commonly used items from the subcrates under one namespace,
 with no need to track sibling crate versions individually.
 

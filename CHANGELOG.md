@@ -6,6 +6,14 @@ All notable changes to cartan are documented here.
 
 ## [Unreleased]
 
+---
+
+## [0.11.0] - 2026-11-18
+
+The curvature fixes below change values the public API returns, so code that
+calibrated against `Spd<N>` Ricci or scalar curvature, or against any
+`Grassmann<N,K>` curvature, sees new numbers.
+
 ### Added
 
 - **`cartan-complex`.** Abstract simplicial complexes up to dimension two, for
@@ -13,7 +21,11 @@ All notable changes to cartan are documented here.
   `B2`, triangle enumeration as sorted 3-cliques, and the Hodge decomposition of
   an edge flow into gradient, curl and harmonic parts. The gradient is a
   grounded sparse Cholesky solve and the curl a conjugate gradient projection
-  that reports its true residual and whether it converged.
+  that reports its true residual and whether it converged. First published on
+  its own as 0.10.0; it joins the workspace release here.
+- **`cartan_dec::space_form_lichnerowicz_correction(kappa)`** builds the
+  space-form correction below as a 3x3 endomorphism on the `[Qxx, Qxy, Qyy]`
+  components, with a unit test of its eigenvalues.
 
 ### Fixed
 
@@ -33,12 +45,6 @@ All notable changes to cartan are documented here.
   on symmetric 2-tensors as `2K * Id`. On a surface of constant sectional
   curvature K the Weitzenböck term is `2nK h - 2K tr(h) g` with n = 2, which
   is 4K on the traceless part and 0 on the trace part.
-
-### Added
-
-- **`cartan_dec::space_form_lichnerowicz_correction(kappa)`** builds that
-  3x3 endomorphism on the `[Qxx, Qxy, Qyy]` components, with a unit test of
-  its eigenvalues.
 
 ### Changed
 

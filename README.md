@@ -22,7 +22,7 @@ Documentation: [cartan.sotofranco.dev](https://cartan.sotofranco.dev) ·
 
 ```toml
 [dependencies]
-cartan = "0.10"
+cartan = "0.11"
 ```
 
 ```rust
