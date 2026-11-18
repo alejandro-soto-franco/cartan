@@ -139,10 +139,33 @@ jobs:
           skipped=0
           summary=""
 
+          # A crate published moments earlier can be missing from the index
+          # the runner reads for a few minutes after cargo reports it
+          # available. The 0.11.0 release failed that way: the `cartan` facade
+          # could not resolve `cartan-geo = "^0.11"` three minutes after
+          # cartan-geo 0.11.0 was published. A resolution failure is therefore
+          # retried, and any other failure still stops the release.
+          attempt_publish() {
+            local crate=$1 try
+            for try in 1 2 3 4 5 6 7 8 9 10; do
+              if cargo publish -p "$crate" 2>&1 | tee /tmp/publish.log; then
+                return 0
+              fi
+              if grep -qE "failed to select a version for the requirement" /tmp/publish.log; then
+                echo "$crate: a dependency is not in the index yet (attempt $try of 10), retrying in 30 s."
+                sleep 30
+                cargo update --workspace --quiet || true
+                continue
+              fi
+              return 1
+            done
+            return 1
+          }
+
           while read -r crate; do
             [ -n "$crate" ] || continue
             echo "::group::publish $crate"
-            if cargo publish -p "$crate" 2>&1 | tee /tmp/publish.log; then
+            if attempt_publish "$crate"; then
               echo "$crate published."
               published=$((published + 1))
               summary="${summary}| \`${crate}\` | published |"$'\n'
