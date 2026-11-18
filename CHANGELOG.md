@@ -8,6 +8,12 @@ All notable changes to cartan are documented here.
 
 ### Added
 
+- **`cartan-holonomy`.** Levi-Civita geometry of a point cloud: local PCA
+  frames, Procrustes transport on the mutual neighbour graph, triangle holonomy
+  and a per-point curvature operator, and the covariant jet of a vector field,
+  fitted point by point or as one section of `End(TM)` regularised by the
+  connection Laplacian through `cartan-matfree::pcg`. Exact neighbour search on
+  tiled matrix products. Not yet published. Python: `cartan.CloudConnection`.
 - **`cartan-complex`.** Abstract simplicial complexes up to dimension two, for
   neighbour graphs with no manifold structure: incidence operators `B1` and
   `B2`, triangle enumeration as sorted 3-cliques, and the Hodge decomposition of

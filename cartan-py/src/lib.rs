@@ -1,5 +1,6 @@
 use pyo3::prelude::*;
 
+mod cloud;
 pub(crate) mod convert;
 mod dec;
 mod error;
@@ -20,5 +21,6 @@ fn cartan(m: &Bound<'_, PyModule>) -> PyResult<()> {
     holonomy::register(m)?;
     dec::register(m)?;
     stochastic::register(m)?;
+    cloud::register(m)?;
     Ok(())
 }

@@ -23,6 +23,7 @@ members = [
     "cartan-matfree",
     "cartan-mimetic",
     "cartan-complex",
+    "cartan-holonomy",
     "cartan-patic",
     "benchmarks/rust",
 ]

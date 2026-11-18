@@ -1,0 +1,24 @@
+[package]
+name = "cartan-holonomy"
+description = "Levi-Civita transport, plaquette curvature and covariant jets on a sampled submanifold"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+keywords = ["holonomy", "curvature", "point-cloud", "levi-civita", "manifold-learning"]
+categories = ["science", "mathematics", "algorithms"]
+documentation = "https://docs.rs/cartan-holonomy"
+homepage = "https://cartan.sotofranco.dev"
+publish = false
+
+[dependencies]
+nalgebra = { workspace = true, features = ["std"] }
+rayon = { workspace = true }
+faer = { workspace = true }
+cartan-matfree = { path = "../cartan-matfree", version = "0.10.0" }
+
+[dev-dependencies]
+cartan-core = { path = "../cartan-core" }
+cartan-manifolds = { path = "../cartan-manifolds" }

@@ -24,5 +24,6 @@ cartan-optim = { path = "../cartan-optim", features = ["std"] }
 cartan-geo = { path = "../cartan-geo", features = ["std"] }
 cartan-dec = { path = "../cartan-dec" }
 cartan-stochastic = { path = "../cartan-stochastic" }
+cartan-holonomy = { path = "../cartan-holonomy" }
 nalgebra-sparse = { version = "0.12" }
 rand = { version = "0.9", features = ["std_rng", "std", "os_rng", "thread_rng"] }
